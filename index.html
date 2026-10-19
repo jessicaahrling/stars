@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Stjärnhimlen</title>
+  <meta name="claude:viewport-fit-sides" content="cover">
+  <meta name="description" content="Titta runt på den svenska natthimlen och lär dig stjärnbilderna. Realistiska positioner för vald ort och tid.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital@1&family=Jost:wght@400;500;600&display=swap">
+  <style>
+    /* Layout: the sky fills the screen; controls float at its edges like instruments around an eyepiece. */
+    :root {
+      color-scheme: dark;
+      --night: #04070f;
+      --glass: rgba(9, 14, 30, 0.74);
+      --glass-strong: rgba(10, 16, 34, 0.94);
+      --hairline: rgba(150, 172, 226, 0.17);
+      --ink: #e6ebf8;
+      --ink-2: #a3b0cf;
+      --ink-3: #6f7c9e;
+      --gold: #f5c46b;
+      --up: #8fe3b8;
+      --font-sans: "Jost", "Futura", "Century Gothic", "Avenir Next", system-ui, sans-serif;
+      --font-latin: "EB Garamond", "Garamond", "Iowan Old Style", Georgia, serif;
+      --radius: 14px;
+      --gutter-l: max(16px, env(safe-area-inset-left, 0px));
+      --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+      --top: max(12px, env(safe-area-inset-top, 0px));
+      --bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    }
+    html, body { height: 100%; margin: 0; overflow: hidden; background: var(--night); color: var(--ink); }
+    body { font: 15px/1.4 var(--font-sans); -webkit-tap-highlight-color: transparent; }
+    button, input, select { font: inherit; color: inherit; }
+    [hidden] { display: none !important; }
+
+    #sky { position: fixed; inset: 0; touch-action: none; }
+    #sky canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    #layer-hud { cursor: grab; outline: none; }
+    #layer-hud.dragging { cursor: grabbing; }
+    #layer-hud.pointing { cursor: pointer; }
+
+    .bar { position: fixed; left: 0; right: 0; display: flex; align-items: center; gap: 10px;
+      padding-left: var(--gutter-l); padding-right: var(--gutter-r); pointer-events: none; }
+    .bar > * { pointer-events: auto; }
+    .bar-top { top: 0; padding-top: var(--top); }
+    .bar-bottom { bottom: 0; padding-bottom: var(--bottom); align-items: flex-end; }
+
+    .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; font-weight: 500;
+      letter-spacing: 0.22em; text-transform: uppercase; font-size: 13px; color: var(--ink);
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8); pointer-events: none; }
+    .brand svg { width: 40px; height: 22px; flex: none; }
+
+    .chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px;
+      border-radius: 999px; border: 1px solid var(--hairline); background: var(--glass);
+      -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); cursor: pointer;
+      white-space: nowrap; font-variant-numeric: tabular-nums; transition: background .15s, border-color .15s; }
+    .chip:hover { background: var(--glass-strong); border-color: rgba(170, 190, 240, 0.32); }
+    .chip[aria-expanded="true"], .chip[aria-pressed="true"] { border-color: rgba(245, 196, 107, 0.55); }
+    :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    .chip .sep { color: var(--ink-3); }
+    .chip .muted { color: var(--ink-2); }
+    .live { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--up);
+      display: inline-flex; align-items: center; gap: 5px; }
+    .live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--up);
+      box-shadow: 0 0 8px var(--up); }
+    .count { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--gold);
+      color: #1b1406; font-size: 12px; font-weight: 600; display: inline-grid; place-items: center; }
+
+    .toggles { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; flex: 1;
+      padding: 2px; }
+    .toggles::-webkit-scrollbar { display: none; }
+    .toggle { min-height: 36px; padding: 0 12px; font-size: 13px; letter-spacing: 0.04em; color: var(--ink-2); }
+    .toggle[aria-pressed="true"] { color: var(--ink); background: rgba(30, 42, 78, 0.85); }
+    .toggle::before { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--ink-3); }
+    .toggle[aria-pressed="true"]::before { background: var(--gold); border-color: var(--gold); }
+    .zoom { display: flex; gap: 6px; flex: none; }
+    .round { width: 40px; padding: 0; justify-content: center; font-size: 20px; line-height: 1; }
+
+    .panel { position: fixed; z-index: 5; background: var(--glass-strong); border: 1px solid var(--hairline);
+      border-radius: var(--radius); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45); }
+    .panel h2 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--ink-2); }
+
+    .panel-when { top: calc(var(--top) + 52px); right: var(--gutter-r); width: 330px; padding: 18px;
+      display: grid; gap: 14px; }
+    .field { display: grid; gap: 6px; }
+    fieldset.field { border: 0; padding: 0; margin: 0; min-width: 0; }
+    fieldset.field legend { padding: 0; margin-bottom: 6px; }
+    .field label, .field legend { font-size: 12px; color: var(--ink-2); letter-spacing: 0.06em; }
+    .field-row { display: flex; align-items: baseline; justify-content: space-between; }
+    .field output { font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+    select, input[type="date"], input[type="search"] { width: 100%; box-sizing: border-box; min-height: 40px;
+      padding: 0 12px; border-radius: 10px; border: 1px solid var(--hairline); background: rgba(4, 7, 16, 0.6); }
+    input[type="range"] { width: 100%; accent-color: var(--gold); }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .seg { display: flex; flex-wrap: wrap; gap: 6px; border: 0; padding: 0; margin: 0; }
+    .seg button { min-height: 34px; padding: 0 11px; font-size: 13px; }
+
+    .panel-list { top: calc(var(--top) + 52px); right: var(--gutter-r); bottom: calc(var(--bottom) + 52px);
+      width: 340px; display: flex; flex-direction: column; overflow: hidden; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 14px 10px 18px; }
+    .panel-list .tools { display: grid; gap: 10px; padding: 0 14px 10px; }
+    .icon-btn { width: 36px; height: 36px; border-radius: 50%; border: 0; background: transparent;
+      color: var(--ink-2); font-size: 22px; cursor: pointer; }
+    .icon-btn:hover { background: rgba(255, 255, 255, 0.06); color: var(--ink); }
+    .con-list { list-style: none; margin: 0; padding: 4px 8px 8px; overflow-y: auto; flex: 1; min-height: 0;
+      border-top: 1px solid var(--hairline); }
+    .con-list li { display: flex; align-items: center; gap: 4px; border-radius: 10px; }
+    .con-list li.is-selected { background: rgba(255, 255, 255, 0.06); }
+    .mark-box { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border: 0;
+      background: none; cursor: pointer; padding: 0; }
+    .mark-box span { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--ink-3);
+      display: grid; place-items: center; }
+    .mark-box[aria-pressed="true"] span { background: var(--mark, var(--gold)); border-color: var(--mark, var(--gold)); }
+    .mark-box[aria-pressed="true"] span::after { content: ""; width: 7px; height: 4px; border: 2px solid #10131c;
+      border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); }
+    .con-name { flex: 1; min-width: 0; display: grid; text-align: left; padding: 6px 4px; border: 0;
+      background: none; cursor: pointer; border-radius: 8px; }
+    .con-name strong { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .con-name em { font-family: var(--font-latin); font-size: 15px; color: var(--ink-3); }
+    .state { flex: none; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3);
+      padding-right: 10px; }
+    .state.up { color: var(--up); }
+    .panel-foot { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 14px 14px; border-top: 1px solid var(--hairline); }
+    .panel-foot .chip { min-height: 36px; font-size: 13px; }
+    .empty { padding: 18px 12px; color: var(--ink-2); }
+
+    .card { position: fixed; z-index: 4; left: 50%; transform: translateX(-50%);
+      bottom: calc(var(--bottom) + 60px); width: min(430px, calc(100vw - 32px)); box-sizing: border-box;
+      padding: 16px 18px; background: var(--glass-strong); border: 1px solid var(--hairline);
+      border-radius: var(--radius); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5); display: grid; gap: 10px; }
+    .card-head { display: flex; align-items: flex-start; gap: 12px; }
+    .swatch { flex: none; width: 12px; height: 12px; border-radius: 50%; margin-top: 9px; }
+    .card h3 { margin: 0; font-size: 24px; font-weight: 500; letter-spacing: 0.02em; line-height: 1.15;
+      text-wrap: balance; }
+    .card .latin { font-family: var(--font-latin); font-style: italic; font-size: 17px; color: var(--ink-2); }
+    .card .titles { flex: 1; min-width: 0; }
+    .facts { margin: 0; display: grid; gap: 4px; font-size: 14px; color: var(--ink-2); }
+    .facts b { color: var(--ink); font-weight: 500; }
+    .card .btn-row .chip { min-height: 38px; }
+    .chip.primary { background: var(--gold); color: #1b1406; border-color: var(--gold); font-weight: 500; }
+    .chip.primary:hover { background: #ffd48a; }
+
+    .toast { position: fixed; left: 50%; transform: translateX(-50%); top: calc(var(--top) + 60px); z-index: 6;
+      padding: 10px 16px; border-radius: 999px; background: var(--glass-strong); border: 1px solid var(--hairline);
+      font-size: 14px; }
+    .fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; }
+
+    @media (max-width: 640px) {
+      .brand span { display: none; }
+      .chip-when .where { display: none; }
+      .panel-when { left: var(--gutter-l); right: var(--gutter-r); width: auto; }
+      .panel-list { left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: 72%; border-radius: 18px 18px 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px);
+        padding-right: env(safe-area-inset-right, 0px); }
+      .card { bottom: calc(var(--bottom) + 56px); }
+      .card h3 { font-size: 21px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <div id="sky" role="application" aria-label="Stjärnhimlen. Dra för att titta runt, scrolla eller nyp för att zooma och klicka på en stjärnbild för att välja den.">
+    <canvas id="layer-sky"></canvas>
+    <canvas id="layer-stars"></canvas>
+    <canvas id="layer-ground"></canvas>
+    <canvas id="layer-hud" tabindex="0"></canvas>
+  </div>
+
+  <header class="bar bar-top">
+    <div class="brand">
+      <svg viewBox="0 0 40 22" aria-hidden="true">
+        <polyline points="3,6 10,4 16,7 22,10 24,17 33,19 35,11 22,10" fill="none" stroke="#f5c46b" stroke-opacity="0.55" stroke-width="1"/>
+        <g fill="#e6ebf8"><circle cx="3" cy="6" r="1.6"/><circle cx="10" cy="4" r="1.6"/><circle cx="16" cy="7" r="1.5"/><circle cx="22" cy="10" r="1.3"/><circle cx="24" cy="17" r="1.6"/><circle cx="33" cy="19" r="1.7"/><circle cx="35" cy="11" r="1.7"/></g>
+      </svg>
+      <span>Stjärnhimlen</span>
+    </div>
+    <button id="btn-when" class="chip chip-when" aria-expanded="false" aria-controls="panel-when">
+      <span class="where"><span id="when-place">Stockholm</span> <span class="sep">·</span></span>
+      <span id="when-time">–</span>
+      <span id="when-live" class="live">nu</span>
+    </button>
+    <button id="btn-list" class="chip" aria-expanded="false" aria-controls="panel-list">
+      Stjärnbilder <span id="mark-count" class="count" hidden>0</span>
+    </button>
+  </header>
+
+  <section id="panel-when" class="panel panel-when" aria-label="Plats och tid" hidden>
+    <h2>Plats och tid</h2>
+    <div class="field">
+      <label for="place">Ort</label>
+      <select id="place"></select>
+    </div>
+    <div class="field">
+      <label for="date">Datum</label>
+      <input type="date" id="date">
+    </div>
+    <div class="field">
+      <div class="field-row"><label for="clock">Klockan</label><output id="clock-out" for="clock">22:00</output></div>
+      <input type="range" id="clock" min="0" max="1435" step="5" value="1320">
+    </div>
+    <div class="btn-row">
+      <button id="btn-now" class="chip" type="button">Nu</button>
+      <button id="btn-tonight" class="chip" type="button">I kväll kl. 22</button>
+    </div>
+    <fieldset class="field">
+      <legend>Låt tiden gå</legend>
+      <div class="seg" id="speed">
+        <button type="button" class="chip" data-speed="0">Stilla</button>
+        <button type="button" class="chip" data-speed="1">Som vanligt</button>
+        <button type="button" class="chip" data-speed="600">10 min/s</button>
+        <button type="button" class="chip" data-speed="3600">1 tim/s</button>
+      </div>
+    </fieldset>
+  </section>
+
+  <aside id="panel-list" class="panel panel-list" aria-label="Stjärnbilder" hidden>
+    <div class="panel-head">
+      <h2>Stjärnbilder</h2>
+      <button id="btn-list-close" class="icon-btn" type="button" aria-label="Stäng listan">×</button>
+    </div>
+    <div class="tools">
+      <input type="search" id="search" placeholder="Sök på svenska eller latin" autocomplete="off">
+      <div class="seg">
+        <button id="filter-visible" type="button" class="chip" aria-pressed="true">Syns från <span id="filter-place">Stockholm</span> <span class="muted" id="filter-count"></span></button>
+        <button id="filter-all" type="button" class="chip" aria-pressed="false">Alla 88</button>
+      </div>
+    </div>
+    <ul id="con-list" class="con-list"></ul>
+    <div class="panel-foot">
+      <button id="btn-mark-up" type="button" class="chip">Markera alla som är uppe</button>
+      <button id="btn-clear" type="button" class="chip">Rensa markeringar</button>
+    </div>
+  </aside>
+
+  <section id="card" class="card" aria-live="polite" hidden></section>
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <nav class="bar bar-bottom" aria-label="Visa på himlen">
+    <div class="toggles" id="toggles">
+      <button type="button" class="chip toggle" data-layer="lines" aria-pressed="true">Linjer</button>
+      <button type="button" class="chip toggle" data-layer="names" aria-pressed="true">Namn</button>
+      <button type="button" class="chip toggle" data-layer="bounds" aria-pressed="false">Gränser</button>
+      <button type="button" class="chip toggle" data-layer="starNames" aria-pressed="true">Stjärnnamn</button>
+      <button type="button" class="chip toggle" data-layer="milkyWay" aria-pressed="true">Vintergatan</button>
+      <button type="button" class="chip toggle" data-layer="seeThrough" aria-pressed="false">Se genom marken</button>
+    </div>
+    <div class="zoom">
+      <button id="zoom-out" type="button" class="chip round" aria-label="Zooma ut">−</button>
+      <button id="zoom-in" type="button" class="chip round" aria-label="Zooma in">+</button>
+    </div>
+  </nav>
+
+  <noscript><div class="fallback">Stjärnhimlen behöver JavaScript.</div></noscript>
+  <script src="dist/stjarnhimlen.js"></script>
+</body>
+</html>

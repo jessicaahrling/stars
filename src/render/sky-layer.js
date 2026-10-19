@@ -1,0 +1,260 @@
+// 2D canvas between the sky and the ground: stars, stick figures and boundaries.
+import { bvToRgb, MARK_COLORS, SELECT_COLOR, SKY } from './palette.js';
+
+const COLOR_STEPS = 8;
+const ALPHA_STEPS = [0.22, 0.36, 0.52, 0.7, 0.86, 1];
+/** Faintest magnitude drawn after extinction. */
+const MAG_LIMIT = 6.3;
+/** Magnitudes lost per extra airmass near the horizon. */
+const EXTINCTION = 0.28;
+
+function radiusForMag(mag) {
+  return 0.5 + 0.42 * Math.pow(Math.max(0, 6.4 - mag), 1.22);
+}
+
+function alphaForMag(mag) {
+  return Math.min(1, Math.max(0.15, 0.24 + (6.2 - mag) * 0.24));
+}
+
+export class SkyLayer {
+  /**
+   * @param {HTMLCanvasElement} canvas
+   * @param {ReturnType<import('../sky/catalog.js').buildCatalog>} catalog
+   */
+  constructor(canvas, catalog) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.catalog = catalog;
+    const n = catalog.stars.count;
+    /** Screen positions of every star for the current frame (CSS px); NaN when not drawn. */
+    this.px = new Float32Array(n);
+    this.py = new Float32Array(n);
+    this.pr = new Float32Array(n);
+    this.colorStep = new Uint8Array(n);
+    const bvMin = -0.3;
+    const bvMax = 1.8;
+    for (let i = 0; i < n; i++) {
+      const t = (catalog.stars.bv[i] - bvMin) / (bvMax - bvMin);
+      this.colorStep[i] = Math.max(0, Math.min(COLOR_STEPS - 1, Math.round(t * (COLOR_STEPS - 1))));
+    }
+    this.colors = [];
+    this.glows = [];
+    for (let k = 0; k < COLOR_STEPS; k++) {
+      const rgb = bvToRgb(bvMin + ((bvMax - bvMin) * k) / (COLOR_STEPS - 1));
+      this.colors.push(`rgb(${rgb.join(',')})`);
+      this.glows.push(makeGlow(rgb));
+    }
+    this.buckets = Array.from({ length: COLOR_STEPS * ALPHA_STEPS.length }, () => []);
+    this.pt = { x: 0, y: 0, z: 0 };
+  }
+
+  resize(cssW, cssH, dpr) {
+    this.dpr = dpr;
+    const w = Math.max(1, Math.round(cssW * dpr));
+    const h = Math.max(1, Math.round(cssH * dpr));
+    if (this.canvas.width !== w || this.canvas.height !== h) {
+      this.canvas.width = w;
+      this.canvas.height = h;
+    }
+  }
+
+  /**
+   * @param {import('../sky/view.js').SkyView} view
+   * @param {object} st  render state: layers, marks (Map index -> colour index),
+   *   selected, hover, groundOpaque
+   */
+  render(view, st) {
+    const { ctx, catalog } = this;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.clearRect(0, 0, view.width, view.height);
+    this.projectStars(view, st);
+
+    const special = new Map();
+    for (const [i, colorIdx] of st.marks) special.set(i, MARK_COLORS[colorIdx % MARK_COLORS.length].hex);
+    if (st.selected >= 0 && !special.has(st.selected)) special.set(st.selected, SELECT_COLOR.hex);
+
+    // Boundaries
+    ctx.lineJoin = 'round';
+    if (st.layers.bounds) {
+      ctx.setLineDash([3, 4]);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = SKY.bound;
+      ctx.beginPath();
+      for (const c of catalog.constellations) {
+        if (!special.has(c.index) && c.index !== st.hover) this.tracePolyline(view, c.outlines);
+      }
+      ctx.stroke();
+    }
+    if (st.hover >= 0 && !special.has(st.hover)) {
+      ctx.setLineDash([3, 4]);
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = SKY.boundHover;
+      ctx.beginPath();
+      this.tracePolyline(view, catalog.constellations[st.hover].outlines);
+      ctx.stroke();
+    }
+    ctx.setLineDash([7, 5]);
+    ctx.lineWidth = 1.4;
+    for (const [i, color] of special) {
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath();
+      this.tracePolyline(view, catalog.constellations[i].outlines);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
+
+    // Stick figures
+    ctx.lineCap = 'round';
+    if (st.layers.lines) {
+      ctx.lineWidth = 1.1;
+      ctx.strokeStyle = SKY.line;
+      ctx.beginPath();
+      for (const c of catalog.constellations) {
+        if (!special.has(c.index) && c.index !== st.hover) this.traceSegments(c.segments);
+      }
+      ctx.stroke();
+    }
+    if (st.hover >= 0 && !special.has(st.hover)) {
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = SKY.lineHover;
+      ctx.beginPath();
+      this.traceSegments(catalog.constellations[st.hover].segments);
+      ctx.stroke();
+    }
+    ctx.lineWidth = 2;
+    for (const [i, color] of special) {
+      ctx.strokeStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      this.traceSegments(catalog.constellations[i].segments);
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+
+    this.drawStars();
+  }
+
+  /** Projects all stars, buckets them by colour and brightness. */
+  projectStars(view, st) {
+    const { stars } = this.catalog;
+    const m = view.eqToCam;
+    const h = view.eqToHor;
+    const pt = this.pt;
+    const zoom = Math.min(2.1, Math.max(0.85, Math.pow(90 / view.fov, 0.38)));
+    const minZ = view.cosCorner - 0.02;
+    for (const b of this.buckets) b.length = 0;
+    for (let i = 0; i < stars.count; i++) {
+      this.px[i] = NaN;
+      const x = stars.x[i];
+      const y = stars.y[i];
+      const z = stars.z[i];
+      const cz = m[6] * x + m[7] * y + m[8] * z;
+      if (cz < minZ) continue;
+      const sinAlt = h[6] * x + h[7] * y + h[8] * z;
+      let mag = stars.mag[i];
+      if (sinAlt > 0) {
+        const airmass = 1 / (sinAlt + 0.025 * Math.exp(-11 * sinAlt));
+        mag += Math.min(4, EXTINCTION * (airmass - 1));
+      } else if (st.groundOpaque) {
+        continue;
+      }
+      if (mag > MAG_LIMIT) continue;
+      if (!view.projectCam(m[0] * x + m[1] * y + m[2] * z, m[3] * x + m[4] * y + m[5] * z, cz, pt)) continue;
+      const r = radiusForMag(mag) * zoom;
+      this.px[i] = pt.x;
+      this.py[i] = pt.y;
+      this.pr[i] = r;
+      const a = alphaForMag(mag);
+      let ai = 0;
+      while (ai < ALPHA_STEPS.length - 1 && ALPHA_STEPS[ai] < a) ai++;
+      this.buckets[this.colorStep[i] * ALPHA_STEPS.length + ai].push(i);
+    }
+  }
+
+  drawStars() {
+    const { ctx } = this;
+    // Soft halos behind the brightest stars.
+    for (let i = 0; i < this.catalog.stars.count; i++) {
+      if (this.catalog.stars.mag[i] > 2.2) break; // sorted bright first
+      if (Number.isNaN(this.px[i])) continue;
+      const r = this.pr[i] * 4.2;
+      ctx.globalAlpha = Math.min(0.55, (2.4 - this.catalog.stars.mag[i]) / 5);
+      ctx.drawImage(this.glows[this.colorStep[i]], this.px[i] - r, this.py[i] - r, 2 * r, 2 * r);
+    }
+    for (let c = 0; c < COLOR_STEPS; c++) {
+      ctx.fillStyle = this.colors[c];
+      for (let a = 0; a < ALPHA_STEPS.length; a++) {
+        const list = this.buckets[c * ALPHA_STEPS.length + a];
+        if (!list.length) continue;
+        ctx.globalAlpha = ALPHA_STEPS[a];
+        ctx.beginPath();
+        for (const i of list) {
+          const x = this.px[i];
+          const y = this.py[i];
+          const r = this.pr[i];
+          ctx.moveTo(x + r, y);
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+        }
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /** Adds stick-figure segments to the current path, leaving a gap around each star. */
+  traceSegments(segments) {
+    const { ctx, px, py, pr } = this;
+    for (let k = 0; k < segments.length; k += 2) {
+      const a = segments[k];
+      const b = segments[k + 1];
+      const x1 = px[a];
+      const x2 = px[b];
+      if (Number.isNaN(x1) || Number.isNaN(x2)) continue;
+      const y1 = py[a];
+      const y2 = py[b];
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      const ga = Math.min(len * 0.3, pr[a] + 3);
+      const gb = Math.min(len * 0.3, pr[b] + 3);
+      if (len - ga - gb < 1) continue;
+      const ux = (x2 - x1) / len;
+      const uy = (y2 - y1) / len;
+      ctx.moveTo(x1 + ux * ga, y1 + uy * ga);
+      ctx.lineTo(x2 - ux * gb, y2 - uy * gb);
+    }
+  }
+
+  /** Adds closed outlines (arrays of J2000 vectors) to the current path. */
+  tracePolyline(view, rings) {
+    const { ctx, pt } = this;
+    for (const ring of rings) {
+      let pen = false;
+      for (let k = 0; k <= ring.length; k++) {
+        if (!view.projectEq(ring[k % ring.length], pt) || pt.z < -0.3) {
+          pen = false;
+          continue;
+        }
+        if (pen) ctx.lineTo(pt.x, pt.y);
+        else ctx.moveTo(pt.x, pt.y);
+        pen = true;
+      }
+    }
+  }
+}
+
+function makeGlow(rgb) {
+  const size = 64;
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, `rgba(${rgb.join(',')},0.9)`);
+  grad.addColorStop(0.25, `rgba(${rgb.join(',')},0.28)`);
+  grad.addColorStop(1, `rgba(${rgb.join(',')},0)`);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, size, size);
+  return c;
+}

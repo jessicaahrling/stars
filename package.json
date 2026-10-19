@@ -1,0 +1,21 @@
+{
+  "name": "stjarnhimlen",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Stjärnhimlen – lär dig stjärnbilderna på den svenska natthimlen. Interaktiv himmelsvy med realistiska positioner för vald ort och tid.",
+  "type": "module",
+  "scripts": {
+    "data": "node scripts/build-data.mjs",
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs --serve",
+    "start": "node scripts/build.mjs --serve",
+    "test": "node --test \"test/unit/*.test.js\"",
+    "test:e2e": "node scripts/build.mjs && node test/e2e/smoke.mjs",
+    "check": "npm run build && npm test && npm run test:e2e"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "playwright": "1.56.1"
+  }
+}
