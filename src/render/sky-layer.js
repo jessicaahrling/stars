@@ -73,8 +73,11 @@ export class SkyLayer {
     for (const [i, colorIdx] of st.marks) special.set(i, MARK_COLORS[colorIdx % MARK_COLORS.length].hex);
     if (st.selected >= 0 && !special.has(st.selected)) special.set(st.selected, SELECT_COLOR.hex);
 
-    // Boundaries
     ctx.lineJoin = 'round';
+    ctx.lineCap = 'butt';
+    if (st.layers.art) this.drawArt(view, st, special);
+
+    // Boundaries
     if (st.layers.bounds) {
       ctx.setLineDash([3, 4]);
       ctx.lineWidth = 1;
@@ -135,6 +138,69 @@ export class SkyLayer {
     ctx.shadowBlur = 0;
 
     this.drawStars();
+  }
+
+  /** Illustrations: plain ones batched in two paths, hovered and marked ones on top. */
+  drawArt(view, st, special) {
+    const { ctx } = this;
+    const corner = (Math.acos(Math.max(-1, Math.min(1, view.cosCorner))) * 180) / Math.PI;
+    const m = view.eqToCam;
+    const visible = this.catalog.constellations.filter((c) => {
+      if (!c.art.length) return false;
+      const v = c.centerVec;
+      const cz = m[6] * v[0] + m[7] * v[1] + m[8] * v[2];
+      return (Math.acos(Math.max(-1, Math.min(1, cz))) * 180) / Math.PI - c.artRadius < corner + 2;
+    });
+    const plain = visible.filter((c) => !special.has(c.index) && c.index !== st.hover);
+    ctx.save();
+    ctx.lineCap = 'round';
+    const stroke = (list, fine, style, width) => {
+      ctx.strokeStyle = style;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      for (const c of list) this.traceArt(view, c.art, fine);
+      ctx.stroke();
+    };
+    stroke(plain, false, SKY.art, 1.25);
+    stroke(plain, true, SKY.artFine, 0.9);
+    const hover = visible.find((c) => c.index === st.hover && !special.has(c.index));
+    if (hover) {
+      stroke([hover], false, SKY.artHover, 1.4);
+      stroke([hover], true, SKY.artHoverFine, 1);
+    }
+    for (const c of visible) {
+      const color = special.get(c.index);
+      if (!color) continue;
+      ctx.globalAlpha = 0.75;
+      stroke([c], false, color, 1.5);
+      ctx.globalAlpha = 0.45;
+      stroke([c], true, color, 1);
+    }
+    ctx.restore();
+  }
+
+  /** Adds an illustration's main (or fine) polylines to the current path. */
+  traceArt(view, lines, fine) {
+    const { ctx, pt } = this;
+    const m = view.eqToCam;
+    for (const line of lines) {
+      if (line.fine !== fine) continue;
+      const v = line.vecs;
+      let pen = false;
+      for (let k = 0; k < v.length; k += 3) {
+        const x = v[k];
+        const y = v[k + 1];
+        const z = v[k + 2];
+        const cz = m[6] * x + m[7] * y + m[8] * z;
+        if (cz < -0.3 || !view.projectCam(m[0] * x + m[1] * y + m[2] * z, m[3] * x + m[4] * y + m[5] * z, cz, pt)) {
+          pen = false;
+          continue;
+        }
+        if (pen) ctx.lineTo(pt.x, pt.y);
+        else ctx.moveTo(pt.x, pt.y);
+        pen = true;
+      }
+    }
   }
 
   /** Projects all stars, buckets them by colour and brightness. */

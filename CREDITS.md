@@ -17,6 +17,9 @@ och gör om dem till `src/data/sky-data.js`.
 Mira (ο Ceti) läggs till för hand med magnitud 6,0 eftersom den varierar för mycket för
 att finnas med i katalogen men ingår i Valfiskens figur.
 
+Illustrationerna i `art/` är ritade för det här projektet efter de klassiska
+stjärnatlasernas motiv (Bode, Hevelius, Flamsteed) och följer projektets licens.
+
 Formler: Jean Meeus, *Astronomical Algorithms* (siderisk tid kap. 12, precession kap. 21).
 
 Typsnitt: Jost och EB Garamond från Google Fonts (SIL Open Font License).

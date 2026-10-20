@@ -28,6 +28,9 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   tiden kan gå i realtid, 10 min/s eller 1 tim/s.
 - **Bara figurstjärnor:** dölj alla stjärnor som inte ingår i någon stjärnbilds figur, så att
   mönstren framträder tydligt (fungerar med och utan linjer).
+- **Illustrationer:** en linjeteckning av vad varje stjärnbild föreställer, ritad över de
+  verkliga stjärnorna efter de klassiska stjärnatlasernas förebilder. Markerade
+  stjärnbilder får teckningen i sin egen färg.
 - **Markera stjärnbilder:** klicka på himlen eller i listan. Markerade stjärnbilder får
   en egen färg på figur, gräns och yta. Listan kan filtreras på de stjärnbilder som syns
   från vald ort och visar vilka som är uppe just nu.
@@ -43,8 +46,9 @@ src/astro/      tid, precession, höjd/azimut, synlighet (ren matematik, testad)
 src/sky/        stjärnkatalog, stjärnbildsgränser, kamera och projektion
 src/render/     WebGL (himmel, Vintergatan, mark) och 2D-canvas (stjärnor, linjer, namn)
 src/ui/         listan, infokortet, plats/tid-panelen, gester
-src/data/       svenska namn, orter och genererad stjärndata
-scripts/        bygge och datagenerering
+src/data/       svenska namn, orter och genererad stjärn- och bilddata
+art/            illustrationerna, en SVG per stjärnbild (se art/STYLE.md)
+scripts/        bygge, datagenerering och verktyg för illustrationerna
 test/           enhetstester (node --test) och ett webbläsartest (Playwright)
 ```
 
@@ -55,7 +59,14 @@ Stjärnbildsgränserna är definierade i B1875-koordinater, där varje kant är 
 konstant rektascension eller deklination. Därför avgörs vilken stjärnbild en punkt ligger
 i genom att räkna om punkten till B1875 och testa mot gränserna där.
 
+Illustrationerna ritas i ett eget koordinatsystem per stjärnbild, en stereografisk
+projektion kring stjärnbildens mitt med norr uppåt (se `src/sky/art-frame.js`). Vid
+bygget plattas kurvorna ut till linjer, och appen räknar om dem till riktningar på himlen
+så att de följer stjärnorna exakt i alla vyer.
+
 ```sh
+node scripts/art-tool.mjs preview Ori   # förhandsvisa en illustration över sina stjärnor
+npm run art                             # src/data/art-data.js från art/*.svg (ingår i npm run build)
 npm test           # enhetstester
 npm run test:e2e   # bygger och kör webbläsartestet i Chromium
 npm run data       # genererar src/data/sky-data.js från källdatan på nytt

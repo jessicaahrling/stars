@@ -93,6 +93,30 @@ try {
   await settle(page);
   assert.deepEqual((await drawn()).all, full.all);
 
+  // "Illustrationer" draws each constellation's figure under the stars.
+  const ink = () => page.evaluate(() => {
+    const canvas = document.getElementById('layer-stars');
+    const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let sum = 0;
+    for (let i = 3; i < data.length; i += 4) sum += data[i];
+    return Math.round(sum / 255);
+  });
+  // Chromium may switch a canvas that is read back often to another rasterizer, which
+  // changes anti-aliasing slightly, so compare the total amount of ink (summed alpha).
+  await page.hover('[data-layer="art"]');
+  await settle(page);
+  const bare = await ink();
+  await page.click('[data-layer="art"]');
+  await settle(page);
+  assert.equal(await page.getAttribute('[data-layer="art"]', 'aria-pressed'), 'true');
+  const inked = await ink();
+  assert.ok(inked > bare * 1.05, `illustrations add ink (${bare} -> ${inked})`);
+  await page.screenshot({ path: path.join(shots, 'desktop-art.png') });
+  await page.click('[data-layer="art"]');
+  await settle(page);
+  const after = await ink();
+  assert.ok(Math.abs(after - bare) < bare * 0.02, `turning illustrations off removes them (${bare} -> ${after})`);
+
   await page.click('#btn-list');
   await page.fill('#search', 'lejon');
   const rows = await page.$$eval('#con-list li:not([hidden]) strong', (els) => els.map((e) => e.textContent));

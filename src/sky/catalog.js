@@ -1,8 +1,10 @@
 // Turns the generated data module into render-ready structures: unit vectors,
 // line segments, densified boundary outlines and point-in-constellation lookup.
 import { CONSTELLATIONS, MILKY_WAY_PNG, STAR_BAYER, STAR_NAMES, STARS } from '../data/sky-data.js';
+import { ART, ART_QUANT } from '../data/art-data.js';
 import { angleBetween, mat3Apply, raDecFromVec, vecFromRaDec } from '../astro/math.js';
 import { B1875_TO_J2000, J2000_TO_B1875 } from '../astro/precession.js';
+import { artFrame, fromArt } from './art-frame.js';
 import { pointInRing, prepareRing } from './rings.js';
 
 /** Longest boundary step after densifying, in degrees. */
@@ -28,6 +30,31 @@ function densifyRing(flat) {
     }
   }
   return out;
+}
+
+/**
+ * Decodes a constellation's illustration into polylines of J2000 unit vectors.
+ * @returns {{lines: {fine: boolean, vecs: Float32Array}[], radius: number}}
+ */
+function decodeArt(encoded, centerVec) {
+  const frame = artFrame(centerVec);
+  let maxR2 = 0;
+  const lines = encoded.map((e) => {
+    const n = (e.length - 1) / 2;
+    const vecs = new Float32Array(n * 3);
+    let x = 0;
+    let y = 0;
+    for (let k = 0; k < n; k++) {
+      x += e[1 + 2 * k];
+      y += e[2 + 2 * k];
+      maxR2 = Math.max(maxR2, x * x + y * y);
+      vecs.set(fromArt(frame, x / ART_QUANT, y / ART_QUANT), 3 * k);
+    }
+    return { fine: e[0] === 1, vecs };
+  });
+  // Angular radius in degrees (stereographic: r = 2 tan(theta / 2), 10 units per degree).
+  const r = Math.sqrt(maxR2) / ART_QUANT / ((10 * 180) / Math.PI);
+  return { lines, radius: ((2 * Math.atan(r / 2)) * 180) / Math.PI };
 }
 
 function buildStars() {
@@ -67,6 +94,8 @@ function buildStars() {
  * @property {number[]} figureStars  unique star indices of the stick figure
  * @property {number} brightest      star index of the brightest star inside the boundary
  * @property {number[][][]} outlines J2000 unit vectors along each boundary ring
+ * @property {{fine: boolean, vecs: Float32Array}[]} art illustration polylines (J2000 vectors), may be empty
+ * @property {number} artRadius degrees from the centre to the farthest point of the illustration
  * @property {object[]} ringsJ2000   prepared rings in J2000 (for rasterizing)
  */
 
@@ -91,6 +120,7 @@ export function buildCatalog() {
     let radius = 5;
     for (const i of figureStars) radius = Math.max(radius, angleBetween(centerVec, starVec(i)));
     const outlines = c.bounds.map(densifyRing);
+    const art = ART[c.id] ? decodeArt(ART[c.id], centerVec) : null;
     return {
       index,
       id: c.id,
@@ -106,6 +136,8 @@ export function buildCatalog() {
       figureDecs: figureStars.map((i) => stars.dec[i]),
       brightest: brightest[index],
       outlines,
+      art: art ? art.lines : [],
+      artRadius: art ? art.radius : 0,
       ringsB1875: c.bounds.map((flat) => {
         const pts = [];
         for (let k = 0; k < flat.length; k += 2) pts.push([flat[k], flat[k + 1]]);

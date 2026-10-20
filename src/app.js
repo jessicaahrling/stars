@@ -19,6 +19,7 @@ import { WhenPanel } from './ui/when-panel.js';
 const DEFAULT_LAYERS = {
   lines: true,
   figureStarsOnly: false,
+  art: false,
   names: true,
   bounds: false,
   starNames: true,
