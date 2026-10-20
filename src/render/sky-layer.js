@@ -145,9 +145,11 @@ export class SkyLayer {
     const pt = this.pt;
     const zoom = Math.min(2.1, Math.max(0.85, Math.pow(90 / view.fov, 0.38)));
     const minZ = view.cosCorner - 0.02;
+    const figureOnly = st.layers.figureStarsOnly;
     for (const b of this.buckets) b.length = 0;
     for (let i = 0; i < stars.count; i++) {
       this.px[i] = NaN;
+      if (figureOnly && !stars.inFigure[i]) continue;
       const x = stars.x[i];
       const y = stars.y[i];
       const z = stars.z[i];

@@ -81,6 +81,18 @@ test('what can be seen from Stockholm', () => {
   assert.equal(vis('Cen'), 'never');
 });
 
+test('figure stars are exactly the stars used by the stick figures', () => {
+  const used = new Set(catalog.constellations.flatMap((c) => [...c.segments]));
+  let flagged = 0;
+  for (let i = 0; i < catalog.stars.count; i++) {
+    assert.equal(catalog.stars.inFigure[i] === 1, used.has(i), `star ${i}`);
+    flagged += catalog.stars.inFigure[i];
+  }
+  assert.equal(flagged, used.size);
+  assert.ok(flagged > 500 && flagged < catalog.stars.count / 4, `${flagged} figure stars`);
+  assert.equal(catalog.stars.inFigure[starByHip(27989)], 1, 'Betelgeuse is in the Orion figure');
+});
+
 test('Polaris is named in Swedish', () => {
   assert.equal(catalog.starNames[starByHip(11767)], 'Polstjärnan');
 });

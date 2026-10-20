@@ -26,6 +26,8 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   Vintergatan ritas ut och skogskanten vid horisonten är lägre åt söder.
 - **Plats och tid:** åtta orter från Malmö till Kiruna, valfritt datum och klockslag, och
   tiden kan gå i realtid, 10 min/s eller 1 tim/s.
+- **Bara figurstjärnor:** dölj alla stjärnor som inte ingår i någon stjärnbilds figur, så att
+  mönstren framträder tydligt (fungerar med och utan linjer).
 - **Markera stjärnbilder:** klicka på himlen eller i listan. Markerade stjärnbilder får
   en egen färg på figur, gräns och yta. Listan kan filtreras på de stjärnbilder som syns
   från vald ort och visar vilka som är uppe just nu.

@@ -67,6 +67,30 @@ try {
   assert.equal(await page.textContent('#mark-count'), '1');
   await page.screenshot({ path: path.join(shots, 'desktop-orion-marked.png') });
 
+  // "Bara figurstjärnor" hides every star outside the stick figures.
+  const drawn = () => page.evaluate(() => {
+    const app = window.stjarnhimlen;
+    let all = 0;
+    let outside = 0;
+    app.skyLayer.px.forEach((x, i) => {
+      if (Number.isNaN(x)) return;
+      all++;
+      if (!app.catalog.stars.inFigure[i]) outside++;
+    });
+    return { all, outside };
+  });
+  const full = await drawn();
+  await page.click('[data-layer="figureStarsOnly"]');
+  await settle(page);
+  assert.equal(await page.getAttribute('[data-layer="figureStarsOnly"]', 'aria-pressed'), 'true');
+  const figureOnly = await drawn();
+  assert.equal(figureOnly.outside, 0, 'only figure stars are drawn');
+  assert.ok(figureOnly.all > 20 && figureOnly.all < full.all / 3, `${figureOnly.all} of ${full.all} stars drawn`);
+  await page.screenshot({ path: path.join(shots, 'desktop-figure-stars.png') });
+  await page.click('[data-layer="figureStarsOnly"]');
+  await settle(page);
+  assert.equal((await drawn()).all, full.all);
+
   await page.click('#btn-list');
   await page.fill('#search', 'lejon');
   const rows = await page.$$eval('#con-list li:not([hidden]) strong', (els) => els.map((e) => e.textContent));

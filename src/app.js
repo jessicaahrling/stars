@@ -16,7 +16,15 @@ import { ListPanel } from './ui/list-panel.js';
 import { loadSettings, saveSettings } from './ui/storage.js';
 import { WhenPanel } from './ui/when-panel.js';
 
-const DEFAULT_LAYERS = { lines: true, names: true, bounds: false, starNames: true, milkyWay: true, seeThrough: false };
+const DEFAULT_LAYERS = {
+  lines: true,
+  figureStarsOnly: false,
+  names: true,
+  bounds: false,
+  starNames: true,
+  milkyWay: true,
+  seeThrough: false,
+};
 const FLY_MS = 900;
 
 export class App {

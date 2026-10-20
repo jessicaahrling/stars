@@ -115,6 +115,10 @@ export function buildCatalog() {
     };
   });
 
+  /** 1 for stars that are part of some constellation's stick figure. */
+  stars.inFigure = new Uint8Array(stars.count);
+  for (const c of constellations) for (const i of c.figureStars) stars.inFigure[i] = 1;
+
   /** Index of the constellation containing a J2000 unit vector. */
   function constellationAt(vecJ2000) {
     const [ra, dec] = raDecFromVec(mat3Apply(J2000_TO_B1875, vecJ2000));
