@@ -140,26 +140,47 @@ for (const [hip, n] of Object.entries(namesJson)) {
 // ---------------------------------------------------------------- figures & labels
 const posKey = (ra, dec) => `${wrap360(ra).toFixed(3)},${dec.toFixed(3)}`;
 const starByPos = new Map(stars.map((s, i) => [posKey(s.ra, s.dec), i]));
+const separation = (a, b) => Math.hypot(wrap180(a.ra - b.ra) * Math.cos((b.dec * Math.PI) / 180), a.dec - b.dec);
+/** Stars closer than this (degrees) are one point to the eye, like the two halves of a close double. */
+const DOUBLE_RADIUS = 0.1;
+const remapped = [];
+
+/**
+ * Some figure vertices sit on the fainter half of a close double (alpha1 CVn instead
+ * of Cor Caroli, Toliman instead of Rigil Kentaurus); use the brightest star within
+ * DOUBLE_RADIUS, the one people actually see.
+ */
+function brightestNear(i) {
+  for (let k = 0; k < i; k++) { // stars are sorted bright first
+    if (separation(stars[k], stars[i]) < DOUBLE_RADIUS) {
+      remapped.push(`HIP ${stars[i].hip} -> ${stars[k].hip}`);
+      return k;
+    }
+  }
+  return i;
+}
+
 function starAt(ra, dec) {
   const exact = starByPos.get(posKey(ra, dec));
-  if (exact !== undefined) return exact;
+  if (exact !== undefined) return brightestNear(exact);
   let best = -1;
   let bestD = 0.02;
   stars.forEach((s, i) => {
-    const d = Math.hypot(wrap180(s.ra - ra) * Math.cos((dec * Math.PI) / 180), s.dec - dec);
+    const d = separation(s, { ra, dec });
     if (d < bestD) {
       bestD = d;
       best = i;
     }
   });
   if (best < 0) throw new Error(`no star at line vertex ${ra},${dec}`);
-  return best;
+  return brightestNear(best);
 }
 
 const figures = new Map(ids.map((id) => [id, []]));
 for (const f of linesJson.features) {
   for (const line of f.geometry.coordinates) figures.get(f.id).push(line.map(([ra, dec]) => starAt(ra, dec)));
 }
+console.log(`  figure vertices moved to the brighter half of a double: ${[...new Set(remapped)].join(', ') || 'none'}`);
 const meta = new Map();
 for (const f of consJson.features) {
   const m = meta.get(f.id) || { labels: [] };

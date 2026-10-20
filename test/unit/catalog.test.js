@@ -93,6 +93,19 @@ test('figure stars are exactly the stars used by the stick figures', () => {
   assert.equal(catalog.stars.inFigure[starByHip(27989)], 1, 'Betelgeuse is in the Orion figure');
 });
 
+test('figures use the brighter half of close doubles', () => {
+  // Cor Caroli, Al Salib (gamma2 Del), Rigil Kentaurus, delta2 Cha
+  for (const hip of [63125, 102532, 71683, 52633]) assert.equal(catalog.stars.inFigure[starByHip(hip)], 1, `HIP ${hip}`);
+  const { stars } = catalog;
+  for (let i = 0; i < stars.count; i++) {
+    if (!stars.inFigure[i]) continue;
+    for (let k = 0; k < i; k++) { // sorted bright first
+      const d = Math.hypot((((stars.ra[k] - stars.ra[i] + 540) % 360) - 180) * Math.cos((stars.dec[i] * Math.PI) / 180), stars.dec[k] - stars.dec[i]);
+      assert.ok(d >= 0.1, `figure star HIP ${stars.hip[i]} has brighter HIP ${stars.hip[k]} ${d.toFixed(3)}° away`);
+    }
+  }
+});
+
 test('Polaris is named in Swedish', () => {
   assert.equal(catalog.starNames[starByHip(11767)], 'Polstjärnan');
 });
