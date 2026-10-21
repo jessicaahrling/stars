@@ -4,8 +4,9 @@
 //   node scripts/art-tool.mjs preview <id> [--out f.png] [--no-lines] [--size 900] [--file other.svg]
 //                                                      validate art/<id>.svg (or --file) and render it over its stars
 //   node scripts/art-tool.mjs sheet --out f.png [ids…] contact sheet of many illustrations
-//   node scripts/art-tool.mjs pair <id> <other> [--out f.png]
-//                                                      both illustrations together, in <id>'s frame
+//   node scripts/art-tool.mjs pair <id> <other…> [--out f.png]
+//                                                      illustrations together, in <id>'s frame
+//   (preview, pair and clash take --art-dir <dir> to read candidate drawings from <dir>, falling back to art/)
 //   node scripts/art-tool.mjs clash [ids…]            where illustrations cross their neighbours' (all, or pairs
 //                                                      involving the given ids)
 //
@@ -84,8 +85,13 @@ function kit(id) {
 }
 
 async function readSvg(id) {
-  // --file lets an illustrator preview a candidate drawing kept outside art/.
-  const file = process.argv[2] === 'preview' && arg('--file') ? path.resolve(arg('--file')) : path.join(root, 'art', `${id}.svg`);
+  // --file lets an illustrator preview a candidate drawing kept outside art/;
+  // --art-dir reads candidates from another folder, falling back to art/.
+  let file = path.join(root, 'art', `${id}.svg`);
+  if (process.argv[2] === 'preview' && arg('--file')) file = path.resolve(arg('--file'));
+  else if (arg('--art-dir') && existsSync(path.join(path.resolve(arg('--art-dir')), `${id}.svg`))) {
+    file = path.join(path.resolve(arg('--art-dir')), `${id}.svg`);
+  }
   if (!existsSync(file)) return null;
   return readFile(file, 'utf8');
 }
@@ -257,13 +263,16 @@ async function clash(ids) {
   console.log(`${pairs} crossing pairs`);
 }
 
-/** Two neighbouring illustrations in the first one's frame, to check where they meet. */
-async function pair(id, other) {
-  const out = path.resolve(arg('--out', `/tmp/stars-art/pair-${id}-${other}.png`));
+const PAIR_COLORS = ['#e8cf9f', '#9fd3ff', '#b6f0b0', '#f5a7c8', '#d5b8ff'];
+
+/** Neighbouring illustrations together in the first one's frame, to check where they meet. */
+async function pair(ids) {
+  const [id] = ids;
+  const out = path.resolve(arg('--out', `/tmp/stars-art/pair-${ids.join('-')}.png`));
   const size = Number(arg('--size', 1000));
   const frame = artFrame(constellation(id).centerVec);
   const layers = [];
-  for (const [cid, color] of [[id, '#e8cf9f'], [other, '#9fd3ff']]) {
+  for (const [cid, color] of ids.map((c, k) => [c, PAIR_COLORS[k % PAIR_COLORS.length]])) {
     const c = constellation(cid);
     const own = artFrame(c.centerVec);
     const svg = await readSvg(cid);
@@ -301,7 +310,7 @@ async function pair(id, other) {
   const w = Math.round(box[2] * scale);
   const h = Math.round(box[3] * scale);
   const html = `<html><body style="margin:0;background:#060a17"><svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${box.join(' ')}">${parts.join('')}</svg>
-<div style="position:fixed;left:8px;top:6px;font:13px sans-serif;color:#9fb0d8"><span style="color:#e8cf9f">${id}</span> + <span style="color:#9fd3ff">${other}</span> · ${id}'s frame · N up, E left</div></body></html>`;
+<div style="position:fixed;left:8px;top:6px;font:13px sans-serif;color:#9fb0d8">${layers.map((l) => `<span style="color:${l.color}">${l.cid}</span>`).join(' + ')} · ${id}'s frame · N up, E left</div></body></html>`;
   await screenshot(html, out, w, h);
   console.log(`wrote ${out} (${w}x${h})`);
 }
@@ -310,9 +319,17 @@ const [cmd, id] = process.argv.slice(2);
 if (cmd === 'kit') console.log(JSON.stringify(kit(id), null, 1));
 else if (cmd === 'preview') await preview(id);
 else if (cmd === 'sheet') await sheet();
-else if (cmd === 'pair') await pair(id, process.argv[4]);
+else if (cmd === 'pair') {
+  const ids = [];
+  const rest = process.argv.slice(3);
+  for (let i = 0; i < rest.length; i++) {
+    if (rest[i].startsWith('--')) i++;
+    else ids.push(rest[i]);
+  }
+  await pair(ids);
+}
 else if (cmd === 'clash') await clash(process.argv.slice(3));
 else {
-  console.error('usage: node scripts/art-tool.mjs kit <id> | preview <id> [--out f.png] [--no-lines] | sheet --out f.png [ids…] | pair <id> <other> | clash [ids…]');
+  console.error('usage: node scripts/art-tool.mjs kit <id> | preview <id> [--out f.png] [--no-lines] | sheet --out f.png [ids…] | pair <id> <other…> | clash [ids…]');
   process.exitCode = 1;
 }
