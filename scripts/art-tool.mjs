@@ -6,6 +6,8 @@
 //   node scripts/art-tool.mjs sheet --out f.png [ids…] contact sheet of many illustrations
 //   node scripts/art-tool.mjs pair <id> <other> [--out f.png]
 //                                                      both illustrations together, in <id>'s frame
+//   node scripts/art-tool.mjs clash [ids…]            where illustrations cross their neighbours' (all, or pairs
+//                                                      involving the given ids)
 //
 // Frame units: 10 units = 1 degree near the centre; x grows to the west (right) and
 // y to the south (down), i.e. the sky as seen with north up. See src/sky/art-frame.js.
@@ -200,6 +202,60 @@ async function sheet() {
   console.log(`wrote ${out} (${list.length} constellations)`);
 }
 
+/** Main-stroke segments of an illustration, moved into another frame. */
+async function artSegments(id, frame) {
+  const c = constellation(id);
+  const own = artFrame(c.centerVec);
+  const svg = await readSvg(id);
+  const segs = [];
+  if (!svg) return segs;
+  for (const { fine, pts } of readArt(svg)) {
+    if (fine) continue;
+    let prev = null;
+    for (let i = 0; i < pts.length; i += 2) {
+      const p = toArt(frame, fromArt(own, pts[i], pts[i + 1]));
+      if (prev) segs.push([prev[0], prev[1], p[0], p[1]]);
+      prev = p;
+    }
+  }
+  return segs;
+}
+
+function crossing([x1, y1, x2, y2], [x3, y3, x4, y4]) {
+  const d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
+  if (Math.abs(d) < 1e-12) return null;
+  const t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d;
+  const u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? [x1 + t * (x2 - x1), y1 + t * (y2 - y1)] : null;
+}
+
+/** Lists pairs of neighbouring illustrations whose main strokes cross. */
+async function clash(ids) {
+  const withArt = catalog.constellations.filter((c) => existsSync(path.join(root, 'art', `${c.id}.svg`)));
+  let pairs = 0;
+  for (let i = 0; i < withArt.length; i++) {
+    for (let j = i + 1; j < withArt.length; j++) {
+      const a = withArt[i];
+      const b = withArt[j];
+      if (ids.length && !ids.includes(a.id) && !ids.includes(b.id)) continue;
+      if (angleBetween(a.centerVec, b.centerVec) > 2 * Math.max(a.radius, b.radius) + 25) continue;
+      const frame = artFrame(a.centerVec);
+      const sa = await artSegments(a.id, frame);
+      const sb = await artSegments(b.id, frame);
+      const hits = [];
+      for (const s of sa) for (const t of sb) {
+        const p = crossing(s, t);
+        if (p) hits.push(p.map((v) => Math.round(v)));
+      }
+      if (hits.length) {
+        pairs++;
+        console.log(`${a.id}/${b.id}: ${hits.length} crossings, e.g. at ${JSON.stringify(hits.slice(0, 4))} (in ${a.id}'s frame)`);
+      }
+    }
+  }
+  console.log(`${pairs} crossing pairs`);
+}
+
 /** Two neighbouring illustrations in the first one's frame, to check where they meet. */
 async function pair(id, other) {
   const out = path.resolve(arg('--out', `/tmp/stars-art/pair-${id}-${other}.png`));
@@ -254,7 +310,8 @@ if (cmd === 'kit') console.log(JSON.stringify(kit(id), null, 1));
 else if (cmd === 'preview') await preview(id);
 else if (cmd === 'sheet') await sheet();
 else if (cmd === 'pair') await pair(id, process.argv[4]);
+else if (cmd === 'clash') await clash(process.argv.slice(3));
 else {
-  console.error('usage: node scripts/art-tool.mjs kit <id> | preview <id> [--out f.png] [--no-lines] | sheet --out f.png [ids…] | pair <id> <other>');
+  console.error('usage: node scripts/art-tool.mjs kit <id> | preview <id> [--out f.png] [--no-lines] | sheet --out f.png [ids…] | pair <id> <other> | clash [ids…]');
   process.exitCode = 1;
 }
