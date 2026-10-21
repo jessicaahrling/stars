@@ -1,11 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-125 -125 230 240">
   <!-- Lupus, the wolf (Ptolemy's Therion, the wild beast seized by Centaurus): rearing up on
        its hind legs and lunging east, away from the centaur whose open hand (kappa Cen)
-       presses down on its back at the loins, where the back gives a little under it; head raised with jaws open, forelegs pawing forward, bushy tail
-       hanging. Chi on the muzzle, psi1 in the cheek, phi1 on the ruff of the nape, delta in
-       the shoulder, gamma on the chest, theta the raised near forepaw and eta the far forepaw,
-       epsilon on the belly, Ke Kouan (beta) in the loins, mu at the stifle, zeta the hind foot
-       and Men (alpha) at the root of the tail. -->
+       presses down on its back at the loins, where the back gives a little under it; head
+       raised with jaws open, forelegs pawing forward, bushy tail hanging. Chi on the muzzle,
+       psi1 in the cheek, phi1 on the ruff of the nape, delta in the shoulder, gamma on the
+       chest, theta the raised near forepaw and eta the far forepaw, epsilon on the belly, Ke
+       Kouan (beta) in the loins, mu at the stifle, zeta the hind foot and Men (alpha) at the
+       root of the tail. -->
   <g>
     <path d="M -38 -90 C -38 -96 -39 -100.5 -40.5 -105.5 L -46 -100 L -50.5 -110 L -57 -99 C -62.5 -99.6 -70.5 -98.8 -78.5 -97.5 C -83.5 -96.7 -88 -95.8 -90.8 -94.8 C -93 -94 -93.6 -90.8 -92.3 -88.6 C -91.7 -87.7 -91 -87.4 -90 -87.5 L -71 -84 L -87 -81 C -88 -80 -87 -78 -85 -77.5 C -78 -76 -71 -74 -64 -73 C -61 -72 -59 -71 -57 -69 C -56.5 -71 -56 -72.5 -55 -73.5 C -53 -72 -51 -71 -49 -70 C -48.5 -72 -48 -73.5 -47 -75 C -45 -74.5 -43.5 -74 -42 -74 C -38 -78 -37 -85 -38 -90 Z"/>
     <path class="fine" d="M -68 -91 Q -64 -94 -61 -91.5 Q -64 -90 -68 -91 Z M -50.5 -105.2 L -52.3 -100.2"/>
