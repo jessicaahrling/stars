@@ -3,14 +3,18 @@
        bow-down as in the old atlases, with its forward end broken off in splintered planks in
        the east. The gunwale climbs past Alsephina (δ Vel) to Regor (γ Vel), the star the three
        parts of Argo share, and the stern deck runs on from there with a slight sheer that rises
-       again towards ν Pup. The stern sweeps up from the heel of the keel in a curved counter,
-       and the steering oar hangs clear of it from the end of the deck at ν, its blade on
-       Canopus. A wale runs along the hull below the gunwale, and seven round shields hang on it,
-       from u at the bow to Aspidiske (ι, "the little shield") on the aftmost one. Two strakes
-       and a keel strake run from the broken planks to the stern, past Avior and χ on the hull
-       side; Miaplacidus and ω lie on the keel, and θ and the little ring of p, q, x, y, z and
-       z2 by the broken end. -->
-  <path d="M 223.3 -147.3 L 212.3 -149 C 162.8 -142.1 105.3 -153.1 55.4 -156.6 C 45.4 -157.3 20.2 -116.7 -4.4 -85.2 C -15.5 -71 -21.3 -68.7 -40 -57 C -80 -32 -130 -17 -184 -14 L -187 -7 -192 -1.5 -190.5 3.5 -200 8.1 -184.5 16 -190 21.4 -188.5 27.5 -190 30.5 -184 41 -192.5 46.5 -185 49.5 -180 54 C -150 74 -102 84 -77 84 C -62 84 -40 80 -31 74 C -28 72 -27 69.5 -27.3 66.8 C -30.5 52 -33 32 -24 21 C -14 9 25 8.5 75 -3 C 118 -14 150 -30 166 -62 C 178 -88 186 -128 212.3 -149"/>
+       again towards ν Pup. The sail (Vela) stands on the gunwale between Alsephina and Regor,
+       and the stern of Puppis rests on the deck. The keel runs past ω to its heel at
+       Miaplacidus, where the stern rises steeply and then sweeps aft in a long overhanging
+       counter, with the flying fish (Volans) leaping beneath it. The steering oar hangs clear of
+       the counter from the end of the deck: its head is at ν, where the loom coming down from
+       the tiller in Puppis meets it, and its short blade lies on Canopus, just short of the
+       painter's easel (Pictor). A wale runs along the hull below the gunwale, and seven round
+       shields hang on it, from u at the bow to Aspidiske (ι, "the little shield") on the aftmost
+       one. Two strakes run from the broken planks to the stern and a keel strake to the heel,
+       past Avior and χ on the hull side; Miaplacidus and ω lie on the keel, and θ and the little
+       ring of p, q, x, y, z and z2 by the broken end. -->
+  <path d="M 223.3 -147.3 L 212.3 -149 C 162.8 -142.1 105.3 -153.1 55.4 -156.6 C 45.4 -157.3 20.2 -116.7 -4.4 -85.2 C -15.5 -71 -21.3 -68.7 -40 -57 C -80 -32 -130 -17 -184 -14 L -187 -7 -192 -1.5 -190.5 3.5 -200 8.1 -184.5 16 -190 21.4 -188.5 27.5 -190 30.5 -184 41 -192.5 46.5 -185 49.5 -180 54 C -150 74 -102 84 -77 84 C -62 84 -40 80 -31 74 C -28 72 -27 69.5 -27.3 66.8 C -31 52 -35 32 -25 20.5 C -15 9 25 8.5 75 -3 C 118 -14 150 -30 166 -62 C 178 -88 186 -128 212.3 -149"/>
   <path d="M 223.9 -148.8 C 224.8 -152.1 229.8 -150.9 229 -147.5 L 214.2 -87.4 C 213.4 -84 218.2 -82.8 217.1 -78.4 L 208.4 -40.5 C 207.7 -36 203.1 -33.2 198.5 -34.3 C 194 -35.4 191.2 -40 192.8 -44.6 L 202.5 -82 C 203.6 -86.4 208.4 -85.2 209.2 -88.6 Z"/>
   <path d="M -49.9 -45.4 C -44.3 -48.4 -37.4 -46.2 -34.4 -40.6 C -31.4 -35 -33.6 -28 -39.2 -25.1 C -44.8 -22.1 -51.7 -24.2 -54.7 -29.8 C -57.7 -35.4 -55.6 -42.4 -49.9 -45.4"/>
   <path d="M -51.8 -26.3 C -51.6 -20.9 -55.2 -16.1 -60.5 -14.7 C -65.7 -13.4 -71.2 -15.9 -73.6 -20.7 C -76 -25.6 -74.7 -31.5 -70.5 -34.9 C -66.3 -38.2 -60.2 -38.2 -56 -34.8"/>

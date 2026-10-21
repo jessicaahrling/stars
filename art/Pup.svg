@@ -2,12 +2,16 @@
   <!-- Puppis, the stern of the ship Argo, lying tilted as in the old atlases: the broken-off
        forward end of the hull sinks to the south-east towards Vela and Carina, and the stern
        sweeps up in the north into a tall post that curls over eastwards into a scroll (the
-       aphlaston). A railing runs along the gunwale, and the steering oar hangs from the stern
-       quarter with its tiller above the rail and its blade down past the stern to the south-west.
+       aphlaston). A railing runs along the gunwale. The hull rests on the deck of Carina, its
+       bottom running just above Carina's gunwale, and its splintered forward end stops just
+       west of the sail's leech in Vela, coming down to Regor (γ2 Vel), where keel, stern and
+       sail meet. The loom of the steering oar runs from its tiller above the rail across the
+       stern quarter down to ν, where it meets the head of the steering oar drawn in Carina,
+       whose blade hangs on to Canopus.
        Tureis (ρ, "the little shield") sits in the heart of the scroll and j on its crest;
        Azmidi (ξ), ο, Markab (κ), l and p climb the stern post; Naos (ζ, "the ship") is on
-       the hull side and Regor (γ2 Vel) low on the broken forward end; π is on the oar's
-       loom and ν where its blade begins. -->
+       the hull side and Regor low at the broken forward end; π is on the oar's loom and ν at
+       its foot. -->
   <g>
     <path d="M 47.3 107.6 C 46.7 113.1 45.2 118.6 42.5 124 C 38.5 131.5 28 139.5 13 144.8 C -15 152.8 -60 161.5 -91.6 168.6 L -93.8 152 L -106.4 144 L -106 133 L -120.5 128.5 L -120 118.5 L -131 112.5 L -144.2 106.3 C -122.4 88 -89.8 64.5 -70.2 46.3 C -61.9 38.6 -56.9 26.5 -56.3 14.2"/>
     <path d="M -56.4 8.8 C -58.3 -8.5 -75.1 -28 -92.2 -43.7 C -100.1 -51.1 -111.4 -48.9 -120 -43.9 C -126.9 -39.9 -135.1 -42.1 -139.1 -49 C -146.1 -61.1 -140 -78.5 -122.7 -88.5 C -105.4 -98.5 -84.8 -98.9 -70.6 -86.3 C -60.1 -76.1 -46.4 -56.4 -38 -35.8 C -31.6 -18.7 -34.2 -3.3 -27.2 8.8 C -19.7 21.8 4 36.5 24 51 C 36 59.5 43.5 72 46.5 88 C 47.3 92.6 47.8 97.5 47.7 102.6"/>

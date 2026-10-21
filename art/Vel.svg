@@ -2,11 +2,14 @@
   <!-- Vela, the sail of the ship Argo: a broad square sail hung from a long yard and filled
        by the wind so that both leeches belly out, with a pennant streaming west from the
        masthead towards the stern in Puppis. Topping lifts run from the mast to the yardarms;
-       rings hang at the clews and the sheets lead down and inwards from them, and a short
-       stub of the mast shows below the foot. Psi sits on the mast above the yard, q and
-       Suhail (lambda) in the head of the sail under the yard, mu in the eastern belly, Regor
-       (gamma2) on the western leech beside the broken bow of Puppis, phi and Markeb (kappa)
-       just above the foot and Alsephina (delta) on it. -->
+       a ring hangs at the eastern clew with the sheets leading down and inwards from it, and a short
+       stub of the mast shows below the foot. The sail stands on the ship: its lower western
+       corner is tucked behind the gunwale of Carina, so from Alsephina to Regor its edge runs
+       along just above that gunwale, and the broken bow of Puppis lies just west of its western
+       leech. Psi sits on the mast above the yard, q and Suhail (lambda) in the head of the sail
+       under the yard, mu in the eastern belly, Regor (gamma2) at the foot of the western leech
+       where it meets the gunwale, phi and Markeb (kappa) just above the foot and Alsephina
+       (delta) at its western end. -->
   <g>
     <path d="M -125 -60 Q -62 -57.7 1.1 -54.8 Q 63.7 -51.6 126.3 -47.8 C 128.9 -47.7 128.7 -45.1 126.1 -45.2 Q 63.5 -47.4 0.9 -50.3 Q -62.1 -53.5 -125.2 -57.4 C -127.8 -57.5 -127.6 -60.1 -125 -60 Z"/>
     <path d="M 4.5 -54.6 L 6 -80 C 3.9 -80.4 4.7 -86.6 8.3 -86.6 C 11.9 -86.6 12.7 -80.4 10.2 -80 L 9.3 -54.6"/>
