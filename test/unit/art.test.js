@@ -64,6 +64,12 @@ test('every illustration file is valid and named after a constellation', () => {
   }
 });
 
+test('every constellation has an illustration', () => {
+  const catalog = buildCatalog();
+  const missing = catalog.constellations.filter((c) => !c.art.length).map((c) => c.id);
+  assert.deepEqual(missing, []);
+});
+
 test('illustrations land on their own constellation', () => {
   const catalog = buildCatalog();
   for (const c of catalog.constellations) {
@@ -82,4 +88,52 @@ test('illustrations land on their own constellation', () => {
     }
     assert.ok(inside / total > 0.5, `${c.id}: ${Math.round((100 * inside) / total)} % of the drawing inside its boundary`);
   }
+});
+
+/** Pairs whose drawings are allowed to touch through each other, with the reason. */
+const SHARED_STAR_OVERLAPS = new Set([
+  // Alpheratz is both Andromeda's head and Pegasus' navel; the hair knot sits in Pegasus' corner.
+  'And/Peg',
+]);
+
+test('neighbouring illustrations do not draw through each other', () => {
+  const catalog = buildCatalog();
+  const withArt = catalog.constellations.filter((c) => c.art.length);
+  const segmentsIn = (c, frame) => c.art.filter((l) => !l.fine).map((l) => {
+    const pts = [];
+    for (let k = 0; k < l.vecs.length; k += 3) pts.push(toArt(frame, [l.vecs[k], l.vecs[k + 1], l.vecs[k + 2]]));
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    return { pts, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] };
+  });
+  const overlaps = (a, b) => a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3];
+  const cross = ([x1, y1], [x2, y2], [x3, y3], [x4, y4]) => {
+    const d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
+    if (Math.abs(d) < 1e-12) return false;
+    const t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d;
+    const u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d;
+    return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+  };
+  const found = [];
+  for (let i = 0; i < withArt.length; i++) {
+    for (let j = i + 1; j < withArt.length; j++) {
+      const a = withArt[i];
+      const b = withArt[j];
+      if (angleBetween(a.centerVec, b.centerVec) > a.artRadius + b.artRadius) continue;
+      const frame = artFrame(a.centerVec);
+      const la = segmentsIn(a, frame);
+      const lb = segmentsIn(b, frame);
+      let n = 0;
+      for (const p of la) {
+        for (const q of lb) {
+          if (!overlaps(p.box, q.box)) continue;
+          for (let s = 1; s < p.pts.length; s++) {
+            for (let t = 1; t < q.pts.length; t++) if (cross(p.pts[s - 1], p.pts[s], q.pts[t - 1], q.pts[t])) n++;
+          }
+        }
+      }
+      if (n && !SHARED_STAR_OVERLAPS.has(`${a.id}/${b.id}`)) found.push(`${a.id}/${b.id}: ${n} crossings`);
+    }
+  }
+  assert.deepEqual(found, [], 'run node scripts/art-tool.mjs clash to see where');
 });
