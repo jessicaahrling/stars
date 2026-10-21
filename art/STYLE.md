@@ -82,7 +82,15 @@ little where the figure needs it.
 node scripts/art-tool.mjs preview <ID>              # /tmp/stars-art/<ID>.png, with the stick figure
 node scripts/art-tool.mjs preview <ID> --no-lines   # how it looks with the lines turned off
 node scripts/art-tool.mjs sheet --out /tmp/sheet.png Ori Tau Gem   # several side by side
+node scripts/art-tool.mjs pair Car Pup Vel          # neighbours together, in the first one's frame
+node scripts/art-tool.mjs clash Sgr                 # where drawings cross their neighbours' drawings
+node scripts/art-tool.mjs preview And --file /tmp/candidate.svg     # try a candidate outside art/
 ```
+
+Neighbouring drawings are shown together on the sky, so they must not draw through each
+other (a unit test checks this). Where figures traditionally touch, let them meet cleanly. Ophiuchus
+grips the serpent and stands on the Scorpion, and the Cup stands on the Water Snake's back.
+Carina, Puppis and Vela together form one ship.
 
 The drawing is done when four things hold:
 
