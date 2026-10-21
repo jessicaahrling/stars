@@ -1,8 +1,8 @@
 // Tools for drawing the constellation illustrations in art/<id>.svg.
 //
 //   node scripts/art-tool.mjs kit <id>                 drawing kit: stars, figure, boundary in frame units
-//   node scripts/art-tool.mjs preview <id> [--out f.png] [--no-lines] [--size 900]
-//                                                      validate art/<id>.svg and render it over its stars
+//   node scripts/art-tool.mjs preview <id> [--out f.png] [--no-lines] [--size 900] [--file other.svg]
+//                                                      validate art/<id>.svg (or --file) and render it over its stars
 //   node scripts/art-tool.mjs sheet --out f.png [ids…] contact sheet of many illustrations
 //   node scripts/art-tool.mjs pair <id> <other> [--out f.png]
 //                                                      both illustrations together, in <id>'s frame
@@ -84,7 +84,8 @@ function kit(id) {
 }
 
 async function readSvg(id) {
-  const file = path.join(root, 'art', `${id}.svg`);
+  // --file lets an illustrator preview a candidate drawing kept outside art/.
+  const file = process.argv[2] === 'preview' && arg('--file') ? path.resolve(arg('--file')) : path.join(root, 'art', `${id}.svg`);
   if (!existsSync(file)) return null;
   return readFile(file, 'utf8');
 }
