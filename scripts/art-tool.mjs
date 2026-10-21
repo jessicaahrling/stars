@@ -4,6 +4,8 @@
 //   node scripts/art-tool.mjs preview <id> [--out f.png] [--no-lines] [--size 900]
 //                                                      validate art/<id>.svg and render it over its stars
 //   node scripts/art-tool.mjs sheet --out f.png [ids…] contact sheet of many illustrations
+//   node scripts/art-tool.mjs pair <id> <other> [--out f.png]
+//                                                      both illustrations together, in <id>'s frame
 //
 // Frame units: 10 units = 1 degree near the centre; x grows to the west (right) and
 // y to the south (down), i.e. the sky as seen with north up. See src/sky/art-frame.js.
@@ -12,7 +14,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { buildCatalog } from '../src/sky/catalog.js';
-import { artFrame, toArt } from '../src/sky/art-frame.js';
+import { artFrame, fromArt, toArt } from '../src/sky/art-frame.js';
 import { angleBetween } from '../src/astro/math.js';
 import { parseArtSvg, readArt } from './lib/svg-art.mjs';
 
@@ -198,11 +200,61 @@ async function sheet() {
   console.log(`wrote ${out} (${list.length} constellations)`);
 }
 
+/** Two neighbouring illustrations in the first one's frame, to check where they meet. */
+async function pair(id, other) {
+  const out = path.resolve(arg('--out', `/tmp/stars-art/pair-${id}-${other}.png`));
+  const size = Number(arg('--size', 1000));
+  const frame = artFrame(constellation(id).centerVec);
+  const layers = [];
+  for (const [cid, color] of [[id, '#e8cf9f'], [other, '#9fd3ff']]) {
+    const c = constellation(cid);
+    const own = artFrame(c.centerVec);
+    const svg = await readSvg(cid);
+    const lines = svg ? readArt(svg).map(({ fine, pts }) => {
+      const moved = [];
+      for (let i = 0; i < pts.length; i += 2) moved.push(...toArt(frame, fromArt(own, pts[i], pts[i + 1])));
+      return { fine, pts: moved };
+    }) : [];
+    const rings = c.outlines.map((ring) => ring.map((v) => toArt(frame, v)));
+    const stars = [];
+    for (let i = 0; i < catalog.stars.count && catalog.stars.mag[i] <= 5; i++) {
+      if (catalog.stars.con[i] === c.index || c.figureStars.includes(i)) stars.push([...toArt(frame, catalog.starVec(i)), catalog.stars.mag[i], c.figureStars.includes(i)]);
+    }
+    layers.push({ cid, color, lines, rings, stars });
+  }
+  const all = layers.flatMap((l) => [...l.rings.flat(), ...l.lines.flatMap((p) => { const r = []; for (let i = 0; i < p.pts.length; i += 2) r.push([p.pts[i], p.pts[i + 1]]); return r; })]);
+  const xs = all.map((p) => p[0]);
+  const ys = all.map((p) => p[1]);
+  const pad = 20;
+  const box = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) - Math.min(...xs) + 2 * pad, Math.max(...ys) - Math.min(...ys) + 2 * pad];
+  const scale = size / Math.max(box[2], box[3]);
+  const u = 1 / scale;
+  const parts = [];
+  for (const l of layers) {
+    for (const ring of l.rings) parts.push(`<polygon points="${ring.map((p) => p.join(',')).join(' ')}" fill="none" stroke="${l.color}" stroke-opacity="0.35" stroke-dasharray="${4 * u} ${4 * u}" stroke-width="${u}"/>`);
+  }
+  for (const l of layers) {
+    for (const p of l.lines) {
+      const pts = [];
+      for (let i = 0; i < p.pts.length; i += 2) pts.push(`${p.pts[i].toFixed(1)},${p.pts[i + 1].toFixed(1)}`);
+      parts.push(`<polyline points="${pts.join(' ')}" fill="none" stroke="${l.color}" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="${p.fine ? 0.55 : 0.95}" stroke-width="${(p.fine ? 1.1 : 2) * u}"/>`);
+    }
+    for (const [x, y, mag, fig] of l.stars) parts.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${((0.8 + 0.55 * Math.max(0, 6.2 - mag)) * u).toFixed(2)}" fill="${fig ? '#ffffff' : '#9fb0d8'}"/>`);
+  }
+  const w = Math.round(box[2] * scale);
+  const h = Math.round(box[3] * scale);
+  const html = `<html><body style="margin:0;background:#060a17"><svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${box.join(' ')}">${parts.join('')}</svg>
+<div style="position:fixed;left:8px;top:6px;font:13px sans-serif;color:#9fb0d8"><span style="color:#e8cf9f">${id}</span> + <span style="color:#9fd3ff">${other}</span> · ${id}'s frame · N up, E left</div></body></html>`;
+  await screenshot(html, out, w, h);
+  console.log(`wrote ${out} (${w}x${h})`);
+}
+
 const [cmd, id] = process.argv.slice(2);
 if (cmd === 'kit') console.log(JSON.stringify(kit(id), null, 1));
 else if (cmd === 'preview') await preview(id);
 else if (cmd === 'sheet') await sheet();
+else if (cmd === 'pair') await pair(id, process.argv[4]);
 else {
-  console.error('usage: node scripts/art-tool.mjs kit <id> | preview <id> [--out f.png] [--no-lines] | sheet --out f.png [ids…]');
+  console.error('usage: node scripts/art-tool.mjs kit <id> | preview <id> [--out f.png] [--no-lines] | sheet --out f.png [ids…] | pair <id> <other>');
   process.exitCode = 1;
 }
