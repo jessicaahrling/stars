@@ -1,26 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-145 -100 300 215">
-  <!-- Vela, the sail of the ship Argo: a broad square sail hung from a long yard and filled
-       by the wind so that both leeches belly out, with a pennant streaming west from the
-       masthead towards the stern in Puppis. Topping lifts run from the mast to the yardarms;
-       a ring hangs at the eastern clew with the sheets leading down and inwards from it, and
-       a short stub of the mast shows below the foot. The sail stands on the ship: its lower
-       western corner is tucked behind the gunwale of Carina, so from Alsephina to Regor its
-       edge runs along just above that gunwale, and the broken bow of Puppis lies just west of
-       its western leech. Psi sits on the mast above the yard, q and Suhail (lambda) in the
-       head of the sail under the yard, mu in the eastern belly, Regor (gamma2) at the foot of
-       the western leech where it meets the gunwale, phi and Markeb (kappa) just above the foot
-       and Alsephina (delta) at its western end. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-141 -134 292 251">
+  <!-- Vela, the sail of the ship Argo: one big square sail hung from a long yard, with
+       the masthead and a short pennant above the yard, between the table of Antlia and the compass
+       of Pyxis, and the mast showing as a fine line behind the cloth. Below the foot a short stub
+       of the mast stands on the deck of Carina. The forward clew is at mu, sheeted down to the
+       gunwale at the bow; the foot sags over the deck to Alsephina (delta), where the rising
+       gunwale hides the rest of it. The after leech comes straight down to Regor (gamma2), where
+       hull, poop deck and sail meet. q and psi lie in the head of the sail under the yard, Suhail
+       (lambda) in its after part, phi and Markeb (kappa) just above the foot. -->
   <g>
-    <path d="M -125 -60 Q -62 -57.7 1.1 -54.8 Q 63.7 -51.6 126.3 -47.8 C 128.9 -47.7 128.7 -45.1 126.1 -45.2 Q 63.5 -47.4 0.9 -50.3 Q -62.1 -53.5 -125.2 -57.4 C -127.8 -57.5 -127.6 -60.1 -125 -60 Z"/>
-    <path d="M 4.5 -54.6 L 6 -80 C 3.9 -80.4 4.7 -86.6 8.3 -86.6 C 11.9 -86.6 12.7 -80.4 10.2 -80 L 9.3 -54.6"/>
-    <path d="M 10.2 -79.8 C 24.6 -89.5 40 -75.5 57.8 -84.5 C 65.5 -89 73.1 -90.5 80.8 -89.5 L 70.5 -82.5 L 78.2 -76 C 69.7 -77 62 -77 54.4 -74 C 38.2 -66.5 25.5 -78.5 10 -73.4"/>
-    <path class="fine" d="M 5.2 -67 L -121 -59.8 M 9.7 -67 L 122.5 -48 M -121.4 83 L -110.8 99"/>
-  </g>
-  <g>
-    <path d="M -116 -56.8 C -133 -20 -134.5 40 -124 79 C -66.9 85.1 9.2 89.9 69.3 82 C 99.5 55 133.8 17.6 143.1 19.6 C 141.8 -4.3 135.3 -28.4 121 -45.4"/>
-    <path d="M -122.7 78.6 C -121.4 78.6 -120.3 79.7 -120.3 81 C -120.3 82.3 -121.4 83.4 -122.7 83.4 C -124 83.4 -125.1 82.3 -125.1 81 C -125.1 79.7 -124 78.6 -122.7 78.6 Z"/>
-    <path class="fine" d="M -122.9 78.6 Q -107.9 74.6 -94.3 67 M -123.2 78.1 Q -111.7 68.3 -104.1 55.3"/>
-    <path class="fine" d="M -48 -52.9 C -62 -12 -78 50 -66 84 M 24 -49.2 C 28 -5 34 45 30 85.4 M 64 -47.5 C 70.9 -21.7 91.2 20.2 98.7 54.4"/>
-    <path d="M -2.5 86.1 L -3.3 102 C -3.3 105 1.8 105 1.8 102 L 2.5 86.1"/>
+    <path d="M -132.5 -57.8 C -130.8 -60.1 -113.8 -61.5 -85.4 -64.5 L 114.2 -91.2 C 131.3 -94 135.2 -94.1 137.3 -93 C 135.7 -91.3 131.9 -90.2 114.8 -87.4 L -85 -60.7 C -113.4 -57.7 -130.4 -55.9 -132.5 -57.8 Z"/>
+    <path d="M 34.1 -79.7 L 29.4 -116.1 C 27.2 -116.8 26.6 -123.9 30 -124.3 C 33.4 -124.8 34.7 -117.8 32.8 -116.6 L 38.3 -80.3"/>
+    <path d="M 33.6 -120.7 C 40.3 -123.6 47.9 -121.3 56.5 -125.3 L 52 -120 L 58.8 -116.7 C 49.1 -116.8 41.9 -113.3 33.3 -114.5"/>
+    <path d="M -126.6 -56 C -126.4 -12.3 -125.8 26.5 -121.3 67.3 C -70.6 80.5 0 86 71.7 79.5"/>
+    <path d="M 132 -89.7 C 136.1 -58.8 140.4 -11.9 143.3 22.8"/>
+    <path d="M 58 80.6 L 58.7 86"/>
+    <path class="fine" d="M -80.1 -60.2 C -84.7 -11.5 -78.4 41.7 -68.1 75.3 M -20.3 -67.2 C -21 -8.7 -13.8 44.7 -3.6 81.4 M 82.5 -81.3 C 96.1 -38.9 102.7 0.9 105.9 42 M 37 -74.7 L 58 80.6 M -121.3 67.3 L -124.1 115.9"/>
   </g>
 </svg>
