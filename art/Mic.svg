@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-65 -70 105 165">
+  <!-- Microscopium, Lacaille's microscope: "a tube above a square box". An 18th-century
+       compound microscope of the Cuff type, standing upright. Gamma sits at the foot of the
+       eyepiece on top of the tube and alpha in the clamp ring that holds the body tube. A
+       square pillar rises from the back of the box with epsilon in the milled focusing knob
+       on its top and theta1 in its foot. Below the tube are the stage with its slider and
+       the mirror in its fork, and the square box with its drawer carries iota near its
+       lower west corner. -->
+  <g>
+    <path d="M -3.5 -56 C -3.5 -59 -1 -60.5 3 -60.5 C 7 -60.5 9.5 -59 9.5 -56"/>
+    <path d="M -7 -42 C -6.5 -47 -6 -52 -6 -56 L 12 -56 C 12 -52 12.5 -47 13 -42"/>
+    <path d="M -9 -42 L 15 -42 C 17.5 -42 17.5 -36 15 -36 L -9 -36 C -11.5 -36 -11.5 -42 -9 -42 Z"/>
+    <path d="M -9.5 -36 L -9.5 -29 M -9.5 -20 L -9.5 2 M 15.5 2 L 15.5 -20 M 15.5 -29 L 15.5 -36"/>
+    <path d="M -13.5 -20 L -13.5 -29 L 18 -29 C 20.5 -29 20.5 -20 18 -20 Z"/>
+    <path d="M -9 2 L 15 2 C 17.5 2 17.5 5 15 5 L -9 5 C -11.5 5 -11.5 2 -9 2 Z"/>
+    <path d="M -8 5 C -8 8.5 -2 9 -1.5 12 L 7.5 12 C 8 9 14 8.5 14 5 M -1.5 12 L -1.5 17 L 7.5 17 L 7.5 12 M 0 17 L 0.8 19 L 5.2 19 L 6 17"/>
+    <path class="fine" d="M -6.3 -51 L 12.3 -51 M -9.5 -10 L 15.5 -10 M -9.5 -7.5 L 15.5 -7.5"/>
+  </g>
+  <g>
+    <path d="M -48.5 -37 L -48.5 -43 C -48.5 -44.5 -47.5 -45 -46 -45 L -39 -45 C -37.5 -45 -36.5 -44.5 -36.5 -43 L -36.5 -37 Z"/>
+    <path class="fine" d="M -46 -44 L -46 -38 M -44.2 -44 L -44.2 -38 M -40.8 -44 L -40.8 -38 M -39 -44 L -39 -38"/>
+    <path d="M -46 -37 L -46 42 M -39 -37 L -39 42"/>
+    <path class="fine" d="M -44 -36 L -44 41"/>
+    <path d="M -39 -28 L -13.5 -28 M -39 -21 L -13.5 -21"/>
+    <path d="M -39 -11 C -34 -13 -30.5 -16.5 -28.5 -21"/>
+    <path d="M -49 48 L -49 44.5 C -49 43 -48 42 -46.5 42 L -38.5 42 C -37 42 -36 43 -36 44.5 L -36 48"/>
+  </g>
+  <g>
+    <path d="M -39 22 L 26 22 L 26 26 L -39 26"/>
+    <path d="M -39 36 C -33 33.5 -28.5 30 -26 26"/>
+    <path class="fine" d="M -22 22 L -22 20.6 L 24 20.6 L 24 22"/>
+    <path d="M -6 35.5 C -6 31.6 -2 28.5 3 28.5 C 8 28.5 12 31.6 12 35.5 C 12 39.4 8 42.5 3 42.5 C -2 42.5 -6 39.4 -6 35.5 Z"/>
+    <path class="fine" d="M -4 35.5 C -4 32.6 -0.9 30.2 3 30.2 C 6.9 30.2 10 32.6 10 35.5 C 10 38.4 6.9 40.8 3 40.8 C -0.9 40.8 -4 38.4 -4 35.5 Z"/>
+    <path d="M -6 35.5 L -8 35.5 M 12 35.5 L 14 35.5 M -8 32 L -8 42.5 C -8 44 -7 45 -5.5 45 L 11.5 45 C 13 45 14 44 14 42.5 L 14 32 M 1 45 L 1 48 M 5 45 L 5 48"/>
+  </g>
+  <g>
+    <path d="M -50 53 C -53 53 -53.5 52 -53.5 50.5 C -53.5 49 -52.5 48 -51 48 L 27 48 C 28.5 48 29.5 49 29.5 50.5 C 29.5 52 29 53 26 53 Z"/>
+    <path d="M -50 53 L -50 80 M 26 53 L 26 80"/>
+    <path d="M -50 80 C -53 80 -54 81.5 -54 83 L -54 85 L 30 85 L 30 83 C 30 81.5 29 80 26 80 Z"/>
+    <path d="M -51 85 C -51 88 -45 88 -45 85 M 21 85 C 21 88 27 88 27 85"/>
+    <path d="M -38 59 L 14 59 L 14 73 L -38 73 Z"/>
+    <path d="M -12 64 C -13.1 64 -14 64.9 -14 66 C -14 67.1 -13.1 68 -12 68 C -10.9 68 -10 67.1 -10 66 C -10 64.9 -10.9 64 -12 64 Z"/>
+    <path class="fine" d="M -35.5 61.5 L 11.5 61.5 L 11.5 70.5 L -35.5 70.5 Z"/>
+  </g>
+</svg>

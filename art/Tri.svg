@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-25 -45 76 78">
+  <!-- Triangulum, the Triangle (the Greek Deltoton, the letter delta), drawn as in the old
+       atlases: a long, narrow triangular frame with mitred corners, given a little thickness
+       so it reads as a solid object. Mothallah (alpha, Ras al-Muthallath, "the head of the
+       triangle") sits in the sharp apex to the south-west, on the joint of the two long
+       sides; Mizan (beta) and gamma sit in the corners at the two ends of the short base
+       to the north-east. -->
+  <g>
+    <!-- the face of the frame: outer edge and the triangular opening -->
+    <path d="M 45.9 25.6 L 4 -40 L -18.8 -24 Z"/>
+    <path d="M 22.5 0.1 L 2.3 -31.5 L -8.7 -23.8 Z"/>
+    <!-- thickness: the long south-east side, and the inner walls of the opening -->
+    <path d="M 45.9 25.6 L 44.7 27.8 L -20 -21.8 L -18.8 -24"/>
+    <path d="M -7.7 -23.1 L 1.1 -29.3 L 17.4 -3.8"/>
+    <path class="fine" d="M 2.3 -31.5 L 1.1 -29.3"/>
+    <!-- mitre joints at the three corners -->
+    <path class="fine" d="M 45.9 25.6 L 22.5 0.1 M 4 -40 L 2.3 -31.5 M -18.8 -24 L -8.7 -23.8"/>
+  </g>
+</svg>

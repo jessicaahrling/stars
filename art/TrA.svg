@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-56 -33 112 86">
+  <!-- Triangulum Australe, the Southern Triangle, drawn as Lacaille's "Niveau": a flat
+       triangular frame with mitred corners, given a little thickness, standing on its base
+       like a surveyor's plumb level, with a plumb line hanging from the apex to a mark on the
+       base bar. Beta sits in the apex joint to the north, Atria (alpha) in the south-east
+       corner and gamma in the south-west corner, at the two ends of the base; epsilon lies on
+       the western side. -->
+  <g>
+    <!-- the face of the frame: outer edge and the triangular opening -->
+    <path d="M -46.8 43.6 L 11.6 -25.6 L 47.5 40.1 Z"/>
+    <path d="M -31.2 36 L 10.4 -13.2 L 35.9 33.5 Z"/>
+    <!-- thickness: the underside of the base, and the inner walls of the opening -->
+    <path d="M 47.5 40.1 L 47.5 42.7 L -46.8 46.2 L -46.8 43.6"/>
+    <path d="M -28.9 35.9 L 10.4 -10.6 L 34.5 33.6"/>
+    <!-- mitre joints at the three corners -->
+    <path class="fine" d="M -46.8 43.6 L -31.2 36 M 11.6 -25.6 L 10.4 -13.2 M 47.5 40.1 L 35.9 33.5"/>
+  </g>
+  <g>
+    <!-- the plumb line, its bob, and the graduated mark on the base bar -->
+    <path class="fine" d="M 10.4 -13.2 L 10.4 21"/>
+    <path d="M 10.4 21 C 12.8 23.8 13.9 25.9 13.9 27.6 C 13.9 29.6 12.4 31.1 10.4 31.1 C 8.4 31.1 6.9 29.6 6.9 27.6 C 6.9 25.9 8 23.8 10.4 21 Z"/>
+    <path class="fine" d="M 10.4 34.4 L 10.4 37.6 M 6.4 34.6 L 6.4 36.3 M 14.4 34.3 L 14.4 36 M 2.4 34.7 L 2.4 36.4 M 18.4 34.2 L 18.4 35.9"/>
+  </g>
+</svg>

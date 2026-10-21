@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 -82 120 92">
+  <!-- Mensa (Taffelberget), Lacaille's Mons Mensae, "la Montagne de la Table": Table Mountain
+       above Cape Town, where he mapped the southern sky, seen from Table Bay with north up.
+       The flat table stands in the middle with Devil's Peak to the east and Lion's Head to the
+       west, and the "tablecloth" cloud lies on its top (Lacaille's nod to the Large Magellanic
+       Cloud just north of it). Beta sits on the west end of the table under the cloud, alpha on
+       the front of Devil's Peak beside its spur, eta on the lower slopes below the west cliffs,
+       and gamma at the foot of the mountain above the shore. -->
+  <g>
+    <path d="M -47 -3 C -46 -8 -45 -14 -43.5 -20 C -42 -26 -41 -30 -39 -33 C -37 -36 -36 -38 -35 -42 C -33.5 -47 -32 -51 -30 -55.5 L -27.5 -51.5 C -26 -49.5 -23.5 -48.5 -21 -48.5"/>
+    <path d="M -30 -54.5 C -29 -46 -27.5 -36 -26 -27 C -25 -21 -24 -17 -22 -13"/>
+    <path d="M -21 -48.5 C -18.5 -51 -16.5 -56 -15.5 -63 L -6 -63.4 L -1.5 -63.2 L 0 -62 L 1.5 -63.3 L 10 -63.6 L 22 -63.4 C 23 -58 23.5 -52 23.8 -46.5 C 24.5 -40 25.5 -33 27 -29.5 C 27.7 -28 28.3 -27.3 29 -27"/>
+    <path d="M -20.5 -47.5 C -17 -45.5 -14 -46 -11.5 -46.5 C -8 -47 -4 -43.5 -1 -43.8 C 2.5 -44 5.5 -46 9 -45.2 C 13 -44.4 18 -46 23.8 -46.5"/>
+    <path d="M 29 -27 C 30.8 -27.2 32.3 -29.5 33.3 -32.5 C 34.2 -35.5 35 -38.5 36.5 -39.5 C 38 -40.5 39.5 -39.8 40 -37.5 C 40.8 -33 41.8 -28 43.2 -23 C 44.6 -17 46 -10 47 -3.2"/>
+    <path d="M 51 -3.4 C 30 -1 -25 -1 -51 -3.4"/>
+    <path d="M -13 -63.5 C -16.5 -64 -16.5 -67.5 -13 -68 C -12 -70.5 -8 -71 -6 -69 C -4.5 -71.5 0 -72 2 -69.5 C 4 -72 9 -72 10.5 -69.5 C 12.5 -71 17.5 -70.5 18 -67.5 C 21.5 -67.5 22 -64 19.5 -63.6"/>
+  </g>
+  <g>
+    <path class="fine" d="M -12 -63.3 C -12.4 -58 -12.3 -52 -11.5 -46.5 M -5.5 -63.4 C -5.7 -60 -6 -57 -6.6 -54 M 0 -62 C 0 -56 -0.4 -50 -1 -43.8 M 6 -63.5 C 6.3 -60 6.4 -57 6.1 -53.5 M 12 -63.6 C 12.4 -57 12.8 -51 12.8 -44.8 M 33.6 -33.5 C 35.5 -34.3 38.5 -34.3 40.6 -33.5 M -13 -46.2 C -14.5 -40 -16.5 -34 -19 -29 M 9.5 -45 C 10 -39 11 -34 12.5 -30"/>
+    <path class="fine" d="M -38 2.5 Q -35 1 -32 2.5 Q -29 4 -26 2.5 M -6 4 Q -3 2.5 0 4 Q 3 5.5 6 4 M 26 2.5 Q 29 1 32 2.5 Q 35 4 38 2.5"/>
+  </g>
+</svg>

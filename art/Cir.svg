@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-71 -46 88 92">
+  <!-- Circinus (Passaren), Lacaille's pair of compasses (le Compas): a pair of brass
+       dividers lying across the sky, slightly opened. Alpha sits on the rivet of the round
+       joint at the head, with a knurled handle beyond it to the south-west. The two legs, each
+       with a collar below the joint, run north-east and taper into steel points whose tips
+       are beta and gamma. -->
+  <g>
+    <path d="M -13.5 13.4 L -55.5 -37.7 C -50.3 -32.9 -45.6 -29.3 -41.9 -25.9 L -15.8 1.8 L -15.4 1.5 C -14.7 0.9 -12.1 4 -12.8 4.6 L -13.2 4.9 L -7.7 11.6"/>
+    <path d="M -15.8 1.8 L -20.1 5.4 M -13.2 4.9 L -17.5 8.5 M -41.9 -25.9 C -43 -25.6 -43.7 -25 -44.2 -23.9"/>
+    <path d="M -14.2 14.1 L -62.1 -31.3 C -57.7 -25.8 -54.4 -20.9 -51.3 -16.9 L -25.6 11 L -26 11.4 C -26.6 12 -23.7 14.8 -23 14.1 L -22.7 13.8 L -16.4 19.7"/>
+    <path d="M -25.6 11 L -21.8 6.9 M -22.7 13.8 L -18.9 9.7 M -51.3 -16.9 C -51 -18 -50.3 -18.7 -49.2 -19.1"/>
+    <path d="M -13.9 13.7 C -10.6 10.7 -5.6 10.9 -2.5 14.1 C 0.5 17.4 0.3 22.4 -2.9 25.5 C -6.2 28.5 -11.2 28.3 -14.3 25.1 C -17.3 21.8 -17.1 16.8 -13.9 13.7 Z"/>
+    <path d="M -12.2 15.5 C -10 13.4 -6.4 13.5 -4.3 15.8 C -2.2 18 -2.3 21.6 -4.6 23.7 C -6.8 25.8 -10.4 25.7 -12.5 23.4 C -14.6 21.2 -14.5 17.6 -12.2 15.5 Z"/>
+    <path d="M -1.8 24.2 L -0.1 26.1 L 1.1 25 L 2.1 26.1 L 1.7 26.5 L 7.3 32.5 C 8.8 34.1 8.9 35.8 7.7 36.9 C 6.5 38 4.9 37.8 3.4 36.2 L -2.3 30.1 L -2.7 30.6 L -3.7 29.5 L -2.6 28.4 L -4.3 26.5"/>
+    <path class="fine" d="M -19.6 1.6 L -42 -23.8"/>
+    <path class="fine" d="M -25.6 7.2 L -49.2 -16.9"/>
+    <path class="fine" d="M -9.5 18.4 C -8.8 17.8 -7.8 17.9 -7.2 18.5 C -6.6 19.2 -6.7 20.2 -7.3 20.8 C -8 21.4 -9 21.3 -9.6 20.7 C -10.2 20 -10.1 19 -9.5 18.4 Z"/>
+    <path class="fine" d="M 3.1 28 L -0.2 32.3 M 4.5 29.5 L 1.1 33.8 M 5.8 30.9 L 2.5 35.3"/>
+  </g>
+</svg>

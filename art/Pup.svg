@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-159 -109 283 316">
+  <!-- Puppis, the stern of the ship Argo, lying tilted as in the old atlases: the broken-off
+       forward end of the hull sinks to the south-east towards Vela and Carina, and the stern
+       sweeps up in the north into a tall post that curls over eastwards into a scroll (the
+       aphlaston). A railing runs along the gunwale, and the steering oar hangs from the stern
+       quarter with its tiller above the rail and its blade down past the stern to the south-west.
+       Tureis (ρ, "the little shield") sits in the heart of the scroll and j on its crest;
+       Azmidi (ξ), ο, Markab (κ), l and p climb the stern post; Naos (ζ, "the ship") is on
+       the hull side and Regor (γ2 Vel) low on the broken forward end; π is on the oar's
+       loom and ν where its blade begins. -->
+  <g>
+    <path d="M 51.3 111.2 C 49.3 119.5 45.8 127.5 41 131 C 8.4 154.5 -35.9 177.8 -64.9 187.6 L -96.6 196.7 L -102.4 174.6 L -124.5 164.3 L -127.9 138.5 L -144.8 125.2 L -144.2 106.3 C -122.4 88 -89.8 64.5 -70.2 46.3 C -61.9 38.6 -56.9 26.5 -56.3 14.2"/>
+    <path d="M -56.4 8.8 C -58.3 -8.5 -75.1 -28 -92.2 -43.7 C -100.1 -51.1 -111.4 -48.9 -120 -43.9 C -126.9 -39.9 -135.1 -42.1 -139.1 -49 C -146.1 -61.1 -140 -78.5 -122.7 -88.5 C -105.4 -98.5 -84.8 -98.9 -70.6 -86.3 C -60.1 -76.1 -46.4 -56.4 -38 -35.8 C -31.6 -18.7 -34.2 -3.3 -27.2 8.8 C -19.7 21.8 5 37.5 28 54 C 42 64 51 76 53 92 C 53.4 95.9 53.2 101.2 52.2 106.7"/>
+    <path d="M -144.2 106.3 L -149.2 100.4 L -147 91.5 C -127 75 -98.5 53.4 -80.2 37.1 C -72.2 30 -63 25.8 -57.6 23.6"/>
+    <path class="fine" d="M -119.9 86.9 L -128.2 76.3 M -102.4 73.1 L -110.8 62.5 M -85.5 59.6 L -94.2 49"/>
+    <path d="M -141.1 128.1 C -103.2 101.2 -70.6 77.7 -50.4 56.8 C -44.1 50.2 -40 43 -37.6 35.1"/>
+    <path class="fine" d="M -125.1 159.8 C -73.7 128.4 -21.1 93.3 5.3 69.7 M 8.3 66.8 C 15.2 59.7 19 54.6 21.1 49.1 M -100.3 182.5 C -49.9 153.5 8.7 115.1 32.5 94.3 M 35.3 91.4 C 40.8 86 44.2 77 45 70.8"/>
+  </g>
+  <g>
+    <path d="M -116.7 -70.1 C -131.3 -67.4 -135.2 -58.2 -129.5 -52.3 C -124.9 -47.6 -117.8 -52.1 -119.1 -58.3"/>
+    <path class="fine" d="M -35.8 25.3 C -35.1 16.8 -36.3 10 -39.2 4.1 C -48.3 -13.7 -58.3 -31 -69 -45.6 C -82.6 -63.1 -99.3 -72 -116.7 -70.1 M -49.1 -41 C -62.3 -67.9 -79.5 -89.2 -98 -89.2 C -107.5 -89.2 -117 -85.9 -125.2 -78.9"/>
+  </g>
+  <g>
+    <path d="M -64.7 6.6 L 73.7 131.4 C 76.6 134.1 75.6 142.6 79.3 146 L 98.6 163.4 C 102.3 166.8 108 166.4 111.4 162.7 C 114.8 159 114.4 153.4 110.7 150 L 91.4 132.5 C 87.7 129.1 79.3 131.1 76.3 128.4 L -62 3.7 C -64 1.9 -66.6 4.9 -64.7 6.6 Z"/>
+    <path d="M -63.5 7.6 L -69.6 14.3"/>
+  </g>
+</svg>

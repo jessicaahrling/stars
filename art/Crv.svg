@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-56 -44 108 116">
+  <!-- Corvus, the raven, perched on the back of Hydra as in Hevelius and Bode: it faces west
+       with its wing raised and bends its head down to peck at the water snake. Alchiba (alpha)
+       is the tip of the beak and Minkar (epsilon, "the beak") its base on the head. Gienah
+       (gamma, "the wing") sits near the bend of the raised wing, Algorab (delta) further out
+       on it and eta at the root of the fingered primaries. Kraz (beta) is at the feet, and the
+       faint zeta in the breast. -->
+  <!-- hunched nape, domed crown and forehead, Minkar (epsilon) at the base of the beak -->
+  <path d="M 32.6 4 C 32.6 8.2 38.6 12.6 42 18 C 44.6 21.8 49.4 25.2 49.8 32.5 C 50.2 39 48.6 42.8 46.4 45.2"/>
+  <!-- heavy arched beak, set off from the forehead, Alchiba (alpha) at its tip -->
+  <path d="M 46.4 45.2 C 47.6 51 47 59 41.5 65.2 C 40.1 61 38.6 56 36.6 52"/>
+  <!-- throat, breast (faint zeta) and belly -->
+  <path d="M 36.6 52 C 33.6 51.6 27.5 55 20.5 52.5 C 14 50.2 -1.5 47.3 -10 42.5 C -16 39 -20 35 -24 31.5"/>
+  <!-- wedge-shaped tail narrowing to a blunt point -->
+  <path d="M -24 31.5 C -31 31.4 -38.5 28.3 -42.6 25.4 C -44.8 23.9 -44.6 21.9 -42.4 21.3 C -36 19.4 -26 20.5 -23.5 18"/>
+  <!-- leading edge of the raised wing, Gienah (gamma) inside the bend -->
+  <path d="M 32.6 4 C 32.6 -1 34.6 -6.2 34 -14 C 33 -27 14 -35 -2 -36.5 C -6 -36.9 -10 -37.2 -13 -37.4"/>
+  <!-- pointed primaries fanning from the wrist, the outermost longest: Algorab (delta) and eta at their roots -->
+  <path d="M -13 -37.4 C -22.8 -38.1 -31.4 -38.8 -37.4 -40.5 C -33.8 -35.6 -29.4 -32.3 -23.1 -28.1 C -29.4 -29.9 -34.1 -31 -39.3 -30.4 C -35.2 -27.1 -30.7 -25.6 -24.4 -23.8 C -30.1 -23.6 -34.2 -23.2 -38.5 -21 C -34 -19.2 -29.7 -19.1 -23.7 -19.3 C -28.6 -17.6 -32 -16.1 -34.9 -12.9 C -30.5 -12.4 -26.8 -13.6 -21.8 -15.5 C -25.2 -12.8 -27.6 -10.8 -28.9 -7.2 C -25.2 -7.6 -22.8 -9.2 -19.5 -11.8"/>
+  <!-- secondaries, one soft curve down over the rump to the top of the tail -->
+  <path d="M -19.5 -11.8 C -27 -3 -23.5 10 -23.5 18"/>
+  <!-- near leg -->
+  <path d="M -5 44.8 L -10.5 53.5 M -10.5 53.5 Q -6 53.6 -2.8 55.8 M -10.5 53.5 Q -8 55.6 -6.6 59 M -10.5 53.5 Q -12.6 55.2 -14.2 57.6"/>
+  <!-- far leg: beta at the foot -->
+  <path d="M -13 40.6 L -18.5 51.5 M -18.5 51.5 Q -16.6 51.6 -15 52.6 M -18.5 51.5 Q -21.6 52 -24.6 54.2"/>
+  <!-- eye, base of the upper mandible and gape, and the back of the head against the ruffled neck -->
+  <path class="fine" d="M 41 36.5 C 41 34.6 44 34.6 44 36.5 C 44 38.5 41 38.5 41 36.5 M 46.4 45.2 C 44 44.2 41.5 44.7 39.5 46.3 C 39.9 51 40.8 56.5 41.7 61.8 M 43 19.4 C 38.4 22.6 34.4 28.5 33.9 34.8 C 33.6 39 33.9 42.8 34.6 46"/>
+  <!-- wing coverts, round the shoulder and along the lower edge of the wing to the secondaries -->
+  <path class="fine" d="M -2 -30.5 C 13 -28.5 26.6 -22.6 29 -15 C 30.6 -9.6 30.4 0 29.4 3.6 C 28.8 6.8 27 8.9 24 9.6 Q 21.6 10.8 19.5 9.2 Q 15 10 11.5 7 Q 7.2 6.7 5 3 Q 0.9 3.8 -2 0.8 Q -5.6 2.5 -9 0.5 Q -11.7 3.2 -15.5 2.5 Q -19.2 5.4 -24.3 4.5"/>
+  <!-- primaries -->
+  <path class="fine" d="M -15.4 -24.5 L -23.1 -28.1 M -16 -22.7 L -24.4 -23.8 M -15.9 -20.9 L -23.7 -19.3 M -15.2 -19.1 L -21.8 -15.5"/>
+  <!-- tail feathers -->
+  <path class="fine" d="M -25.5 26.5 C -31 26.3 -36 25.3 -40.2 23.9 M -26 23 C -31 22.4 -35.5 22.1 -39 22.3"/>
+</svg>

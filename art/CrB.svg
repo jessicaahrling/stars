@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-36 -26 94 102">
+  <!-- Corona Borealis, the Northern Crown (Ariadne's crown): a jewelled golden coronet with six
+       pearl-tipped points, seen from above and in front and tipped a little to the east, as the
+       crown is drawn in the old atlases. The arc of stars runs round its band: Alphecca (Gemma,
+       "the jewel") is the great stone on the front, gamma, delta and epsilon are the smaller stones
+       beside it, Nusakan (beta) sits on the rim at the west end, and theta and iota lie on the
+       inside of the band at the back. -->
+  <!-- the band: its front face, then the whole top rim -->
+  <path d="M -29 36.9 L -27.2 47.5 C -25.9 54.9 -20.5 61.3 -12.1 65.2 C -3.7 69.2 6.9 70.4 17.5 68.5 C 28.1 66.7 37.8 62 44.3 55.5 C 50.9 49 53.9 41.2 52.6 33.8 L 50.8 23.2"/>
+  <path d="M 50.8 23.2 C 52.1 30.6 49.1 38.4 42.5 44.9 C 36 51.4 26.3 56.1 15.7 57.9 C 5.2 59.7 -5.5 58.5 -13.9 54.6 C -22.3 50.6 -27.7 44.3 -29 36.9 C -30.2 29.4 -27.2 21.6 -20.7 15.1 C -14.1 8.6 -4.4 3.9 6.1 2.1 C 16.7 0.3 27.4 1.5 35.8 5.4 C 44.1 9.4 49.6 15.7 50.8 23.2 Z"/>
+  <!-- lower edge of the inside of the back wall, seen over the front rim -->
+  <path class="fine" d="M -27.4 42 C -26.7 35.4 -22.8 28.8 -16.4 23.5 C -9.9 18.1 -1.3 14.3 7.9 12.7 C 17.2 11.2 26.6 11.9 34.4 14.8 C 42.3 17.7 48.1 22.5 51 28.6"/>
+  <!-- the six points, each tipped with a pearl: three in front, three at the back -->
+  <g>
+    <path d="M 46 40.9 Q 40.4 38.8 38.3 29.4 Q 38.7 45.6 28.4 54.1"/>
+    <path d="M 38.1 25.8 C 39.1 25.8 39.9 26.6 39.9 27.6 C 39.9 28.6 39.1 29.4 38.1 29.4 C 37.1 29.4 36.3 28.6 36.3 27.6 C 36.3 26.6 37.1 25.8 38.1 25.8 Z"/>
+    <path d="M 28.4 54.1 Q 18 52.6 12.6 39.2 Q 10.6 53.6 2.4 58.6"/>
+    <path d="M 12.2 35.6 C 13.2 35.6 14 36.4 14 37.4 C 14 38.4 13.2 39.2 12.2 39.2 C 11.2 39.2 10.4 38.4 10.4 37.4 C 10.4 36.4 11.2 35.6 12.2 35.6 Z"/>
+    <path d="M 2.4 58.6 Q -9.9 54 -14.3 39.2 Q -15 47.4 -18.6 51.9"/>
+    <path d="M -14.7 35.6 C -13.8 35.6 -12.9 36.4 -12.9 37.4 C -12.9 38.4 -13.8 39.2 -14.7 39.2 C -15.7 39.2 -16.5 38.4 -16.5 37.4 C -16.5 36.4 -15.7 35.6 -14.7 35.6 Z"/>
+    <path d="M -24.9 20.1 Q -23.7 9.2 -25 -1.6 Q -18.9 6.4 -7.9 6.4"/>
+    <path d="M -25.4 -5.2 C -24.5 -5.2 -23.6 -4.4 -23.6 -3.4 C -23.6 -2.4 -24.5 -1.6 -25.4 -1.6 C -26.4 -1.6 -27.2 -2.4 -27.2 -3.4 C -27.2 -4.4 -26.4 -5.2 -25.4 -5.2 Z"/>
+    <path d="M -7.9 6.4 Q 3.1 -0.9 3.4 -13.9 Q 8.1 -1.7 20.7 1.5"/>
+    <path d="M 3.1 -17.5 C 4.1 -17.5 4.9 -16.7 4.9 -15.7 C 4.9 -14.7 4.1 -13.9 3.1 -13.9 C 2.1 -13.9 1.3 -14.7 1.3 -15.7 C 1.3 -16.7 2.1 -17.5 3.1 -17.5 Z"/>
+    <path d="M 20.7 1.5 Q 30.6 -1.6 34.8 -10.6 Q 37.6 0 41.3 8.7"/>
+    <path d="M 35 -14.2 C 36 -14.2 36.8 -13.4 36.8 -12.4 C 36.8 -11.4 36 -10.6 35 -10.6 C 34 -10.6 33.2 -11.4 33.2 -12.4 C 33.2 -13.4 34 -14.2 35 -14.2 Z"/>
+  </g>
+  <!-- jewels on the band: Gemma (Alphecca) as the great stone, smaller stones at gamma, delta, epsilon -->
+  <path d="M 32.6 58.6 C 33.7 60.4 35.5 61.2 36.8 60.5 C 38 59.7 38.2 57.7 37.1 56 C 36.1 54.2 34.2 53.4 33 54.1 C 31.8 54.9 31.6 56.9 32.6 58.6 Z"/>
+  <path class="fine" d="M 33.8 58 L 36.1 59.3 L 36 56.6 L 34.1 55.9 Z"/>
+  <path class="fine" d="M 15.5 63.6 L 18.3 66.5 L 19.9 62.8 L 17.3 60.9 Z"/>
+  <path class="fine" d="M 0.2 65.4 L 2 68.9 L 4.4 65.8 L 2.5 63.3 Z"/>
+  <path class="fine" d="M -17.7 57.4 L -17.6 60.9 L -14.5 59.2 L -15.1 56.5 Z"/>
+</svg>

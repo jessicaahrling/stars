@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-80 -70 155 160">
+  <!-- Columba Noachi (Duvan), Noah's dove: flying west in profile with an olive sprig in its beak,
+       the near wing raised over its back and the far wing beaten down beneath it, the fanned tail
+       trailing east. Epsilon in the head, Phact (alpha, "the ring dove") on the shoulder at the
+       root of the raised wing, Wazn (beta) and gamma in the body, kappa in the tail and delta at
+       the tip of the tail, eta at the tip of the lowered wing. -->
+  <g>
+  <!-- back and fanned tail, kappa in the tail and delta at its tip -->
+  <path d="M -16.5 -8.6 C -24 -8.3 -31 -8 -38 -9 C -46 -10.4 -57 -14.5 -67 -18.5 Q -70.6 -16.1 -69.3 -12 Q -72 -8.7 -69.6 -5.2 Q -71.3 -1.3 -68 1.3 Q -66.1 6.2 -61 7 C -54 8.5 -45 10.2 -37 12.5"/>
+  <path class="fine" d="M -38 -5 L -69.3 -12 M -37.5 0.5 L -69.6 -5.2 M -37 6 L -68 1.3"/>
+  <!-- belly and breast, Wazn and gamma in the body -->
+  <path d="M -37 12.5 C -31 15.8 -23 19.6 -15 21 C -5 23 8 24 17 23 C 24 22.3 30 19.5 35 15.5 C 39 12.3 43 10 47 7.5 L 49 5.2"/>
+  </g>
+  <g>
+  <!-- beak, head (epsilon) and nape -->
+  <path d="M 49 5.2 C 52 5.6 55.5 5.8 58.5 5.3 C 55.5 3.2 52.5 1 49.2 0 C 48.8 -3.5 46 -6.6 42 -6.6 C 38.5 -6.6 36 -5.2 34.2 -5 C 32.5 -5 31 -6.5 30 -8"/>
+  <!-- eye, gape and the half-collar of the ring dove -->
+  <path class="fine" d="M 43.4 -1.6 C 43.4 -3.4 46 -3.4 46 -1.6 C 46 0.2 43.4 0.2 43.4 -1.6 Z M 49.6 2.8 L 55 4.6 M 34.3 -5 C 33.6 -1.4 34.4 2.2 36.8 4.8 C 36.2 1.8 36 -1.6 36.5 -5.2"/>
+  </g>
+  <g>
+  <!-- raised near wing, Phact at its root on the shoulder -->
+  <path d="M 30 -8 C 33 -21 31 -34 23 -43 C 14 -52 -2 -58.5 -24 -61 Q -31.8 -60.8 -29 -53.5 Q -36.6 -52.5 -32.8 -45.8 Q -39.6 -43.1 -34.6 -37.8 Q -40 -33.5 -34.2 -29.8 Q -36.7 -24.8 -31.6 -22.6 Q -32.3 -17.4 -27.2 -16.4 Q -26.4 -11.5 -21.4 -11.4 Q -18.3 -11.2 -16.5 -8.6"/>
+  <!-- coverts and flight feathers -->
+  <path class="fine" d="M 26 -11 C 25.5 -30 13 -46 -29 -53.5 M -7.2 -48 L -32.8 -45.8 M 4.3 -43.1 L -34.6 -37.8 M 17.7 -32.9 L -31.6 -22.6"/>
+  <!-- lowered far wing, eta near its tip -->
+  <path d="M 17 23 C 17.5 36 13 50 5 60 C -2 68.5 -9 75.5 -16 81.5 Q -22.5 79.7 -19.6 73.6 Q -25.7 70.8 -21.8 65.4 Q -27 61.7 -22.6 57 Q -26.8 52.6 -22.2 48.6 Q -24.8 44 -21 40.4 Q -22.7 35.8 -19 32.6 Q -20.3 28.8 -17 26.4 Q -17.9 23 -15 21"/>
+  <!-- coverts and flight feathers -->
+  <path class="fine" d="M 12 26 C 11.5 40 4 56 -19.6 73.6 M -4.3 60.2 L -22.6 57 M 6 46.6 L -21 40.4"/>
+  </g>
+  <g>
+  <!-- olive sprig held in the beak -->
+  <path d="M 54 5.6 C 58.5 10.5 62.5 17.5 64.5 28"/>
+  <path d="M 56.6 8.8 C 59 12.1 63.8 13.3 67 12.5 C 65 9.9 60.5 7.8 56.6 8.8 Z"/>
+  <path d="M 58.8 12.2 C 56.3 15.3 56.5 20.3 58.1 23.1 C 60.1 20.5 60.9 15.6 58.8 12.2 Z"/>
+  <path d="M 60.8 16.1 C 62.3 19.8 66.7 22.2 70 22.2 C 68.7 19.1 64.8 16 60.8 16.1 Z"/>
+  <path d="M 62.6 20.5 C 59.6 23.3 59.1 28.2 60.4 31.3 C 62.7 28.9 64.2 24.2 62.6 20.5 Z"/>
+  <path d="M 64.5 28 C 62.6 31.6 64 36.1 66.5 38.3 C 67.9 35.4 67.5 30.6 64.5 28 Z"/>
+  </g>
+</svg>

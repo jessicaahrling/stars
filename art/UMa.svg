@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-265 -215 530 430">
+  <!-- Ursa Major, the great bear: striding west, near forepaw reaching out, far forepaw planted,
+       with its long classical tail streaming east. Muscida on the muzzle, h in the neck, upsilon in
+       the chest, Dubhe on the back, Merak in the loins, Phecda in the thigh, Megrez at the root of
+       the tail, Alioth, Mizar and Alkaid along the tail. phi in the shoulder, theta in the near
+       foreleg, Talitha and Alkaphrah in its paw; chi and nu-xi on the near hind leg and paw, psi and
+       lambda-mu on the far hind leg and paw. -->
+  <g>
+    <!-- back -->
+    <path d="M -86 -94 C -76 -97 -50 -112 -30 -117 C -10 -122 12 -125 30 -128 C 46 -133 56 -147 70 -152 C 80 -155 90 -157 98 -162"/>
+    <!-- head, throat and chest -->
+    <path d="M 98 -162 C 106 -168 113 -181 122 -187 C 119 -197 127 -205 136 -203 C 144 -201 147 -194 143 -188 C 154 -191 166 -188 175 -182 C 184 -177 195 -175 204 -173 C 211 -172 215 -166 213 -161 C 211 -156 206 -155 201 -155 C 194 -154 188 -151 183 -148 C 179 -145 173 -142 169 -137 C 164 -128 162 -117 164 -107 C 167 -97 171 -88 173 -81 C 174.5 -76 177 -72 181 -68.5"/>
+    <path class="fine" d="M 163 -179 C 165 -182 169 -182 171 -179 M 128 -196 C 131 -199 136 -198 138 -194 M 208 -168 C 210 -166 210 -164 208 -162 M 186 -152 C 178 -155 172 -160 170 -166"/>
+  </g>
+  <g>
+    <!-- near foreleg, reaching: forearm from the chest to the wrist, paw, underside back to the elbow on the belly -->
+    <path d="M 181 -68.5 C 188 -62.5 198 -53 204 -45 C 207 -41 210 -40 214 -43 C 222 -48 233 -47 239 -42 C 246 -36 248 -27 244 -18 C 240 -10 232 -6 222 -6 C 216 -6 211 -9 207 -12 C 188 -17 166 -21 152 -22 C 145 -22.5 136 -17 128 -13"/>
+    <!-- far foreleg, planted, hanging from the belly behind the elbow -->
+    <path d="M 177 -18 C 180 -2 182 12 184 25 C 185 31 190 35 195 39 C 201 44 200 52 192 54 C 182 56 166 55 158 52 C 152 50 149 45 149 39 C 149 30 144 10 136 -1 C 133 -6 131 -10 128 -13"/>
+    <path class="fine" d="M 134.7 -16.5 C 131 -32 116 -56 112 -72 C 108 -100 98 -128 78 -147 M 243.8 -35.9 L 251.8 -38.9 M 246 -27 L 254 -27 M 243.6 -17.3 L 250.6 -13.3 M 197.8 42.3 L 204.8 40.3 M 198.8 47.6 L 205.8 48.6 M 196 52.2 L 201 56.2"/>
+  </g>
+  <g>
+    <!-- belly -->
+    <path d="M 128 -13 C 100 -7 70 -1 48 3 C 30 7 10 14 -5 20"/>
+    <!-- near hind leg and haunch: thigh at chi, shin narrowing to the heel, flat paw at nu and xi -->
+    <path d="M -5 20 C -12 28 -16 36 -16 46 C -14 62 -9 80 -6 96 C -3 112 0 126 3 138 C 5 148 7 155 11 163 C 15 171 25 178 29 187 C 32 196 26 202 16 203 C 4 204 -14 203 -26 200 C -34 198 -40 192 -40 183 C -40 175 -36 168 -33 160 C -31 154 -30 146 -31 138 C -33 124 -44 104 -56 84 C -63 72 -76 48 -84 30 C -94 14 -104 -10 -104 -30 C -104 -40 -103 -46 -102 -51"/>
+    <!-- far hind leg: thick thigh at psi, narrowing to the hock, paw at lambda and mu -->
+    <path d="M 48 3 C 50 20 54 34 60 43 C 66 51 78 56 88 60 C 93 62 98 62 103 60 C 108 57 112 55 117 55 C 127 55 133 63 132 73 C 131 84 125 91 116 92 C 96 91 50 86 -11.4 71"/>
+    <path class="fine" d="M -36 -105 C -12 -86 -6 -54 -8 -28 C -9 -10 -8 6 -5 20 M 29.8 192 L 36.8 191 M 27.4 198 L 33.9 201.5 M 21.5 201.8 L 25.5 207.3 M 129.5 61.7 L 136.5 58.7 M 132 73 L 140 73 M 127.4 85.6 L 133.4 89.6"/>
+  </g>
+  <g>
+    <!-- tail: Megrez at its root, Alkaid at the tip -->
+    <path d="M -102 -51 C -101 -56 -104 -60 -110 -62 C -116 -64 -122 -65 -130 -65 C -146 -66 -162 -70 -178 -70 C -192 -69 -204 -61 -214 -54 C -224 -47 -234 -41 -246 -38 C -233 -59 -212 -84 -190 -92 C -165 -100 -140 -94 -118 -92 C -104 -91 -96 -91 -86 -94"/>
+  </g>
+</svg>
