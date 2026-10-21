@@ -1,23 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-150 -100 315 225">
-  <!-- Vela, the sail of the ship Argo: a broad square sail hung from a long yard, filled by
-       a wind from astern (the stern, Puppis, lies to the west) so that it bellies out
-       eastwards, with a pennant streaming east from the masthead. Topping lifts run from the
-       masthead to the yardarms; the clews are sheeted down and the mast continues below the
-       foot towards the deck in Carina. Psi sits on the masthead, q and Suhail (lambda) in the
-       head of the sail under the yard, mu in the eastern belly, Regor (gamma2) on the western
-       leech beside the broken bow of Puppis, and phi, Markeb (kappa) and Alsephina (delta)
-       along the foot. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-145 -100 300 215">
+  <!-- Vela, the sail of the ship Argo: a broad square sail hung from a long yard and filled
+       by the wind so that both leeches belly out, with a pennant streaming west from the
+       masthead towards the stern in Puppis. Topping lifts run from the mast to the yardarms;
+       rings hang at the clews and the sheets lead down and inwards from them, and a short
+       stub of the mast shows below the foot. Psi sits on the mast above the yard, q and
+       Suhail (lambda) in the head of the sail under the yard, mu in the eastern belly, Regor
+       (gamma2) on the western leech beside the broken bow of Puppis, phi and Markeb (kappa)
+       just above the foot and Alsephina (delta) on it. -->
   <g>
-    <path d="M -131.9 -60.2 Q -65.4 -57.9 1.1 -54.8 Q 67.6 -51.4 134.1 -47.3 C 136.7 -47.2 136.5 -44.8 133.9 -44.9 Q 67.4 -47.2 0.9 -50.3 Q -65.6 -53.7 -132.1 -57.8 C -134.7 -57.9 -134.5 -60.3 -131.9 -60.2 Z"/>
+    <path d="M -125 -60 Q -62 -57.7 1.1 -54.8 Q 63.7 -51.6 126.3 -47.8 C 128.9 -47.7 128.7 -45.1 126.1 -45.2 Q 63.5 -47.4 0.9 -50.3 Q -62.1 -53.5 -125.2 -57.4 C -127.8 -57.5 -127.6 -60.1 -125 -60 Z"/>
     <path d="M 4.5 -54.6 L 6 -80 C 3.9 -80.4 4.7 -86.6 8.3 -86.6 C 11.9 -86.6 12.7 -80.4 10.2 -80 L 9.3 -54.6"/>
-    <path d="M 6.3 -79.8 C -10.7 -89.5 -28.7 -75.5 -49.7 -84.5 C -58.7 -89 -67.7 -90.5 -76.7 -89.5 L -64.7 -82.5 L -73.7 -76 C -63.7 -77 -54.7 -77 -45.7 -74 C -26.7 -66.5 -11.7 -78.5 6.2 -73.4"/>
-    <path class="fine" d="M 7.7 -72 L -128.9 -60.2 M 7.7 -72 L 131.1 -47.5 M -119.9 80.3 L -106 110 M 146.1 64.4 L 131 100"/>
+    <path d="M 10.2 -79.8 C 24.6 -89.5 40 -75.5 57.8 -84.5 C 65.5 -89 73.1 -90.5 80.8 -89.5 L 70.5 -82.5 L 78.2 -76 C 69.7 -77 62 -77 54.4 -74 C 38.2 -66.5 25.5 -78.5 10 -73.4"/>
+    <path class="fine" d="M 5.2 -67 L -121 -59.8 M 9.7 -67 L 122.5 -48 M -121.4 83 L -110.8 99 M 137.4 65.5 L 126.8 81.5"/>
   </g>
   <g>
-    <path d="M -116.1 -55.9 C -134 -22 -154 50 -122 76 C -60 99 66 99 148 60 C 147 24 137 -10 123.9 -44.3"/>
-    <path d="M -120.9 75.7 C -119.6 75.7 -118.5 76.8 -118.5 78.1 C -118.5 79.4 -119.6 80.5 -120.9 80.5 C -122.2 80.5 -123.3 79.4 -123.3 78.1 C -123.3 76.8 -122.2 75.7 -120.9 75.7 Z M 147 59.8 C 148.3 59.8 149.4 60.9 149.4 62.2 C 149.4 63.5 148.3 64.6 147 64.6 C 145.7 64.6 144.6 63.5 144.6 62.2 C 144.6 60.9 145.7 59.8 147 59.8 Z"/>
-    <path class="fine" d="M -119.5 72 C -113 63 -104 57 -94 54 M -118.5 74.5 C -109 72.5 -99 71.5 -89 72 M 144.5 57 C 138 51 130 46.5 122 43.5 M 144 59.5 C 135 57.5 125.5 56.5 116 56.5"/>
-    <path class="fine" d="M -44 -52.4 C -67.2 -16.3 -92.8 61.5 -62 89 M 22 -49.2 C -4.4 -11.4 -33.5 60.5 -18 91.6 M 80 -46.4 C 62.5 -7.3 42 52.2 44 88.1"/>
-    <path d="M -2.7 91.1 L -4.1 118 M 2.3 91.1 L 1.1 118"/>
+    <path d="M -116 -56.8 C -133 -20 -134.5 40 -124 79 C -40 88 85 94 140 61.5 C 147 28 144 -18 121 -45.4"/>
+    <path d="M -122.7 78.6 C -121.4 78.6 -120.3 79.7 -120.3 81 C -120.3 82.3 -121.4 83.4 -122.7 83.4 C -124 83.4 -125.1 82.3 -125.1 81 C -125.1 79.7 -124 78.6 -122.7 78.6 Z M 138.7 61.1 C 140 61.1 141.1 62.2 141.1 63.5 C 141.1 64.8 140 65.9 138.7 65.9 C 137.4 65.9 136.3 64.8 136.3 63.5 C 136.3 62.2 137.4 61.1 138.7 61.1 Z"/>
+    <path class="fine" d="M -122.9 78.6 Q -107.9 74.6 -94.3 67 M -123.2 78.1 Q -111.7 68.3 -104.1 55.3 M 139.2 60.6 Q 127.7 50.8 120.1 37.8 M 138.9 61.1 Q 123.6 58.3 109.6 51.6"/>
+    <path class="fine" d="M -48 -52.9 C -62 -12 -78 50 -66 84 M 24 -49.2 C 28 -5 34 45 30 85.4 M 64 -47.5 C 73 -14 104 45 100 76.5"/>
+    <path d="M -2.5 86.1 L -3.3 102 C -3.3 105 1.8 105 1.8 102 L 2.5 86.1"/>
   </g>
 </svg>

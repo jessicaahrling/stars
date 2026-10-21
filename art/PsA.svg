@@ -1,31 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-112 -60 210 112">
   <!-- Piscis Austrinus, the southern fish (Södra fisken): a large fish swimming east towards
-       Fomalhaut, head raised and mouth gaping open to drink the stream poured from Aquarius' jar.
+       Fomalhaut, head raised and mouth open to drink the stream poured from Aquarius' jar.
        Upright as in the later atlases (Aratus had it on its back). Fomalhaut (alpha, "the fish's
        mouth") sits in the open mouth, epsilon at the front of the spiny dorsal fin, delta and gamma
        on the chin and throat, beta and mu on the belly above the pelvic and anal fins,
        theta on the upper lobe and iota on the lower lobe of the forked tail.
        Parts: head with open jaws, dorsal fin, back, tail, belly with pelvic and anal fins,
-       gill cover, pectoral fin; fine lines for the eye, fin rays, lateral line and a few scales. -->
+       gill cover, pectoral fin; fine lines for the eye, fin rays, lateral line and a row of scales. -->
   <g>
-    <path d="M -40 29 C -55 31.5 -70 31 -82 27.5 C -95 23 -102.5 13 -104.5 4 C -105.5 0.5 -104 -1.8 -101 -1.5 Q -90 -0.5 -78 0.5 Q -84 -10 -89.5 -20 C -91.5 -21.5 -93.5 -24.5 -90 -26.5 C -85 -29.5 -72 -34.5 -61 -32"/>
-    <path d="M -61 -32 C -59 -38 -56 -45 -53 -51 Q -49 -46 -44 -52.5 Q -40 -47 -35 -51 Q -31 -45.5 -26 -48.5 Q -22 -43 -17 -45 Q -13 -40 -8 -41 C -2 -38 4 -30 6 -19"/>
+    <path d="M -40 29 C -55 31.5 -70 31 -82 27.5 C -90 25 -96.5 13 -97.5 4 C -98.3 0.5 -97 -1.8 -94 -1.5 Q -86 -0.8 -77 -0.5 Q -84 -7 -92.5 -15 C -94.3 -16.7 -94.6 -19 -93 -21.5 C -89 -28 -68 -33 -58 -36.5"/>
+    <path d="M -58 -36.5 C -54 -37.9 -52.5 -42 -51.5 -47 Q -47.5 -42.5 -43 -48 Q -39 -43 -34.5 -46.5 Q -30.5 -41.5 -26 -44 Q -22 -39 -17.5 -41 Q -13.5 -36 -9 -37 C -3 -34.5 3.5 -28 6 -19"/>
     <path d="M 6 -19 C 18 -13 34 -4 46 3"/>
-    <path d="M 46 3 C 57 -1 72 -7 86 -13 C 80 -4 75 5 71 14 C 75 22 81 31 87 41 C 70 34 55 24.5 44 21"/>
+    <path d="M 46 3 C 57 -1 72 -7 86 -13 C 80 -4 75 5 71 14 C 75 22 81 30 86.5 39 C 70 33 55 24.5 44 21"/>
     <path d="M 44 21 C 40 22.5 35 24 30 25"/>
-    <path d="M 30 25 C 32 30 33 35 35 41 C 27 40 18 34 12 27.5"/>
+    <path d="M 30 25 C 31.5 29 33 33 34.5 37.5 C 27 36.5 18 32.5 12 27.5"/>
     <path d="M 12 27.5 C 2 29.5 -12 29.5 -22 27"/>
-    <path d="M -22 27 C -20 32 -16 38 -12 44 C -20 43 -32 36 -40 29"/>
-    <path d="M -71.2 -32.5 C -58 -20 -55 14 -68.4 30.1"/>
+    <path d="M -22 27 C -20 31 -17 35.5 -13 39.5 C -21 38.5 -32 34.5 -40 29"/>
+    <path d="M -71 -32.4 C -58 -20 -55 14 -68.4 30.1"/>
     <path d="M -60 -5 C -50 -9 -38 -5 -30 4 C -40 7 -50 9 -59.5 6"/>
   </g>
   <g>
     <path class="fine" d="M -72.8 -18 C -72.8 -15.7 -74.7 -13.8 -77 -13.8 C -79.3 -13.8 -81.2 -15.7 -81.2 -18 C -81.2 -20.3 -79.3 -22.2 -77 -22.2 C -74.7 -22.2 -72.8 -20.3 -72.8 -18 Z M -75 -18.3 C -75 -17.4 -75.7 -16.7 -76.6 -16.7 C -77.5 -16.7 -78.2 -17.4 -78.2 -18.3 C -78.2 -19.2 -77.5 -19.9 -76.6 -19.9 C -75.7 -19.9 -75 -19.2 -75 -18.3 Z"/>
-    <path class="fine" d="M -46 -29 L -44 -50.5 M -37 -27.3 L -35 -49 M -28 -25.6 L -26 -46.5 M -19 -23.9 L -17 -43 M -10 -22.1 L -8 -39"/>
-    <path class="fine" d="M 49 6 L 80 -8.5 M 51 10.5 L 72.5 9 M 50 15.5 L 75 24"/>
-    <path class="fine" d="M -31 28.5 L -16.5 42 M 25 26 L 32.5 39"/>
+    <path class="fine" d="M -44.7 -31.5 L -43.2 -46 M -36.2 -29.8 L -34.7 -44.5 M -27.7 -28.1 L -26.2 -42 M -19.2 -26.4 L -17.7 -39 M -10.7 -24.6 L -9.2 -35"/>
+    <path class="fine" d="M 49 6 L 80 -8.5 M 51 10.5 L 67 10 M 50 15.5 L 73.5 23.3"/>
+    <path class="fine" d="M -31 28.5 L -18.5 37 M 25 26 L 31.2 35.3"/>
     <path class="fine" d="M -58 -2 L -38 -3 M -58 2 L -36 4.5"/>
     <path class="fine" d="M -62 -22 C -30 -24 10 -12 46 10"/>
-    <path class="fine" d="M -18 -12 Q -12 -6 -18 0 M -2 -8 Q 4 -2 -2 4 M 14 -2 Q 20 4 14 10 M -10 2 Q -4 8 -10 14 M 6 7 Q 12 13 6 19"/>
+    <path class="fine" d="M -20 -22.4 Q -15.5 -17.8 -20 -13.2 M -7 -18.8 Q -2.5 -14.2 -7 -9.6 M 6 -14.3 Q 10.5 -9.7 6 -5.1 M 19 -8.9 Q 23.5 -4.3 19 0.3"/>
   </g>
 </svg>
