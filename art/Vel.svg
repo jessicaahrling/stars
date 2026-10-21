@@ -1,19 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-141 -134 292 251">
-  <!-- Vela, the sail of the ship Argo: one big square sail hung from a long yard, with
-       the masthead and a short pennant above the yard, between the table of Antlia and the compass
-       of Pyxis, and the mast showing as a fine line behind the cloth. Below the foot a short stub
-       of the mast stands on the deck of Carina. The forward clew is at mu, sheeted down to the
-       gunwale at the bow; the foot sags over the deck to Alsephina (delta), where the rising
-       gunwale hides the rest of it. The after leech comes straight down to Regor (gamma2), where
-       hull, poop deck and sail meet. q and psi lie in the head of the sail under the yard, Suhail
-       (lambda) in its after part, phi and Markeb (kappa) just above the foot. -->
+  <!-- Vela, the sail of the ship Argo: one big square sail hung from a long yard under the
+       table of Antlia. The mast stands in the middle of the yard, with a short masthead and its
+       truck above it, and runs straight down over the cloth to the deck of Carina, with Markeb
+       (kappa) where it crosses the foot of the sail. The fore leech comes down past mu to the forward clew, sheeted down to
+       the gunwale at the bow; the foot sags over the deck to the after clew on the gunwale at
+       Alsephina (delta), where the rising gunwale hides the rest of the sail. The after leech
+       comes straight down to Regor (gamma2), where hull, poop deck and sail meet. q and psi lie in
+       the head of the sail under the yard, Suhail (lambda) in its after part and phi just above
+       the foot. Fine lines: folds in the cloth, the aftmost running down to the gunwale, and the
+       sheet. -->
   <g>
     <path d="M -132.5 -57.8 C -130.8 -60.1 -113.8 -61.5 -85.4 -64.5 L 114.2 -91.2 C 131.3 -94 135.2 -94.1 137.3 -93 C 135.7 -91.3 131.9 -90.2 114.8 -87.4 L -85 -60.7 C -113.4 -57.7 -130.4 -55.9 -132.5 -57.8 Z"/>
-    <path d="M 34.1 -79.7 L 29.4 -116.1 C 27.2 -116.8 26.6 -123.9 30 -124.3 C 33.4 -124.8 34.7 -117.8 32.8 -116.6 L 38.3 -80.3"/>
-    <path d="M 33.6 -120.7 C 40.3 -123.6 47.9 -121.3 56.5 -125.3 L 52 -120 L 58.8 -116.7 C 49.1 -116.8 41.9 -113.3 33.3 -114.5"/>
-    <path d="M -126.6 -56 C -126.4 -12.3 -125.8 26.5 -121.3 67.3 C -70.6 80.5 0 86 71.7 79.5"/>
+    <path d="M -4.3 -75.4 L -5.7 -85.3 C -8.3 -85.7 -8.9 -90.8 -6.4 -91 C -3.9 -91.3 -3.3 -86.2 -5.7 -85.3"/>
+    <path d="M -3.7 -71.6 L 19.5 92.3"/>
+    <path d="M -126.6 -56 C -126.4 -12.3 -125.8 26.5 -121.3 67.3 C -70.6 80.5 25 80 74.4 82.9"/>
     <path d="M 132 -89.7 C 136.1 -58.8 140.4 -11.9 143.3 22.8"/>
-    <path d="M 58 80.6 L 58.7 86"/>
-    <path class="fine" d="M -80.1 -60.2 C -84.7 -11.5 -78.4 41.7 -68.1 75.3 M -20.3 -67.2 C -21 -8.7 -13.8 44.7 -3.6 81.4 M 82.5 -81.3 C 96.1 -38.9 102.7 0.9 105.9 42 M 37 -74.7 L 58 80.6 M -121.3 67.3 L -124.1 115.9"/>
+    <path class="fine" d="M -80.1 -60.2 C -84.7 -11.5 -78.4 41.7 -68.1 75.7 M -42 -64.6 C -42.7 -6.5 -35.5 45 -25.3 78.8 M 37 -75.2 C 47 -25 54 30 58 82.1 M 82.5 -81.3 C 96.1 -38.9 102.7 0.9 105.9 42 L 108.1 70.1 M -121.3 67.3 L -124.1 115.9"/>
   </g>
 </svg>
