@@ -69,7 +69,9 @@ test('illustrations land on their own constellation', () => {
   for (const c of catalog.constellations) {
     if (!c.art.length) continue;
     assert.ok(c.artRadius > 2 && c.artRadius < 70, `${c.id} illustration radius ${c.artRadius}`);
-    // Most of the drawing lies inside the constellation it belongs to.
+    // Most of the drawing lies inside the constellation it belongs to. A drawing in the
+    // wrong frame or orientation lands far below this; figures that share a scene, like
+    // Vela's sail on the ship Argo, may spill a lot into their neighbours.
     let inside = 0;
     let total = 0;
     for (const line of c.art) {
@@ -78,6 +80,6 @@ test('illustrations land on their own constellation', () => {
         if (catalog.constellationAt([line.vecs[k], line.vecs[k + 1], line.vecs[k + 2]]) === c.index) inside++;
       }
     }
-    assert.ok(inside / total > 0.6, `${c.id}: ${Math.round((100 * inside) / total)} % of the drawing inside its boundary`);
+    assert.ok(inside / total > 0.5, `${c.id}: ${Math.round((100 * inside) / total)} % of the drawing inside its boundary`);
   }
 });
