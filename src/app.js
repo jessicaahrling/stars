@@ -88,7 +88,7 @@ export class App {
     if (saved.onlyVisible === false) this.list.setOnlyVisible(false);
 
     this.toggleButtons = [...$('toggles').querySelectorAll('[data-layer]')];
-    for (const b of this.toggleButtons) b.addEventListener('click', () => this.setLayer(b.dataset.layer, !this.layers[b.dataset.layer]));
+    for (const b of this.toggleButtons) b.addEventListener('click', () => this.setLayer(b.dataset.layer, !this.layerPressed(b.dataset.layer)));
     $('zoom-in').addEventListener('click', () => this.zoomAt(1 / 1.35, view.width / 2, view.height / 2));
     $('zoom-out').addEventListener('click', () => this.zoomAt(1.35, view.width / 2, view.height / 2));
 
@@ -96,6 +96,8 @@ export class App {
     this.anim = null;
     attachSkyInput(this.hudCanvas, {
       grab: () => {
+        // A touch that stops a coasting or flying sky only stops it; it is not a tap.
+        this.stoppedMotion = Boolean(this.velocity || this.anim);
         this.velocity = null;
         this.anim = null;
         this.hudCanvas.classList.add('dragging');
@@ -104,6 +106,7 @@ export class App {
       zoom: (f, x, y) => this.zoomAt(f, x, y),
       tap: (x, y) => {
         this.hudCanvas.classList.remove('dragging');
+        if (this.stoppedMotion) return;
         const index = this.pick(x, y);
         if (index >= 0) this.toggleArt(index);
         this.select(index);
@@ -184,6 +187,19 @@ export class App {
     this.saveSoon();
   }
 
+  /** Whether any illustration is drawn: the whole layer, or some shown one by one. */
+  anyArtShown() {
+    return this.layers.art || [...this.artOverrides.values()].some(Boolean);
+  }
+
+  /**
+   * Pressed state of a layer button. "Illustrationer" counts as pressed while any
+   * illustration is drawn, so pressing it then hides them all.
+   */
+  layerPressed(name) {
+    return name === 'art' ? this.anyArtShown() : this.layers[name];
+  }
+
   /** Whether a constellation's illustration is drawn. */
   artShown(index) {
     return this.artOverrides.has(index) ? this.artOverrides.get(index) : this.layers.art;
@@ -196,6 +212,7 @@ export class App {
     else this.artOverrides.set(index, shown);
     this.invalidate();
     this.card.render();
+    this.syncControls();
     this.saveSoon();
   }
 
@@ -398,7 +415,7 @@ export class App {
   }
 
   syncControls() {
-    for (const b of this.toggleButtons) b.setAttribute('aria-pressed', String(this.layers[b.dataset.layer]));
+    for (const b of this.toggleButtons) b.setAttribute('aria-pressed', String(this.layerPressed(b.dataset.layer)));
     this.markCount.hidden = this.marks.size === 0;
     this.markCount.textContent = String(this.marks.size);
   }
@@ -483,7 +500,7 @@ export class App {
       hover: this.hover,
       groundOpaque: !this.layers.seeThrough,
       artShown: (i) => this.artShown(i),
-      anyArt: this.layers.art || [...this.artOverrides.values()].some(Boolean),
+      anyArt: this.anyArtShown(),
     };
     const gl = {
       scale: v.s,

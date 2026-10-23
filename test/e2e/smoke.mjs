@@ -143,8 +143,60 @@ try {
   await settle(page);
   const again = await ink();
   assert.ok(Math.abs(again - oneOn) < oneOn * 0.02, `third tap shows it again (${oneOn} -> ${again})`);
+
+  // While any illustration is drawn the button reads as pressed, and pressing it hides all
+  // and forgets the one-by-one choices.
+  const artState = () => page.evaluate(() => {
+    const a = window.stjarnhimlen;
+    return { all: a.layers.art, overrides: a.artOverrides.size, pressed: document.querySelector('[data-layer="art"]').getAttribute('aria-pressed') };
+  });
+  assert.deepEqual(await artState(), { all: false, overrides: 1, pressed: 'true' });
+  await page.click('[data-layer="art"]');
+  await settle(page);
+  assert.deepEqual(await artState(), { all: false, overrides: 0, pressed: 'false' });
+  assert.equal(await taurusArt(), false);
+  assert.ok(Math.abs((await ink()) - oneOff) < oneOff * 0.02, 'pressing it hid the tapped illustration');
+
+  // With all illustrations on, a tap hides just the tapped one.
+  await page.click('[data-layer="art"]');
+  await settle(page);
+  const allOn = await ink();
   await page.mouse.click(taurus.x, taurus.y);
   await settle(page);
+  assert.equal(await taurusArt(), false, 'a tap hides one illustration while all are on');
+  assert.equal(await page.textContent('#card [data-action="art"]'), 'Visa illustration');
+  assert.ok((await ink()) < allOn / 1.005, 'one fewer illustration is drawn');
+  await page.mouse.click(taurus.x, taurus.y);
+  await settle(page);
+  assert.deepEqual(await artState(), { all: true, overrides: 0, pressed: 'true' });
+  await page.click('[data-layer="art"]');
+  await settle(page);
+
+  // A touch that stops a coasting sky only stops it. Playwright's mouse is too slow to
+  // flick, so the gesture is dispatched in the page with a steady pace.
+  const flick = await page.evaluate(() => {
+    const app = window.stjarnhimlen;
+    const el = app.hudCanvas;
+    el.setPointerCapture = () => {};
+    const r = el.getBoundingClientRect();
+    const send = (type, x, y) => el.dispatchEvent(new PointerEvent(type, {
+      pointerId: 7, pointerType: 'touch', isPrimary: true, button: 0, bubbles: true, clientX: r.left + x, clientY: r.top + y,
+    }));
+    const wait = (ms) => { const t = performance.now(); while (performance.now() - t < ms); };
+    send('pointerdown', 500, 300);
+    for (let k = 1; k <= 6; k++) {
+      wait(8);
+      send('pointermove', 500 + k * 25, 300);
+    }
+    send('pointerup', 650, 300);
+    const coasting = Boolean(app.velocity);
+    const selected = app.selected;
+    send('pointerdown', 640, 300);
+    wait(30);
+    send('pointerup', 640, 300);
+    return { coasting, stopped: app.velocity === null, selectedSame: app.selected === selected, overrides: app.artOverrides.size };
+  });
+  assert.deepEqual(flick, { coasting: true, stopped: true, selectedSame: true, overrides: 0 }, 'the stopping touch is not a tap');
 
   await page.click('#btn-list');
   await page.fill('#search', 'lejon');
@@ -172,6 +224,21 @@ try {
   await settle(page);
   await page.mouse.click(150, 250);
   assert.equal(await page.isHidden('#card'), true);
+
+  // One-by-one illustration choices are remembered between visits.
+  const savedArt = () => page.evaluate(() => JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').artOverrides || []);
+  await page.evaluate(() => window.stjarnhimlen.toggleArt(window.stjarnhimlen.catalog.byId.get('Tau').index));
+  await page.waitForFunction(() => (JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').artOverrides || []).length === 1);
+  assert.deepEqual(await savedArt(), [['Tau', true]]);
+  await page.reload();
+  await page.waitForFunction(() => window.stjarnhimlen);
+  assert.equal(await taurusArt(), true, 'the tapped illustration is shown again after a reload');
+  assert.equal(await page.getAttribute('[data-layer="art"]', 'aria-pressed'), 'true');
+  await page.click('[data-layer="art"]');
+  await page.waitForFunction(() => (JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').artOverrides || []).length === 0);
+  await page.reload();
+  await page.waitForFunction(() => window.stjarnhimlen);
+  assert.equal(await taurusArt(), false, 'hiding all is remembered too');
 
   const phone = await openPage({ width: 390, height: 844 });
   await phone.evaluate(() => window.stjarnhimlen.select(window.stjarnhimlen.catalog.byId.get('UMa').index, { fly: true }));
