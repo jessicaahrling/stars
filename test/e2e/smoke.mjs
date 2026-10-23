@@ -235,14 +235,37 @@ try {
   assert.equal(await page.textContent('#mark-count'), '2');
   assert.equal(await page.textContent('#card .chip[aria-pressed="true"]'), 'Avmarkera');
 
-  // A tap in the sky closes the card and toggles the tapped illustration as usual.
+  // A tap on the card's own constellation keeps the card and toggles the illustration.
   await settle(page);
   const leo = await centerOf(page, 'Leo');
   await page.mouse.click(leo.x, leo.y);
-  assert.equal(await page.isHidden('#card'), true, 'a tap in the sky closes the info card');
   assert.equal(await artOf(page, 'Leo'), true);
+  assert.equal(await page.isHidden('#card'), false, 'a tap on the card\'s constellation keeps the card');
+  assert.equal(await page.textContent('#card h3'), 'Lejonet');
+  assert.equal(await page.textContent('#card [data-action="art"]'), 'Dölj illustration');
   await page.mouse.click(leo.x, leo.y);
   assert.equal(await artOf(page, 'Leo'), false);
+  assert.equal(await page.isHidden('#card'), false);
+
+  // A tap on another constellation closes the card and toggles that one's illustration.
+  const other = await page.evaluate(() => {
+    const app = window.stjarnhimlen;
+    for (let y = 100; y < innerHeight; y += 40) {
+      for (let x = 40; x < innerWidth; x += 40) {
+        const i = app.pick(x, y);
+        if (i >= 0 && i !== app.selected && document.elementFromPoint(x, y) === app.hudCanvas) {
+          return { x, y, id: app.catalog.constellations[i].id };
+        }
+      }
+    }
+    return null;
+  });
+  assert.ok(other, 'some other constellation is in view');
+  await page.mouse.click(other.x, other.y);
+  assert.equal(await page.isHidden('#card'), true, 'a tap on another constellation closes the info card');
+  assert.equal(await artOf(page, other.id), true);
+  await page.mouse.click(other.x, other.y);
+  assert.equal(await artOf(page, other.id), false);
   assert.equal(await page.isHidden('#card'), true);
 
   await page.click('#btn-when');
