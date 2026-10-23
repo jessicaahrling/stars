@@ -1,15 +1,19 @@
 // Stjärnhimlen: wires the sky renderer, the observer's view and the controls.
 import { azAltFromVec } from './astro/frames.js';
 import { clamp, mat3Apply, RAD, wrap180 } from './astro/math.js';
+import { visibilityClass } from './astro/visibility.js';
 import { DEFAULT_PLACE_ID, PLACES } from './data/places.js';
 import { GlLayer } from './render/gl-layer.js';
 import { FONT_FAMILY, HudLayer } from './render/hud-layer.js';
 import { buildMask, MASK_H, MASK_W } from './render/mask.js';
-import { MARK_COLORS, SELECT_COLOR } from './render/palette.js';
+import { CANDIDATE_COLOR, MARK_COLORS, SELECT_COLOR } from './render/palette.js';
 import { SkyLayer } from './render/sky-layer.js';
 import { buildCatalog } from './sky/catalog.js';
+import { discoveryState, START_ID } from './sky/discovery.js';
 import { figureState } from './sky/facts.js';
+import { findNeighbours } from './sky/neighbours.js';
 import { MAX_FOV, MIN_FOV, SkyView } from './sky/view.js';
+import { DiscoverPanel } from './ui/discover-panel.js';
 import { InfoCard } from './ui/info-card.js';
 import { attachSkyInput } from './ui/input.js';
 import { ListPanel } from './ui/list-panel.js';
@@ -53,6 +57,21 @@ export class App {
       const c = this.catalog.byId.get(id);
       if (c && typeof shown === 'boolean' && shown !== this.layers.art) this.artOverrides.set(c.index, shown);
     }
+    /**
+     * "Upptäck himlen": the sky starts with Ursa Major alone and the viewer adds
+     * neighbours one at a time. `all` widens the goal from the constellations seen from
+     * the chosen place to the whole sky.
+     */
+    const disc = saved.discover && typeof saved.discover === 'object' ? saved.discover : {};
+    this.discovery = { on: disc.on !== false, all: disc.all === true, found: new Set() };
+    for (const id of Array.isArray(disc.found) ? disc.found : []) {
+      const c = this.catalog.byId.get(id);
+      if (c) this.discovery.found.add(c.index);
+    }
+    this.discovery.found.add(this.catalog.byId.get(START_ID).index);
+    this.neighbours = findNeighbours(this.catalog.constellations);
+    this.reveal = null;
+    this.discoveryInfo = null;
     this.selected = -1;
     this.hover = -1;
     this.clock = { baseMs: Date.now(), baseAt: performance.now(), speed: 1, live: true };
@@ -83,6 +102,7 @@ export class App {
     this.list = new ListPanel(this, $);
     this.card = new InfoCard(this, $);
     this.when = new WhenPanel(this, $);
+    this.discoverPanel = new DiscoverPanel(this, $);
     this.toast = $('toast');
     this.markCount = $('mark-count');
     if (saved.onlyVisible === false) this.list.setOnlyVisible(false);
@@ -111,9 +131,13 @@ export class App {
         // opens from the list) and closes it unless the tap is on the card's constellation.
         const index = this.pick(x, y);
         if (index !== this.selected) this.select(-1);
-        if (index >= 0) this.toggleArt(index);
+        if (index < 0) return;
+        // While discovering, a tap on a neighbour with a plus adds it.
+        if (this.isFound(index)) this.toggleArt(index);
+        else if (this.reveal.con[index] === 2) this.discover(index);
+        else this.showToast('Lägg till en granne först. De har ett plus framför namnet.');
       },
-      hover: (x, y) => this.setHover(this.pick(x, y)),
+      hover: (x, y) => this.setHover(this.pickShown(x, y)),
       leave: () => this.setHover(-1),
       fling: (vx, vy) => {
         this.velocity = { vx, vy, t: performance.now() };
@@ -130,7 +154,10 @@ export class App {
     this.lastDrawMs = 0;
     this.lastUiSync = 0;
     this.syncControls();
+    this.discoveryChanged();
     this.resize();
+    // A new discovery starts by looking at Ursa Major.
+    if (this.discovery.on && this.discovery.found.size === 1) this.flyTo(this.discovery.found.values().next().value, { instant: true });
     this.tick = this.tick.bind(this);
     requestAnimationFrame(this.tick);
   }
@@ -172,6 +199,7 @@ export class App {
     this.view.lon = p.lon;
     this.invalidate();
     this.list.applyFilter();
+    this.discoveryChanged();
     this.syncTimeUi(true);
     this.saveSoon();
   }
@@ -227,7 +255,7 @@ export class App {
   markAllUp() {
     let added = 0;
     for (const c of this.catalog.constellations) {
-      if (!this.marks.has(c.index) && this.figureStateOf(c) === 'up') {
+      if (!this.marks.has(c.index) && this.isFound(c.index) && this.figureStateOf(c) === 'up') {
         this.marks.set(c.index, this.nextColor++ % MARK_COLORS.length);
         added++;
       }
@@ -257,6 +285,88 @@ export class App {
     return figureState(c, this.view, this.catalog.starVec);
   }
 
+  // ------------------------------------------------------------------ discovering the sky
+
+  /** Whether a constellation is drawn: always, unless it is still to be discovered. */
+  isFound(index) {
+    return !this.discovery.on || this.discovery.found.has(index);
+  }
+
+  setDiscover(on) {
+    if (this.discovery.on === on) return;
+    this.discovery.on = on;
+    this.discoveryChanged();
+    if (on && this.discovery.found.size === 1) this.flyTo(this.discovery.found.values().next().value);
+    this.saveSoon();
+  }
+
+  /** Adds a neighbour to the constellations found; `fly` turns the view to it if it is out of sight. */
+  discover(index, { fly = false } = {}) {
+    const d = this.discovery;
+    if (!d.on || d.found.has(index)) return;
+    d.found.add(index);
+    this.discoveryChanged();
+    if (fly && !this.inView(index)) this.flyTo(index);
+    this.saveSoon();
+  }
+
+  /** Goes on from the constellations seen from here to the rest of the sky. */
+  discoverRest() {
+    this.discovery.all = true;
+    this.discoveryChanged();
+    this.saveSoon();
+  }
+
+  restartDiscovery() {
+    const start = this.catalog.byId.get(START_ID).index;
+    this.discovery.found = new Set([start]);
+    this.discovery.all = false;
+    this.discoveryChanged();
+    this.flyTo(start);
+    this.saveSoon();
+  }
+
+  /** Recomputes what is drawn while discovering, after a find, a restart, a new place or the mode changing. */
+  discoveryChanged() {
+    const { catalog, discovery: d } = this;
+    if (d.on) {
+      const lat = this.view.lat;
+      const inGoal = (i) => d.all || visibilityClass(catalog.constellations[i].figureDecs, lat) !== 'never';
+      this.discoveryInfo = discoveryState(d.found, this.neighbours, inGoal);
+      const con = new Uint8Array(catalog.constellations.length);
+      for (const i of this.discoveryInfo.next) con[i] = 2;
+      for (const i of d.found) con[i] = 1;
+      // The stars inside the constellations found, and the stars of their figures (a few
+      // figures borrow a star from a neighbour).
+      const stars = new Uint8Array(catalog.stars.count);
+      for (let s = 0; s < stars.length; s++) stars[s] = con[catalog.stars.con[s]] === 1 ? 1 : 0;
+      for (const i of d.found) for (const s of catalog.constellations[i].figureStars) stars[s] = 1;
+      this.reveal = { con, stars };
+    } else {
+      this.discoveryInfo = null;
+      this.reveal = null;
+    }
+    if (this.selected >= 0 && !this.isFound(this.selected)) this.select(-1);
+    if (this.hover >= 0 && this.reveal && !this.reveal.con[this.hover]) this.setHover(-1);
+    this.maskDirty = true;
+    this.invalidate();
+    this.list.syncAll();
+    this.list.applyFilter();
+    this.discoverPanel.render();
+  }
+
+  /** Whether a constellation's centre is on screen, away from the edges. */
+  inView(index) {
+    const v = this.view;
+    v.timeMs = this.now();
+    v.update();
+    const p = { x: 0, y: 0, z: 0 };
+    const c = this.catalog.constellations[index];
+    if (!v.projectEq(c.centerVec, p) || p.z < 0) return false;
+    if (!this.layers.seeThrough && v.altOf(c.centerVec) < 0) return false;
+    return p.x > v.width * 0.15 && p.x < v.width * 0.85 && p.y > v.height * 0.2 && p.y < v.height * 0.8;
+  }
+
   // ------------------------------------------------------------------ selection
 
   select(index, { fly = false } = {}) {
@@ -280,6 +390,12 @@ export class App {
     this.hover = index;
     this.hudCanvas.classList.toggle('pointing', index >= 0);
     this.invalidate();
+  }
+
+  /** Like pick, but -1 for a constellation that is hidden while discovering. */
+  pickShown(x, y) {
+    const index = this.pick(x, y);
+    return index >= 0 && this.reveal && !this.reveal.con[index] ? -1 : index;
   }
 
   /** Constellation under a CSS pixel, or -1 (empty sky never happens; ground does). */
@@ -316,7 +432,7 @@ export class App {
     this.invalidate();
   }
 
-  flyTo(index) {
+  flyTo(index, { instant = false } = {}) {
     const c = this.catalog.constellations[index];
     const v = this.view;
     v.timeMs = this.now();
@@ -333,7 +449,7 @@ export class App {
       targetAlt -= ((card.offsetHeight / 2) / scale) * RAD;
     }
     const to = { az, alt: clamp(targetAlt, -85, 85), fov };
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (instant || matchMedia('(prefers-reduced-motion: reduce)').matches) {
       Object.assign(v, to);
       this.invalidate();
       return;
@@ -414,6 +530,7 @@ export class App {
   layoutChanged() {
     const narrow = window.innerWidth <= 640;
     this.card.root.style.visibility = narrow && this.list.open ? 'hidden' : '';
+    this.discoverPanel.root.style.visibility = narrow && (this.list.open || this.when.open) ? 'hidden' : '';
   }
 
   syncControls() {
@@ -447,6 +564,11 @@ export class App {
         layers: this.layers,
         marks: [...this.marks].map(([i, color]) => [this.catalog.constellations[i].id, color]),
         artOverrides: [...this.artOverrides].map(([i, shown]) => [this.catalog.constellations[i].id, shown]),
+        discover: {
+          on: this.discovery.on,
+          all: this.discovery.all,
+          found: [...this.discovery.found].map((i) => this.catalog.constellations[i].id),
+        },
         view: { az: Math.round(v.az * 10) / 10, alt: Math.round(v.alt * 10) / 10, fov: Math.round(v.fov * 10) / 10 },
         onlyVisible: this.list.onlyVisible,
       });
@@ -491,18 +613,20 @@ export class App {
     if (this.maskDirty) {
       this.maskDirty = false;
       const tints = new Map();
-      for (const [i, color] of this.marks) tints.set(i, MARK_COLORS[color].rgb);
+      for (const [i, color] of this.marks) if (this.isFound(i)) tints.set(i, MARK_COLORS[color].rgb);
       if (this.selected >= 0 && !this.marks.has(this.selected)) tints.set(this.selected, SELECT_COLOR.rgb.map((x) => x * 0.55));
+      if (this.discoveryInfo) for (const i of this.discoveryInfo.next) tints.set(i, CANDIDATE_COLOR.rgb.map((x) => x * 0.2));
       this.glSky.setMask(MASK_W, MASK_H, buildMask(this.catalog.constellations, tints));
     }
     const st = {
       layers: this.layers,
-      marks: this.marks,
+      marks: this.reveal ? new Map([...this.marks].filter(([i]) => this.isFound(i))) : this.marks,
       selected: this.selected,
       hover: this.hover,
       groundOpaque: !this.layers.seeThrough,
-      artShown: (i) => this.artShown(i),
+      artShown: (i) => this.isFound(i) && this.artShown(i),
       anyArt: this.anyArtShown(),
+      reveal: this.reveal,
     };
     const gl = {
       scale: v.s,

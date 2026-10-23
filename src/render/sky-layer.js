@@ -61,7 +61,9 @@ export class SkyLayer {
   /**
    * @param {import('../sky/view.js').SkyView} view
    * @param {object} st  render state: layers, marks (Map index -> colour index),
-   *   selected, hover, groundOpaque, artShown(index), anyArt
+   *   selected, hover, groundOpaque, artShown(index), anyArt, and reveal while
+   *   discovering the sky: {con: Uint8Array per constellation (1 found, 2 can be added
+   *   next, 0 hidden), stars: Uint8Array per star (1 shown)}, otherwise null
    */
   render(view, st) {
     const { ctx, catalog } = this;
@@ -76,6 +78,8 @@ export class SkyLayer {
     ctx.lineJoin = 'round';
     ctx.lineCap = 'butt';
     if (st.anyArt) this.drawArt(view, st, special);
+    const rv = st.reveal;
+    const found = (c) => !rv || rv.con[c.index] === 1;
 
     // Boundaries
     if (st.layers.bounds) {
@@ -84,14 +88,25 @@ export class SkyLayer {
       ctx.strokeStyle = SKY.bound;
       ctx.beginPath();
       for (const c of catalog.constellations) {
-        if (!special.has(c.index) && c.index !== st.hover) this.tracePolyline(view, c.outlines);
+        if (found(c) && !special.has(c.index) && c.index !== st.hover) this.tracePolyline(view, c.outlines);
+      }
+      ctx.stroke();
+    }
+    if (rv) {
+      ctx.setLineDash([5, 4]);
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = SKY.candidate;
+      ctx.beginPath();
+      for (const c of catalog.constellations) {
+        if (rv.con[c.index] === 2 && c.index !== st.hover) this.tracePolyline(view, c.outlines);
       }
       ctx.stroke();
     }
     if (st.hover >= 0 && !special.has(st.hover)) {
-      ctx.setLineDash([3, 4]);
-      ctx.lineWidth = 1.2;
-      ctx.strokeStyle = SKY.boundHover;
+      const candidate = rv && rv.con[st.hover] === 2;
+      ctx.setLineDash(candidate ? [5, 4] : [3, 4]);
+      ctx.lineWidth = candidate ? 1.6 : 1.2;
+      ctx.strokeStyle = candidate ? SKY.candidateHover : SKY.boundHover;
       ctx.beginPath();
       this.tracePolyline(view, catalog.constellations[st.hover].outlines);
       ctx.stroke();
@@ -115,7 +130,7 @@ export class SkyLayer {
       ctx.strokeStyle = SKY.line;
       ctx.beginPath();
       for (const c of catalog.constellations) {
-        if (!special.has(c.index) && c.index !== st.hover) this.traceSegments(c.segments);
+        if (found(c) && !special.has(c.index) && c.index !== st.hover) this.traceSegments(c.segments);
       }
       ctx.stroke();
     }
@@ -212,10 +227,12 @@ export class SkyLayer {
     const zoom = Math.min(2.1, Math.max(0.85, Math.pow(90 / view.fov, 0.38)));
     const minZ = view.cosCorner - 0.02;
     const figureOnly = st.layers.figureStarsOnly;
+    const shown = st.reveal?.stars;
     for (const b of this.buckets) b.length = 0;
     for (let i = 0; i < stars.count; i++) {
       this.px[i] = NaN;
       if (figureOnly && !stars.inFigure[i]) continue;
+      if (shown && !shown[i]) continue;
       const x = stars.x[i];
       const y = stars.y[i];
       const z = stars.z[i];

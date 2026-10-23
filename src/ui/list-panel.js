@@ -6,7 +6,7 @@ const STATE_TEXT = { up: 'uppe', rising: 'delvis uppe', down: 'nere' };
 
 export class ListPanel {
   /**
-   * @param {object} app  see App: catalog, marks, selected, view, toggleMark, select, figureStateOf
+   * @param {object} app  see App: catalog, marks, selected, view, discovery, isFound, toggleMark, select, figureStateOf
    * @param {(id: string) => HTMLElement} $
    */
   constructor(app, $) {
@@ -19,6 +19,7 @@ export class ListPanel {
     this.filterAll = $('filter-all');
     this.filterPlace = $('filter-place');
     this.filterCount = $('filter-count');
+    this.note = $('list-note');
     this.onlyVisible = true;
     this.rows = new Map();
 
@@ -94,11 +95,13 @@ export class ListPanel {
       const row = this.rows.get(c.index);
       const visible = visibilityClass(c.figureDecs, lat) !== 'never';
       if (visible) visibleCount++;
-      const show = (!this.onlyVisible || visible) && (!q || row.search.includes(q));
+      // While discovering the sky, the list holds only the constellations found so far.
+      const show = (!this.onlyVisible || visible) && (!q || row.search.includes(q)) && this.app.isFound(c.index);
       row.li.hidden = !show;
       if (show) shown++;
     }
     this.empty.hidden = shown > 0;
+    this.note.hidden = !this.app.discovery.on;
     this.filterPlace.textContent = this.app.place.name;
     this.filterCount.textContent = String(visibleCount);
   }

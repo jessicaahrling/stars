@@ -12,6 +12,9 @@ export const MARK_COLORS = [
 
 export const SELECT_COLOR = { hex: '#eef3ff', rgb: [238, 243, 255] };
 
+/** Neighbours that can be added next while discovering the sky ("Upptäck"). */
+export const CANDIDATE_COLOR = { hex: '#bccbf0', rgb: [188, 203, 240] };
+
 export const SKY = {
   line: 'rgba(132, 160, 214, 0.5)',
   lineHover: 'rgba(176, 198, 240, 0.85)',
@@ -21,6 +24,9 @@ export const SKY = {
   artHover: 'rgba(240, 226, 196, 0.7)',
   artHoverFine: 'rgba(240, 226, 196, 0.42)',
   boundHover: 'rgba(214, 226, 255, 0.45)',
+  candidate: 'rgba(188, 203, 240, 0.5)',
+  candidateHover: 'rgba(228, 236, 255, 0.95)',
+  candidateLabel: 'rgba(206, 218, 248, 0.86)',
   label: 'rgba(168, 188, 232, 0.62)',
   labelHover: 'rgba(222, 232, 255, 0.95)',
   starName: 'rgba(206, 214, 236, 0.72)',

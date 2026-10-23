@@ -127,6 +127,24 @@
     .panel-foot { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 14px 14px; border-top: 1px solid var(--hairline); }
     .panel-foot .chip { min-height: 36px; font-size: 13px; }
     .empty { padding: 18px 12px; color: var(--ink-2); }
+    .list-note { margin: 0; font-size: 13px; color: var(--ink-2); }
+
+    .panel-discover { top: calc(var(--top) + 52px); left: var(--gutter-l); width: 300px; box-sizing: border-box;
+      max-height: calc(100% - var(--top) - var(--bottom) - 120px); padding: 14px 16px; display: flex;
+      flex-direction: column; gap: 10px; }
+    .discover-head { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
+    .discover-progress { font-size: 13px; color: var(--ink-2); }
+    .discover-progress b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .meter { flex: none; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+    .meter span { display: block; height: 100%; width: 0; border-radius: 2px; background: var(--gold);
+      transition: width .3s; }
+    .discover-hint { margin: 0; font-size: 14px; color: var(--ink-2); }
+    .discover-next { display: flex; flex-wrap: wrap; gap: 6px; overflow-y: auto; min-height: 0; padding: 2px; }
+    .discover-next .chip { min-height: 34px; padding: 0 12px; font-size: 13px; }
+    .discover-foot { display: flex; flex-wrap: wrap; gap: 6px; }
+    .discover-foot .chip { min-height: 32px; padding: 0 11px; font-size: 12px; color: var(--ink-2); }
+    .discover-foot .chip.primary { color: #1b1406; }
+    .discover-foot .chip:disabled { opacity: 0.45; cursor: default; }
 
     .card { position: fixed; z-index: 4; left: 50%; transform: translateX(-50%);
       bottom: calc(var(--bottom) + 60px); width: min(430px, calc(100vw - 32px)); box-sizing: border-box;
@@ -159,12 +177,16 @@
         padding-right: env(safe-area-inset-right, 0px); }
       .card { bottom: calc(var(--bottom) + 56px); }
       .card h3 { font-size: 21px; }
+      .panel-discover { right: var(--gutter-r); width: auto; padding: 10px 12px; gap: 8px; }
+      .discover-hint { font-size: 13px; }
+      .discover-next { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; flex: none; scrollbar-width: none; }
+      .discover-next::-webkit-scrollbar { display: none; }
     }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
 </head>
 <body>
-  <div id="sky" role="application" aria-label="Stjärnhimlen. Dra för att titta runt, scrolla eller nyp för att zooma och klicka på en stjärnbild för att visa eller dölja dess illustration.">
+  <div id="sky" role="application" aria-label="Stjärnhimlen. Dra för att titta runt, scrolla eller nyp för att zooma och klicka på en stjärnbild för att visa eller dölja dess illustration. I läget Upptäck lägger du till en granne genom att klicka på den.">
     <canvas id="layer-sky"></canvas>
     <canvas id="layer-stars"></canvas>
     <canvas id="layer-ground"></canvas>
@@ -225,6 +247,7 @@
     </div>
     <div class="tools">
       <input type="search" id="search" placeholder="Sök på svenska eller latin" autocomplete="off">
+      <p id="list-note" class="list-note" hidden>Listan visar de stjärnbilder du har upptäckt.</p>
       <div class="seg">
         <button id="filter-visible" type="button" class="chip" aria-pressed="true">Syns från <span id="filter-place">Stockholm</span> <span class="muted" id="filter-count"></span></button>
         <button id="filter-all" type="button" class="chip" aria-pressed="false">Alla 88</button>
@@ -237,11 +260,27 @@
     </div>
   </aside>
 
+  <section id="panel-discover" class="panel panel-discover" aria-label="Upptäck himlen" hidden>
+    <div class="discover-head">
+      <h2>Upptäck himlen</h2>
+      <span class="discover-progress"><b id="discover-count"></b> <span id="discover-of"></span></span>
+    </div>
+    <div id="discover-meter" class="meter" role="progressbar" aria-label="Upptäckta stjärnbilder" aria-valuemin="0"><span id="discover-bar"></span></div>
+    <p id="discover-hint" class="discover-hint" aria-live="polite"></p>
+    <div id="discover-next" class="discover-next" role="group" aria-label="Grannar att lägga till"></div>
+    <div class="discover-foot">
+      <button id="btn-discover-rest" type="button" class="chip primary" hidden></button>
+      <button id="btn-discover-restart" type="button" class="chip">Börja om</button>
+      <button id="btn-discover-exit" type="button" class="chip">Visa hela himlen</button>
+    </div>
+  </section>
+
   <section id="card" class="card" aria-live="polite" hidden></section>
   <div id="toast" class="toast" role="status" hidden></div>
 
   <nav class="bar bar-bottom" aria-label="Visa på himlen">
     <div class="toggles" id="toggles">
+      <button type="button" class="chip toggle" id="btn-discover" aria-pressed="true" title="Börja med Stora björnen och lägg till grannarna en i taget">Upptäck</button>
       <button type="button" class="chip toggle" data-layer="lines" aria-pressed="true">Linjer</button>
       <button type="button" class="chip toggle" data-layer="figureStarsOnly" aria-pressed="false" title="Visa bara stjärnorna som ingår i stjärnbildernas figurer">Bara figurstjärnor</button>
       <button type="button" class="chip toggle" data-layer="art" aria-pressed="false" title="Visa en teckning av vad varje stjärnbild föreställer">Illustrationer</button>

@@ -18,6 +18,12 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
 
 ## Vad som finns
 
+- **Upptäck himlen:** himlen börjar med bara Stora björnen. Grannarna står utsatta med ett
+  plus framför namnet, och man lägger till en i taget genom att klicka på den på himlen
+  eller i panelen. Sedan erbjuds grannarna till alla man har hittat, tills man har alla
+  som syns från vald ort, och därefter resten av himlen om man vill. Bara stjärnbilderna
+  man har hittat visas, med sina stjärnor, linjer och namn. "Visa hela himlen" visar allt
+  igen och knappen "Upptäck" går tillbaka dit man var. "Börja om" tar två tryck.
 - **Titta runt:** dra för att vrida blicken, scrolla eller nyp för att zooma (piltangenter
   och `+`/`−` fungerar också). Projektionen är stereografisk, som i ett planetarium, och
   horisonten hålls vågrät.
@@ -46,9 +52,9 @@ Inställningar och markeringar sparas i webbläsaren.
 
 ```
 src/astro/      tid, precession, höjd/azimut, synlighet (ren matematik, testad)
-src/sky/        stjärnkatalog, stjärnbildsgränser, kamera och projektion
+src/sky/        stjärnkatalog, stjärnbildsgränser och grannar, kamera och projektion
 src/render/     WebGL (himmel, Vintergatan, mark) och 2D-canvas (stjärnor, linjer, namn)
-src/ui/         listan, infokortet, plats/tid-panelen, gester
+src/ui/         listan, infokortet, plats/tid-panelen, upptäck-panelen, gester
 src/data/       svenska namn, orter och genererad stjärn- och bilddata
 art/            illustrationerna, en SVG per stjärnbild (se art/STYLE.md)
 scripts/        bygge, datagenerering och verktyg för illustrationerna

@@ -1,5 +1,6 @@
 // Smoke test in headless Chromium: the sky renders, a tap on a constellation toggles its
-// illustration, the list opens the info card, and marking works. Screenshots land in
+// illustration, the list opens the info card, marking works, and the sky can be
+// discovered one neighbour at a time ("Upptäck"). Screenshots land in
 // test/e2e/screenshots/ (git-ignored).
 //
 //   npm run test:e2e
@@ -17,7 +18,9 @@ const url = pathToFileURL(path.join(root, 'index.html')).href;
 const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] });
 const errors = [];
 
-async function openPage(viewport) {
+/** A page at a fixed time. Most checks need the whole sky, so "Upptäck" is turned off
+ * unless `discover` is set; then the view stays on Ursa Major, where discovery starts. */
+async function openPage(viewport, { discover = false } = {}) {
   const page = await browser.newPage({ viewport });
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
@@ -27,13 +30,18 @@ async function openPage(viewport) {
   await page.goto(url);
   await page.waitForFunction(() => window.stjarnhimlen);
   // 15 January 2026, 22:00 in Stockholm, facing south.
-  await page.evaluate(() => {
+  await page.evaluate((disc) => {
     const app = window.stjarnhimlen;
     app.setTime(Date.UTC(2026, 0, 15, 21, 0));
     app.setSpeed(0);
-    Object.assign(app.view, { az: 180, alt: 30, fov: 110 });
+    if (disc) {
+      app.flyTo(app.catalog.byId.get('UMa').index, { instant: true });
+    } else {
+      app.setDiscover(false);
+      Object.assign(app.view, { az: 180, alt: 30, fov: 110 });
+    }
     app.invalidate();
-  });
+  }, discover);
   await settle(page);
   return page;
 }
@@ -302,6 +310,167 @@ try {
   await page.reload();
   await page.waitForFunction(() => window.stjarnhimlen);
   assert.equal(await taurusArt(), false, 'hiding all is remembered too');
+
+  // "Upptäck": a first visit shows Ursa Major alone and offers its neighbours.
+  const sky = await openPage({ width: 1280, height: 800 }, { discover: true });
+  const discovery = () => sky.evaluate(() => {
+    const a = window.stjarnhimlen;
+    const id = (i) => a.catalog.constellations[i].id;
+    return {
+      on: a.discovery.on,
+      found: [...a.discovery.found].map(id).sort(),
+      next: a.discoveryInfo ? a.discoveryInfo.next.map(id).sort() : null,
+      count: document.getElementById('discover-count').textContent,
+      panel: !document.getElementById('panel-discover').hidden,
+      pressed: document.getElementById('btn-discover').getAttribute('aria-pressed'),
+    };
+  });
+  assert.deepEqual(await discovery(), {
+    on: true,
+    found: ['UMa'],
+    next: ['Boo', 'CVn', 'Cam', 'Com', 'Dra', 'LMi', 'Leo', 'Lyn'],
+    count: '1 av 57',
+    panel: true,
+    pressed: 'true',
+  });
+  assert.equal((await sky.$$('#discover-next button')).length, 8);
+  // Drawn stars: how many, and whether each lies in, or belongs to the figure of, a found constellation.
+  const drawnStars = () => sky.evaluate(() => {
+    const a = window.stjarnhimlen;
+    const found = [...a.discovery.found];
+    const figure = new Set(found.flatMap((i) => a.catalog.constellations[i].figureStars));
+    let n = 0;
+    let stray = 0;
+    a.skyLayer.px.forEach((x, i) => {
+      if (Number.isNaN(x)) return;
+      n++;
+      if (a.discovery.on && !found.includes(a.catalog.stars.con[i]) && !figure.has(i)) stray++;
+    });
+    return { n, stray };
+  });
+  const onlyUMa = await drawnStars();
+  assert.ok(onlyUMa.n > 20, `Ursa Major's stars are drawn (${onlyUMa.n})`);
+  assert.equal(onlyUMa.stray, 0, 'no other stars are drawn');
+  await sky.screenshot({ path: path.join(shots, 'discover-start.png') });
+
+  /** A point on the sky (not under a panel) over a constellation in the given state: 1 found, 2 on offer, 0 hidden. */
+  const pointOver = (state, avoid = []) => sky.evaluate(([st, skip]) => {
+    const a = window.stjarnhimlen;
+    for (let y = 90; y < innerHeight - 90; y += 20) {
+      for (let x = 20; x < innerWidth - 20; x += 20) {
+        const i = a.pick(x, y);
+        if (i < 0 || a.reveal.con[i] !== st || skip.includes(a.catalog.constellations[i].id)) continue;
+        if (document.elementFromPoint(x, y) === a.hudCanvas) return { x, y, id: a.catalog.constellations[i].id };
+      }
+    }
+    return null;
+  }, [state, avoid]);
+
+  // A tap on a neighbour with a plus adds it, and its neighbours are offered in turn.
+  const offered = await pointOver(2);
+  assert.ok(offered, 'a neighbour is in view');
+  await sky.mouse.click(offered.x, offered.y);
+  await settle(sky);
+  let d = await discovery();
+  assert.deepEqual(d.found, ['UMa', offered.id].sort());
+  assert.equal(d.count, '2 av 57');
+  assert.ok(!d.next.includes(offered.id), 'what is found is not offered again');
+  const two = await drawnStars();
+  assert.ok(two.n > onlyUMa.n && two.stray === 0, `its stars appear (${onlyUMa.n} -> ${two.n})`);
+
+  // A tap on a hidden constellation adds nothing and says why.
+  await sky.evaluate(() => {
+    window.stjarnhimlen.view.fov = 150;
+    window.stjarnhimlen.invalidate();
+  });
+  await settle(sky);
+  const hidden = await pointOver(0);
+  assert.ok(hidden, 'some constellation is still hidden');
+  await sky.mouse.click(hidden.x, hidden.y);
+  assert.match(await sky.textContent('#toast'), /granne/);
+  assert.deepEqual((await discovery()).found, d.found);
+
+  // The buttons in the panel add neighbours too, and a tap on a found one shows its drawing.
+  const chip = await sky.$('#discover-next button');
+  const chipId = await chip.getAttribute('data-id');
+  await chip.click();
+  await settle(sky);
+  d = await discovery();
+  assert.equal(d.found.length, 3);
+  assert.ok(d.found.includes(chipId));
+  await sky.evaluate(() => window.stjarnhimlen.flyTo(window.stjarnhimlen.catalog.byId.get('UMa').index, { instant: true }));
+  await settle(sky);
+  const umaPoint = await pointOver(1, d.found.filter((x) => x !== 'UMa'));
+  await sky.mouse.click(umaPoint.x, umaPoint.y);
+  assert.equal(await sky.evaluate(() => window.stjarnhimlen.artShown(window.stjarnhimlen.catalog.byId.get('UMa').index)), true);
+  assert.deepEqual((await discovery()).found, d.found, 'a tap on a found constellation adds nothing');
+  await sky.screenshot({ path: path.join(shots, 'discover-three.png') });
+
+  // The list holds only what has been found.
+  await sky.click('#btn-list');
+  const listed = await sky.$$eval('#con-list li:not([hidden]):not(.empty) strong', (els) => els.length);
+  assert.equal(listed, 3);
+  assert.equal(await sky.isVisible('#list-note'), true);
+  await sky.click('#btn-list-close');
+
+  // What has been found is remembered between visits.
+  const foundIds = JSON.stringify(d.found);
+  await sky.waitForFunction((ids) => JSON.stringify([...(JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').discover?.found || [])].sort()) === ids, foundIds);
+  await sky.reload();
+  await sky.waitForFunction(() => window.stjarnhimlen);
+  assert.deepEqual((await discovery()).found, d.found);
+
+  // "Visa hela himlen" leaves the mode, shows every star and lists every constellation;
+  // "Upptäck" comes back to where it was.
+  await sky.click('#btn-discover-exit');
+  await settle(sky);
+  d = await discovery();
+  assert.deepEqual([d.on, d.panel, d.pressed, d.next], [false, false, 'false', null]);
+  assert.ok((await drawnStars()).n > two.n * 3, 'the whole sky is back');
+  await sky.click('#btn-list');
+  assert.ok((await sky.$$eval('#con-list li:not([hidden]):not(.empty)', (els) => els.length)) > 50);
+  assert.equal(await sky.isVisible('#list-note'), false);
+  await sky.click('#btn-list-close');
+  await sky.click('#btn-discover');
+  d = await discovery();
+  assert.deepEqual([d.on, d.panel, d.found.length], [true, true, 3]);
+
+  // Another place changes the goal: fewer constellations rise in Kiruna.
+  await sky.evaluate(() => window.stjarnhimlen.setPlace('kiruna'));
+  assert.match((await discovery()).count, /^\d+ av 52$/);
+  await sky.evaluate(() => window.stjarnhimlen.setPlace('stockholm'));
+
+  // Collecting every neighbour finishes the sky seen from here, then the rest can follow.
+  const collect = () => sky.evaluate(() => {
+    const a = window.stjarnhimlen;
+    while (a.discoveryInfo.next.length) a.discover(a.discoveryInfo.next[0]);
+  });
+  await collect();
+  assert.match(await sky.textContent('#discover-hint'), /^Klart! Du har hittat alla 57 som syns från Stockholm/);
+  assert.equal(await sky.textContent('#btn-discover-rest'), `Fortsätt med resten av himlen (${88 - 57} till)`);
+  await sky.click('#btn-discover-rest');
+  d = await discovery();
+  assert.equal(d.count, '57 av 88');
+  assert.ok(d.next.length > 0);
+  await collect();
+  d = await discovery();
+  assert.deepEqual([d.found.length, d.next.length, d.count], [88, 0, '88 av 88']);
+  assert.match(await sky.textContent('#discover-hint'), /^Hela himlen!/);
+  assert.equal(await sky.isHidden('#btn-discover-rest'), true);
+
+  // Starting over takes two presses.
+  await sky.click('#btn-discover-restart');
+  assert.equal((await discovery()).found.length, 88);
+  assert.equal(await sky.textContent('#btn-discover-restart'), 'Säker? Tryck igen');
+  await sky.click('#btn-discover-restart');
+  d = await discovery();
+  assert.deepEqual([d.found, d.count], [['UMa'], '1 av 57']);
+
+  // On a phone the panel fits across the top.
+  const phoneSky = await openPage({ width: 390, height: 844 }, { discover: true });
+  assert.equal(await phoneSky.isVisible('#panel-discover'), true);
+  assert.ok((await phoneSky.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 0, 'no horizontal scroll');
+  await phoneSky.screenshot({ path: path.join(shots, 'phone-discover.png') });
 
   const phone = await openPage({ width: 390, height: 844 });
   await phone.evaluate(() => window.stjarnhimlen.select(window.stjarnhimlen.catalog.byId.get('UMa').index, { fly: true }));

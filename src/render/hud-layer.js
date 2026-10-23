@@ -56,14 +56,22 @@ export class HudLayer {
     const { ctx, pt } = this;
     const small = view.fov > 110 ? 10 : 11;
     for (const c of this.catalog.constellations) {
+      const state = st.reveal ? st.reveal.con[c.index] : 1;
+      if (!state) continue;
       const mark = st.marks.get(c.index);
       const selected = c.index === st.selected;
       const special = mark !== undefined || selected;
       const hover = c.index === st.hover;
-      if (!special && !hover && !st.layers.names) continue;
+      if (state === 1 && !special && !hover && !st.layers.names) continue;
       for (const v of c.labelVecs) {
         if (!view.projectEq(v, pt) || pt.z < view.cosCorner - 0.1) continue;
         if (st.groundOpaque && view.altOf(v) < -2) continue;
+        if (state === 2) {
+          // A neighbour that can be added next is always named, with a plus.
+          const color = hover ? SKY.candidateHover : SKY.candidateLabel;
+          this.label(`+ ${c.sv.toUpperCase()}`, pt.x, pt.y, `${hover ? 600 : 500} ${small + 1}px ${FONT_FAMILY}`, color, small * 0.18, true);
+          continue;
+        }
         const text = c.sv.toUpperCase();
         let color = SKY.label;
         let size = small;
