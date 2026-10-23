@@ -33,11 +33,12 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   stjärnbild på himlen för att visa eller dölja just dess teckning. Knappen
   "Illustrationer" visar alla, eller döljer alla om någon teckning syns. Markerade stjärnbilder får teckningen i sin
   egen färg.
-- **Markera stjärnbilder:** klicka på himlen eller i listan. Markerade stjärnbilder får
-  en egen färg på figur, gräns och yta. Listan kan filtreras på de stjärnbilder som syns
+- **Markera stjärnbilder:** i listan, med rutan framför namnet eller med knappen på
+  infokortet. Markerade stjärnbilder får en egen färg på figur, gräns och yta. Listan kan filtreras på de stjärnbilder som syns
   från vald ort och visar vilka som är uppe just nu.
-- **Infokort:** var stjärnbilden står nu, när den går upp, står högst och går ner, om den
-  är cirkumpolär, vilken månad den står högst på kvällen och dess ljusstarkaste stjärna.
+- **Infokort:** välj en stjärnbild i listan så vänder sig vyn dit och ett kort visar var
+  den står nu, när den går upp, står högst och går ner, om den är cirkumpolär, vilken
+  månad den står högst på kvällen och dess ljusstarkaste stjärna.
 
 Inställningar och markeringar sparas i webbläsaren.
 

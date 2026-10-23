@@ -107,9 +107,11 @@ export class App {
       tap: (x, y) => {
         this.hudCanvas.classList.remove('dragging');
         if (this.stoppedMotion) return;
+        // A tap only shows or hides the illustration and closes an open info card; the
+        // card itself opens from the list.
+        this.select(-1);
         const index = this.pick(x, y);
         if (index >= 0) this.toggleArt(index);
-        this.select(index);
       },
       hover: (x, y) => this.setHover(this.pick(x, y)),
       leave: () => this.setHover(-1),

@@ -1,5 +1,5 @@
-// Smoke test in headless Chromium: the sky renders, a constellation can be picked
-// from the sky and from the list, and marking works. Screenshots land in
+// Smoke test in headless Chromium: the sky renders, a tap on a constellation toggles its
+// illustration, the list opens the info card, and marking works. Screenshots land in
 // test/e2e/screenshots/ (git-ignored).
 //
 //   npm run test:e2e
@@ -43,6 +43,11 @@ async function settle(page) {
   await page.waitForFunction(() => !window.stjarnhimlen.dirty && !window.stjarnhimlen.anim);
 }
 
+/** Whether a constellation's illustration is drawn. */
+function artOf(page, id) {
+  return page.evaluate((cid) => window.stjarnhimlen.artShown(window.stjarnhimlen.catalog.byId.get(cid).index), id);
+}
+
 /** Screen position of a constellation's framing centre. */
 function centerOf(page, id) {
   return page.evaluate((cid) => {
@@ -57,21 +62,25 @@ try {
   const page = await openPage({ width: 1280, height: 800 });
   await page.screenshot({ path: path.join(shots, 'desktop-south.png') });
 
+  // A tap on a constellation shows its illustration and opens no info card.
   const orion = await centerOf(page, 'Ori');
   await page.mouse.click(orion.x, orion.y);
-  await page.waitForSelector('#card:not([hidden]) h3');
-  assert.equal(await page.textContent('#card h3'), 'Orion');
-  assert.match(await page.textContent('#card .facts'), /Uppe nu/);
-  // The tap also showed Orion's illustration; the card's button hides it again.
-  const orionArt = () => page.evaluate(() => window.stjarnhimlen.artShown(window.stjarnhimlen.catalog.byId.get('Ori').index));
-  assert.equal(await orionArt(), true, 'tapping a constellation shows its illustration');
-  assert.equal(await page.textContent('#card [data-action="art"]'), 'Dölj illustration');
-  await page.click('#card [data-action="art"]');
-  assert.equal(await orionArt(), false);
-  assert.equal(await page.textContent('#card [data-action="art"]'), 'Visa illustration');
+  await settle(page);
+  assert.equal(await artOf(page, 'Ori'), true, 'tapping a constellation shows its illustration');
+  assert.equal(await page.isHidden('#card'), true, 'a tap opens no info card');
+  assert.equal(await page.evaluate(() => window.stjarnhimlen.selected), -1, 'a tap selects nothing');
+  await page.mouse.click(orion.x, orion.y);
+  await settle(page);
+  assert.equal(await artOf(page, 'Ori'), false, 'a second tap hides it');
 
-  await page.click('#card .chip.primary');
+  // Marking is done in the list.
+  await page.click('#btn-list');
+  await page.fill('#search', 'orion');
+  await page.click('#con-list li:not([hidden]) .mark-box');
   assert.equal(await page.textContent('#mark-count'), '1');
+  await page.fill('#search', '');
+  await page.click('#btn-list-close');
+  await settle(page);
   await page.screenshot({ path: path.join(shots, 'desktop-orion-marked.png') });
 
   // "Bara figurstjärnor" hides every star outside the stick figures.
@@ -124,10 +133,10 @@ try {
   const after = await ink();
   assert.ok(Math.abs(after - bare) < bare * 0.02, `turning illustrations off removes them (${bare} -> ${after})`);
 
-  // A tap on a constellation toggles just its illustration (the tap also selects it,
-  // which highlights its figure, so compare with it selected and its illustration off).
+  // A tap on a constellation toggles just its illustration (the mouse then rests on it,
+  // which highlights its figure, so compare with it hovered and its illustration off).
   const taurus = await centerOf(page, 'Tau');
-  const taurusArt = () => page.evaluate(() => window.stjarnhimlen.artShown(window.stjarnhimlen.catalog.byId.get('Tau').index));
+  const taurusArt = () => artOf(page, 'Tau');
   await page.mouse.click(taurus.x, taurus.y);
   await settle(page);
   assert.equal(await taurusArt(), true, 'first tap shows the illustration');
@@ -155,16 +164,18 @@ try {
   await settle(page);
   assert.deepEqual(await artState(), { all: false, overrides: 0, pressed: 'false' });
   assert.equal(await taurusArt(), false);
-  assert.ok(Math.abs((await ink()) - oneOff) < oneOff * 0.02, 'pressing it hid the tapped illustration');
+  assert.ok(Math.abs((await ink()) - bare) < bare * 0.02, 'pressing it hid the tapped illustration');
 
-  // With all illustrations on, a tap hides just the tapped one.
+  // With all illustrations on, a tap hides just the tapped one (measure both with the
+  // mouse resting on it, as it does after the tap).
   await page.click('[data-layer="art"]');
+  await page.mouse.move(taurus.x, taurus.y);
   await settle(page);
   const allOn = await ink();
   await page.mouse.click(taurus.x, taurus.y);
   await settle(page);
   assert.equal(await taurusArt(), false, 'a tap hides one illustration while all are on');
-  assert.equal(await page.textContent('#card [data-action="art"]'), 'Visa illustration');
+  assert.equal(await page.isHidden('#card'), true);
   assert.ok((await ink()) < allOn / 1.005, 'one fewer illustration is drawn');
   await page.mouse.click(taurus.x, taurus.y);
   await settle(page);
@@ -172,10 +183,12 @@ try {
   await page.click('[data-layer="art"]');
   await settle(page);
 
-  // A touch that stops a coasting sky only stops it. Playwright's mouse is too slow to
-  // flick, so the gesture is dispatched in the page with a steady pace.
+  // A touch that stops a coasting sky only stops it: it neither toggles an illustration
+  // nor closes the info card. Playwright's mouse is too slow to flick, so the gesture is
+  // dispatched in the page with a steady pace.
   const flick = await page.evaluate(() => {
     const app = window.stjarnhimlen;
+    app.select(app.catalog.byId.get('Ori').index);
     const el = app.hudCanvas;
     el.setPointerCapture = () => {};
     const r = el.getBoundingClientRect();
@@ -190,13 +203,14 @@ try {
     }
     send('pointerup', 650, 300);
     const coasting = Boolean(app.velocity);
-    const selected = app.selected;
     send('pointerdown', 640, 300);
     wait(30);
     send('pointerup', 640, 300);
-    return { coasting, stopped: app.velocity === null, selectedSame: app.selected === selected, overrides: app.artOverrides.size };
+    const result = { coasting, stopped: app.velocity === null, cardOpen: !app.card.root.hidden, overrides: app.artOverrides.size };
+    app.select(-1);
+    return result;
   });
-  assert.deepEqual(flick, { coasting: true, stopped: true, selectedSame: true, overrides: 0 }, 'the stopping touch is not a tap');
+  assert.deepEqual(flick, { coasting: true, stopped: true, cardOpen: true, overrides: 0 }, 'the stopping touch is not a tap');
 
   await page.click('#btn-list');
   await page.fill('#search', 'lejon');
@@ -204,32 +218,58 @@ try {
   assert.deepEqual(rows, ['Lejonet', 'Lilla lejonet']);
   await page.click('#con-list li:not([hidden]) .con-name');
   await page.waitForFunction(() => document.querySelector('#card h3')?.textContent === 'Lejonet');
+  assert.match(await page.textContent('#card .facts'), /Uppe nu/);
 
   await page.fill('#search', '');
   const before = await page.textContent('#filter-count');
   await page.click('#btn-list-close');
+
+  // The card's buttons show and hide the illustration and mark the constellation.
+  assert.equal(await page.textContent('#card [data-action="art"]'), 'Visa illustration');
+  await page.click('#card [data-action="art"]');
+  assert.equal(await artOf(page, 'Leo'), true);
+  assert.equal(await page.textContent('#card [data-action="art"]'), 'Dölj illustration');
+  await page.click('#card [data-action="art"]');
+  assert.equal(await artOf(page, 'Leo'), false);
+  await page.click('#card .chip.primary');
+  assert.equal(await page.textContent('#mark-count'), '2');
+  assert.equal(await page.textContent('#card .chip[aria-pressed="true"]'), 'Avmarkera');
+
+  // A tap in the sky closes the card and toggles the tapped illustration as usual.
+  await settle(page);
+  const leo = await centerOf(page, 'Leo');
+  await page.mouse.click(leo.x, leo.y);
+  assert.equal(await page.isHidden('#card'), true, 'a tap in the sky closes the info card');
+  assert.equal(await artOf(page, 'Leo'), true);
+  await page.mouse.click(leo.x, leo.y);
+  assert.equal(await artOf(page, 'Leo'), false);
+  assert.equal(await page.isHidden('#card'), true);
+
   await page.click('#btn-when');
   await page.selectOption('#place', 'kiruna');
   assert.equal(await page.textContent('#when-place'), 'Kiruna');
   assert.notEqual(await page.textContent('#filter-count'), before, 'fewer constellations rise in Kiruna');
   await page.click('#btn-when');
 
-  // Clicking the ground selects nothing. Let the flight to Leo finish first, or it would
-  // overwrite the direction set here.
+  // Clicking the ground closes the card and toggles no illustration.
   await settle(page);
   await page.evaluate(() => {
-    Object.assign(window.stjarnhimlen.view, { alt: -60 });
-    window.stjarnhimlen.invalidate();
+    const app = window.stjarnhimlen;
+    Object.assign(app.view, { alt: -60 });
+    app.select(app.catalog.byId.get('Leo').index);
+    app.invalidate();
   });
   await settle(page);
+  assert.equal(await page.isHidden('#card'), false);
   await page.mouse.click(150, 250);
   assert.equal(await page.isHidden('#card'), true);
+  assert.equal(await page.evaluate(() => window.stjarnhimlen.artOverrides.size), 0);
 
   // One-by-one illustration choices are remembered between visits.
-  const savedArt = () => page.evaluate(() => JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').artOverrides || []);
+  // Saves wait until things have been still for a moment, so wait for this very value
+  // rather than any one-element list an earlier save may have left.
   await page.evaluate(() => window.stjarnhimlen.toggleArt(window.stjarnhimlen.catalog.byId.get('Tau').index));
-  await page.waitForFunction(() => (JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').artOverrides || []).length === 1);
-  assert.deepEqual(await savedArt(), [['Tau', true]]);
+  await page.waitForFunction(() => JSON.stringify(JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').artOverrides) === '[["Tau",true]]');
   await page.reload();
   await page.waitForFunction(() => window.stjarnhimlen);
   assert.equal(await taurusArt(), true, 'the tapped illustration is shown again after a reload');
