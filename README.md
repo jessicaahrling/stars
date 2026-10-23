@@ -29,8 +29,10 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
 - **Bara figurstjärnor:** dölj alla stjärnor som inte ingår i någon stjärnbilds figur, så att
   mönstren framträder tydligt (fungerar med och utan linjer).
 - **Illustrationer:** en linjeteckning av vad varje stjärnbild föreställer, ritad över de
-  verkliga stjärnorna efter de klassiska stjärnatlasernas förebilder. Markerade
-  stjärnbilder får teckningen i sin egen färg.
+  verkliga stjärnorna efter de klassiska stjärnatlasernas förebilder. Klicka på en
+  stjärnbild på himlen för att visa eller dölja just dess teckning; knappen
+  "Illustrationer" visar eller döljer alla. Markerade stjärnbilder får teckningen i sin
+  egen färg.
 - **Markera stjärnbilder:** klicka på himlen eller i listan. Markerade stjärnbilder får
   en egen färg på figur, gräns och yta. Listan kan filtreras på de stjärnbilder som syns
   från vald ort och visar vilka som är uppe just nu.

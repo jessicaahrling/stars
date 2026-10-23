@@ -47,6 +47,12 @@ export class App {
         this.nextColor = Math.max(this.nextColor, color + 1);
       }
     }
+    /** Per-constellation illustration choices that differ from the "Illustrationer" button. */
+    this.artOverrides = new Map();
+    for (const [id, shown] of Array.isArray(saved.artOverrides) ? saved.artOverrides : []) {
+      const c = this.catalog.byId.get(id);
+      if (c && typeof shown === 'boolean' && shown !== this.layers.art) this.artOverrides.set(c.index, shown);
+    }
     this.selected = -1;
     this.hover = -1;
     this.clock = { baseMs: Date.now(), baseAt: performance.now(), speed: 1, live: true };
@@ -98,7 +104,9 @@ export class App {
       zoom: (f, x, y) => this.zoomAt(f, x, y),
       tap: (x, y) => {
         this.hudCanvas.classList.remove('dragging');
-        this.select(this.pick(x, y));
+        const index = this.pick(x, y);
+        if (index >= 0) this.toggleArt(index);
+        this.select(index);
       },
       hover: (x, y) => this.setHover(this.pick(x, y)),
       leave: () => this.setHover(-1),
@@ -168,9 +176,26 @@ export class App {
   setLayer(name, on) {
     if (!(name in this.layers)) return;
     this.layers[name] = on;
+    // The button shows or hides every illustration, replacing choices made one by one.
+    if (name === 'art') this.artOverrides.clear();
     this.syncControls();
     this.card.render();
     this.invalidate();
+    this.saveSoon();
+  }
+
+  /** Whether a constellation's illustration is drawn. */
+  artShown(index) {
+    return this.artOverrides.has(index) ? this.artOverrides.get(index) : this.layers.art;
+  }
+
+  /** Shows or hides one constellation's illustration (a tap on it in the sky does this). */
+  toggleArt(index) {
+    const shown = !this.artShown(index);
+    if (shown === this.layers.art) this.artOverrides.delete(index);
+    else this.artOverrides.set(index, shown);
+    this.invalidate();
+    this.card.render();
     this.saveSoon();
   }
 
@@ -402,6 +427,7 @@ export class App {
         placeId: this.place.id,
         layers: this.layers,
         marks: [...this.marks].map(([i, color]) => [this.catalog.constellations[i].id, color]),
+        artOverrides: [...this.artOverrides].map(([i, shown]) => [this.catalog.constellations[i].id, shown]),
         view: { az: Math.round(v.az * 10) / 10, alt: Math.round(v.alt * 10) / 10, fov: Math.round(v.fov * 10) / 10 },
         onlyVisible: this.list.onlyVisible,
       });
@@ -456,6 +482,8 @@ export class App {
       selected: this.selected,
       hover: this.hover,
       groundOpaque: !this.layers.seeThrough,
+      artShown: (i) => this.artShown(i),
+      anyArt: this.layers.art || [...this.artOverrides.values()].some(Boolean),
     };
     const gl = {
       scale: v.s,

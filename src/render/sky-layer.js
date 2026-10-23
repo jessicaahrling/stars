@@ -61,7 +61,7 @@ export class SkyLayer {
   /**
    * @param {import('../sky/view.js').SkyView} view
    * @param {object} st  render state: layers, marks (Map index -> colour index),
-   *   selected, hover, groundOpaque
+   *   selected, hover, groundOpaque, artShown(index), anyArt
    */
   render(view, st) {
     const { ctx, catalog } = this;
@@ -75,7 +75,7 @@ export class SkyLayer {
 
     ctx.lineJoin = 'round';
     ctx.lineCap = 'butt';
-    if (st.layers.art) this.drawArt(view, st, special);
+    if (st.anyArt) this.drawArt(view, st, special);
 
     // Boundaries
     if (st.layers.bounds) {
@@ -146,7 +146,7 @@ export class SkyLayer {
     const corner = (Math.acos(Math.max(-1, Math.min(1, view.cosCorner))) * 180) / Math.PI;
     const m = view.eqToCam;
     const visible = this.catalog.constellations.filter((c) => {
-      if (!c.art.length) return false;
+      if (!c.art.length || !st.artShown(c.index)) return false;
       const v = c.centerVec;
       const cz = m[6] * v[0] + m[7] * v[1] + m[8] * v[2];
       return (Math.acos(Math.max(-1, Math.min(1, cz))) * 180) / Math.PI - c.artRadius < corner + 2;

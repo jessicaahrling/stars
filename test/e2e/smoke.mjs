@@ -62,6 +62,13 @@ try {
   await page.waitForSelector('#card:not([hidden]) h3');
   assert.equal(await page.textContent('#card h3'), 'Orion');
   assert.match(await page.textContent('#card .facts'), /Uppe nu/);
+  // The tap also showed Orion's illustration; the card's button hides it again.
+  const orionArt = () => page.evaluate(() => window.stjarnhimlen.artShown(window.stjarnhimlen.catalog.byId.get('Ori').index));
+  assert.equal(await orionArt(), true, 'tapping a constellation shows its illustration');
+  assert.equal(await page.textContent('#card [data-action="art"]'), 'Dölj illustration');
+  await page.click('#card [data-action="art"]');
+  assert.equal(await orionArt(), false);
+  assert.equal(await page.textContent('#card [data-action="art"]'), 'Visa illustration');
 
   await page.click('#card .chip.primary');
   assert.equal(await page.textContent('#mark-count'), '1');
@@ -117,6 +124,28 @@ try {
   const after = await ink();
   assert.ok(Math.abs(after - bare) < bare * 0.02, `turning illustrations off removes them (${bare} -> ${after})`);
 
+  // A tap on a constellation toggles just its illustration (the tap also selects it,
+  // which highlights its figure, so compare with it selected and its illustration off).
+  const taurus = await centerOf(page, 'Tau');
+  const taurusArt = () => page.evaluate(() => window.stjarnhimlen.artShown(window.stjarnhimlen.catalog.byId.get('Tau').index));
+  await page.mouse.click(taurus.x, taurus.y);
+  await settle(page);
+  assert.equal(await taurusArt(), true, 'first tap shows the illustration');
+  const oneOn = await ink();
+  assert.ok(oneOn < inked, `only one illustration is drawn (${oneOn} < ${inked})`);
+  await page.screenshot({ path: path.join(shots, 'desktop-taurus-art.png') });
+  await page.mouse.click(taurus.x, taurus.y);
+  await settle(page);
+  assert.equal(await taurusArt(), false, 'second tap hides it');
+  const oneOff = await ink();
+  assert.ok(oneOn > oneOff * 1.01, `the illustration adds ink (${oneOff} -> ${oneOn})`);
+  await page.mouse.click(taurus.x, taurus.y);
+  await settle(page);
+  const again = await ink();
+  assert.ok(Math.abs(again - oneOn) < oneOn * 0.02, `third tap shows it again (${oneOn} -> ${again})`);
+  await page.mouse.click(taurus.x, taurus.y);
+  await settle(page);
+
   await page.click('#btn-list');
   await page.fill('#search', 'lejon');
   const rows = await page.$$eval('#con-list li:not([hidden]) strong', (els) => els.map((e) => e.textContent));
@@ -133,7 +162,9 @@ try {
   assert.notEqual(await page.textContent('#filter-count'), before, 'fewer constellations rise in Kiruna');
   await page.click('#btn-when');
 
-  // Clicking the ground selects nothing.
+  // Clicking the ground selects nothing. Let the flight to Leo finish first, or it would
+  // overwrite the direction set here.
+  await settle(page);
   await page.evaluate(() => {
     Object.assign(window.stjarnhimlen.view, { alt: -60 });
     window.stjarnhimlen.invalidate();

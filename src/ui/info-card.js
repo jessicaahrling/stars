@@ -83,8 +83,16 @@ export class InfoCard {
       'aria-pressed': String(mark !== undefined),
       onclick: () => app.toggleMark(c.index),
     }, mark !== undefined ? 'Avmarkera' : 'Markera');
+    const artShown = app.artShown(c.index);
     const buttons = el('div', { class: 'btn-row' }, markBtn,
-      el('button', { type: 'button', class: 'chip', onclick: () => app.flyTo(c.index) }, 'Centrera'));
+      el('button', { type: 'button', class: 'chip', onclick: () => app.flyTo(c.index) }, 'Centrera'),
+      el('button', {
+        type: 'button',
+        class: 'chip',
+        'data-action': 'art',
+        'aria-pressed': String(artShown),
+        onclick: () => app.toggleArt(c.index),
+      }, artShown ? 'Dölj illustration' : 'Visa illustration'));
     if (f.alt < 0 && !app.layers.seeThrough) {
       buttons.append(el('button', {
         type: 'button',
