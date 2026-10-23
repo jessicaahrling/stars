@@ -63,7 +63,8 @@ export class SkyLayer {
    * @param {object} st  render state: layers, marks (Map index -> colour index),
    *   selected, hover, groundOpaque, artShown(index), anyArt, and reveal while
    *   discovering the sky: {con: Uint8Array per constellation (1 found, 2 can be added
-   *   next, 0 hidden), stars: Uint8Array per star (1 shown)}, otherwise null
+   *   next, 0 hidden), stars: Uint8Array per star (1 shown)}, otherwise null; recent (the
+   *   constellation found last) and avoid (screen boxes names keep clear of) are for the HUD
    */
   render(view, st) {
     const { ctx, catalog } = this;
@@ -134,7 +135,7 @@ export class SkyLayer {
       }
       ctx.stroke();
     }
-    if (st.hover >= 0 && !special.has(st.hover)) {
+    if (st.hover >= 0 && !special.has(st.hover) && found(catalog.constellations[st.hover])) {
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = SKY.lineHover;
       ctx.beginPath();

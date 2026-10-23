@@ -22,8 +22,11 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   plus framför namnet, och man lägger till en i taget genom att klicka på den på himlen
   eller i panelen. Sedan erbjuds grannarna till alla man har hittat, tills man har alla
   som syns från vald ort, och därefter resten av himlen om man vill. Bara stjärnbilderna
-  man har hittat visas, med sina stjärnor, linjer och namn. "Visa hela himlen" visar allt
-  igen och knappen "Upptäck" går tillbaka dit man var. "Börja om" tar två tryck.
+  man har hittat visas, med sina stjärnor, linjer och namn. Grannar som är under
+  horisonten just nu står som "nere" i panelen, och "Fortsätt med resten av himlen" gör
+  marken genomskinlig eftersom de stjärnbilderna aldrig går upp här. Panelen kan fällas
+  ihop. "Visa hela himlen" visar allt igen och knappen "Upptäck" går tillbaka dit man var.
+  "Börja om" tar två tryck.
 - **Titta runt:** dra för att vrida blicken, scrolla eller nyp för att zooma (piltangenter
   och `+`/`−` fungerar också). Projektionen är stereografisk, som i ett planetarium, och
   horisonten hålls vågrät.

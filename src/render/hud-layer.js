@@ -68,8 +68,10 @@ export class HudLayer {
         if (st.groundOpaque && view.altOf(v) < -2) continue;
         if (state === 2) {
           // A neighbour that can be added next is always named, with a plus.
-          const color = hover ? SKY.candidateHover : SKY.candidateLabel;
-          this.label(`+ ${c.sv.toUpperCase()}`, pt.x, pt.y, `${hover ? 600 : 500} ${small + 1}px ${FONT_FAMILY}`, color, small * 0.18, true);
+          const text = `+ ${c.sv.toUpperCase()}`;
+          const font = `${hover ? 600 : 500} ${small + 1}px ${FONT_FAMILY}`;
+          if (this.covered(text, font, small * 0.18, small + 1, st.avoid)) continue;
+          this.label(text, pt.x, pt.y, font, hover ? SKY.candidateHover : SKY.candidateLabel, small * 0.18, true);
           continue;
         }
         const text = c.sv.toUpperCase();
@@ -80,12 +82,27 @@ export class HudLayer {
           color = mark !== undefined ? MARK_COLORS[mark % MARK_COLORS.length].hex : SELECT_COLOR.hex;
           size = selected ? 15 : 13;
           weight = 600;
-        } else if (hover) {
+        } else if (hover || c.index === st.recent) {
+          // Hovered, or just discovered.
           color = SKY.labelHover;
+          if (!hover) weight = 600;
         }
-        this.label(text, pt.x, pt.y, `${weight} ${size}px ${FONT_FAMILY}`, color, size * 0.18, special);
+        const font = `${weight} ${size}px ${FONT_FAMILY}`;
+        if (this.covered(text, font, size * 0.18, size, st.avoid)) continue;
+        this.label(text, pt.x, pt.y, font, color, size * 0.18, special);
       }
     }
+  }
+
+  /** Whether a name centred on this.pt would run into one of the screen boxes in `avoid`. */
+  covered(text, font, spacingPx, size, avoid) {
+    if (!avoid || !avoid.length) return false;
+    const { ctx, pt } = this;
+    ctx.font = font;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacingPx.toFixed(1)}px`;
+    const w = ctx.measureText(text).width / 2 + 4;
+    const h = size / 2 + 4;
+    return avoid.some((r) => pt.x + w > r.left && pt.x - w < r.right && pt.y + h > r.top && pt.y - h < r.bottom);
   }
 
   drawStarNames(view, sky) {

@@ -91,16 +91,21 @@ export class ListPanel {
     const lat = this.app.view.lat;
     let shown = 0;
     let visibleCount = 0;
+    let undiscovered = null;
     for (const c of this.app.catalog.constellations) {
       const row = this.rows.get(c.index);
       const visible = visibilityClass(c.figureDecs, lat) !== 'never';
       if (visible) visibleCount++;
       // While discovering the sky, the list holds only the constellations found so far.
-      const show = (!this.onlyVisible || visible) && (!q || row.search.includes(q)) && this.app.isFound(c.index);
+      const match = (!this.onlyVisible || visible) && (!q || row.search.includes(q));
+      const show = match && this.app.isFound(c.index);
+      if (match && !show && q) undiscovered = undiscovered ? 'many' : c;
       row.li.hidden = !show;
       if (show) shown++;
     }
     this.empty.hidden = shown > 0;
+    this.empty.textContent = !undiscovered ? 'Ingen stjärnbild matchar sökningen.'
+      : undiscovered === 'many' ? 'Du har inte upptäckt någon av dem än.' : `${undiscovered.sv} har du inte upptäckt än.`;
     this.note.hidden = !this.app.discovery.on;
     this.filterPlace.textContent = this.app.place.name;
     this.filterCount.textContent = String(visibleCount);

@@ -40,22 +40,30 @@ export function findNeighbours(constellations) {
     sets[a].add(b);
     sets[b].add(a);
   };
-  for (let i = 0; i < meridians.length; i++) {
-    const p = meridians[i];
-    for (let j = i + 1; j < meridians.length; j++) {
-      const q = meridians[j];
-      if (p.c === q.c || sets[p.c].has(q.c) || Math.abs(wrap180(p.ra - q.ra)) >= SAME_LINE) continue;
-      if (Math.min(p.hi, q.hi) - Math.max(p.lo, q.lo) > MIN_SHARED) link(p.c, q.c);
+  // Collinear edges differ by less than SAME_LINE, so they land in the same or adjacent
+  // buckets of that width; RA wraps around, so its buckets do too.
+  const RA_BUCKETS = Math.round(360 / SAME_LINE);
+  const pairs = (edges, key, wrap, touch) => {
+    const buckets = new Map();
+    for (const e of edges) {
+      const k = key(e);
+      if (!buckets.has(k)) buckets.set(k, []);
+      buckets.get(k).push(e);
     }
-  }
-  for (let i = 0; i < parallels.length; i++) {
-    const p = parallels[i];
-    for (let j = i + 1; j < parallels.length; j++) {
-      const q = parallels[j];
-      if (p.c === q.c || sets[p.c].has(q.c) || Math.abs(p.dec - q.dec) >= SAME_LINE) continue;
-      const shared = arcOverlap(p.ra, p.w, q.ra, q.w) * Math.cos((p.dec * Math.PI) / 180);
-      if (shared > MIN_SHARED) link(p.c, q.c);
+    for (const [k, list] of buckets) {
+      const next = buckets.get(wrap(k + 1)) || [];
+      for (let i = 0; i < list.length; i++) {
+        for (const q of [...list.slice(i + 1), ...next]) {
+          const p = list[i];
+          if (p.c !== q.c && !sets[p.c].has(q.c) && touch(p, q)) link(p.c, q.c);
+        }
+      }
     }
-  }
+  };
+  pairs(meridians, (e) => Math.round(e.ra / SAME_LINE) % RA_BUCKETS, (k) => k % RA_BUCKETS,
+    (p, q) => Math.abs(wrap180(p.ra - q.ra)) < SAME_LINE && Math.min(p.hi, q.hi) - Math.max(p.lo, q.lo) > MIN_SHARED);
+  pairs(parallels, (e) => Math.round(e.dec / SAME_LINE), (k) => k,
+    (p, q) => Math.abs(p.dec - q.dec) < SAME_LINE
+      && arcOverlap(p.ra, p.w, q.ra, q.w) * Math.cos((p.dec * Math.PI) / 180) > MIN_SHARED);
   return sets.map((s) => [...s].sort((a, b) => a - b));
 }

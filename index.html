@@ -132,15 +132,25 @@
     .panel-discover { top: calc(var(--top) + 52px); left: var(--gutter-l); width: 300px; box-sizing: border-box;
       max-height: calc(100% - var(--top) - var(--bottom) - 120px); padding: 14px 16px; display: flex;
       flex-direction: column; gap: 10px; }
-    .discover-head { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
-    .discover-progress { font-size: 13px; color: var(--ink-2); }
+    .discover-head { display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; }
+    .discover-head h2 { flex: 1; }
+    .discover-progress { order: 3; flex-basis: 100%; font-size: 13px; color: var(--ink-2); }
+    .discover-head .icon-btn { flex: none; width: 30px; height: 30px; margin: -6px -8px -6px 0; display: grid; place-items: center; }
+    .discover-head .icon-btn::before { content: ""; width: 8px; height: 8px; border: solid currentColor; border-width: 0 1.5px 1.5px 0;
+      transform: translateY(2px) rotate(225deg); }
+    .collapsed .discover-head .icon-btn::before { transform: translateY(-2px) rotate(45deg); }
+    .discover-body { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+    .discover-body[hidden] { display: none; }
     .discover-progress b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
     .meter { flex: none; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
     .meter span { display: block; height: 100%; width: 0; border-radius: 2px; background: var(--gold);
       transition: width .3s; }
     .discover-hint { margin: 0; font-size: 14px; color: var(--ink-2); }
     .discover-next { display: flex; flex-wrap: wrap; gap: 6px; overflow-y: auto; min-height: 0; padding: 2px; }
-    .discover-next .chip { min-height: 34px; padding: 0 12px; font-size: 13px; }
+    .discover-next .chip { min-height: 34px; padding: 0 12px; font-size: 13px; gap: 6px; }
+    .discover-next .state { font-size: 11px; color: var(--ink-3); }
+    .discover-next .state:empty { display: none; }
+    .discover-next .chip.below { color: var(--ink-2); border-style: dashed; }
     .discover-foot { display: flex; flex-wrap: wrap; gap: 6px; }
     .discover-foot .chip { min-height: 32px; padding: 0 11px; font-size: 12px; color: var(--ink-2); }
     .discover-foot .chip.primary { color: #1b1406; }
@@ -164,7 +174,8 @@
     .chip.primary:hover { background: #ffd48a; }
 
     .toast { position: fixed; left: 50%; transform: translateX(-50%); top: calc(var(--top) + 60px); z-index: 6;
-      padding: 10px 16px; border-radius: 999px; background: var(--glass-strong); border: 1px solid var(--hairline);
+      width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; text-align: center;
+      padding: 10px 16px; border-radius: 18px; background: var(--glass-strong); border: 1px solid var(--hairline);
       font-size: 14px; }
     .fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; }
 
@@ -178,6 +189,10 @@
       .card { bottom: calc(var(--bottom) + 56px); }
       .card h3 { font-size: 21px; }
       .panel-discover { right: var(--gutter-r); width: auto; padding: 10px 12px; gap: 8px; }
+      .discover-body { gap: 8px; }
+      #discover-of { display: none; }
+      .discover-head h2 { flex: none; }
+      .discover-progress { order: 0; flex: 1; flex-basis: auto; }
       .discover-hint { font-size: 13px; }
       .discover-next { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; flex: none; scrollbar-width: none; }
       .discover-next::-webkit-scrollbar { display: none; }
@@ -264,14 +279,17 @@
     <div class="discover-head">
       <h2>Upptäck himlen</h2>
       <span class="discover-progress"><b id="discover-count"></b> <span id="discover-of"></span></span>
+      <button id="btn-discover-collapse" class="icon-btn" type="button" aria-controls="discover-body" aria-expanded="true" aria-label="Fäll ihop"></button>
     </div>
     <div id="discover-meter" class="meter" role="progressbar" aria-label="Upptäckta stjärnbilder" aria-valuemin="0"><span id="discover-bar"></span></div>
-    <p id="discover-hint" class="discover-hint" aria-live="polite"></p>
-    <div id="discover-next" class="discover-next" role="group" aria-label="Grannar att lägga till"></div>
-    <div class="discover-foot">
-      <button id="btn-discover-rest" type="button" class="chip primary" hidden></button>
-      <button id="btn-discover-restart" type="button" class="chip">Börja om</button>
-      <button id="btn-discover-exit" type="button" class="chip">Visa hela himlen</button>
+    <div id="discover-body" class="discover-body">
+      <p id="discover-hint" class="discover-hint" aria-live="polite"></p>
+      <div id="discover-next" class="discover-next" role="group" aria-label="Grannar att lägga till"></div>
+      <div class="discover-foot">
+        <button id="btn-discover-rest" type="button" class="chip primary" hidden></button>
+        <button id="btn-discover-restart" type="button" class="chip">Börja om</button>
+        <button id="btn-discover-exit" type="button" class="chip">Visa hela himlen</button>
+      </div>
     </div>
   </section>
 

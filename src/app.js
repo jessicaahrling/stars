@@ -63,7 +63,7 @@ export class App {
      * the chosen place to the whole sky.
      */
     const disc = saved.discover && typeof saved.discover === 'object' ? saved.discover : {};
-    this.discovery = { on: disc.on !== false, all: disc.all === true, found: new Set() };
+    this.discovery = { on: disc.on !== false, all: disc.all === true, collapsed: disc.collapsed === true, found: new Set() };
     for (const id of Array.isArray(disc.found) ? disc.found : []) {
       const c = this.catalog.byId.get(id);
       if (c) this.discovery.found.add(c.index);
@@ -72,6 +72,8 @@ export class App {
     this.neighbours = findNeighbours(this.catalog.constellations);
     this.reveal = null;
     this.discoveryInfo = null;
+    /** The constellation found last, named in the panel and on the sky until the next find. */
+    this.lastFound = -1;
     this.selected = -1;
     this.hover = -1;
     this.clock = { baseMs: Date.now(), baseAt: performance.now(), speed: 1, live: true };
@@ -104,6 +106,7 @@ export class App {
     this.when = new WhenPanel(this, $);
     this.discoverPanel = new DiscoverPanel(this, $);
     this.toast = $('toast');
+    this.brand = doc.querySelector('.brand');
     this.markCount = $('mark-count');
     if (saved.onlyVisible === false) this.list.setOnlyVisible(false);
 
@@ -135,7 +138,7 @@ export class App {
         // While discovering, a tap on a neighbour with a plus adds it.
         if (this.isFound(index)) this.toggleArt(index);
         else if (this.reveal.con[index] === 2) this.discover(index);
-        else this.showToast('Lägg till en granne först. De har ett plus framför namnet.');
+        else this.explainHidden(index);
       },
       hover: (x, y) => this.setHover(this.pickShown(x, y)),
       leave: () => this.setHover(-1),
@@ -219,7 +222,7 @@ export class App {
 
   /** Whether any illustration is drawn: the whole layer, or some shown one by one. */
   anyArtShown() {
-    return this.layers.art || [...this.artOverrides.values()].some(Boolean);
+    return this.layers.art || [...this.artOverrides].some(([i, shown]) => shown && this.isFound(i));
   }
 
   /**
@@ -295,6 +298,7 @@ export class App {
   setDiscover(on) {
     if (this.discovery.on === on) return;
     this.discovery.on = on;
+    this.lastFound = -1;
     this.discoveryChanged();
     if (on && this.discovery.found.size === 1) this.flyTo(this.discovery.found.values().next().value);
     this.saveSoon();
@@ -305,22 +309,45 @@ export class App {
     const d = this.discovery;
     if (!d.on || d.found.has(index)) return;
     d.found.add(index);
+    this.lastFound = index;
     this.discoveryChanged();
     if (fly && !this.inView(index)) this.flyTo(index);
+    const c = this.catalog.constellations[index];
+    const state = this.layers.seeThrough ? 'up' : this.figureStateOf(c);
+    if (fly && state !== 'up') {
+      this.showToast(`${c.sv} är ${state === 'down' ? 'under' : 'delvis under'} horisonten just nu. Slå på Se genom marken för att se den.`);
+    }
     this.saveSoon();
   }
 
-  /** Goes on from the constellations seen from here to the rest of the sky. */
+  /** Goes on from the constellations seen from here to the rest of the sky, which never rise here. */
   discoverRest() {
     this.discovery.all = true;
+    this.setLayer('seeThrough', true);
     this.discoveryChanged();
+    const next = this.discoveryInfo.next;
+    if (next.length && !next.some((i) => this.inView(i))) this.flyTo(next[0]);
     this.saveSoon();
+  }
+
+  /** Says why a tap on a hidden constellation adds nothing. */
+  explainHidden(index) {
+    const c = this.catalog.constellations[index];
+    const place = this.place.name;
+    if (this.discoveryInfo.done) {
+      this.showToast(`Du har hittat alla som syns från ${place}. Tryck på Fortsätt med resten av himlen för att ta med resten.`);
+    } else if (!this.discovery.all && visibilityClass(c.figureDecs, this.view.lat) === 'never') {
+      this.showToast(`Här finns en stjärnbild som aldrig syns från ${place}. Den kommer efter dem som syns härifrån.`);
+    } else {
+      this.showToast('Här finns en stjärnbild du inte har hittat än. Lägg till en granne först, de har ett plus framför namnet.');
+    }
   }
 
   restartDiscovery() {
     const start = this.catalog.byId.get(START_ID).index;
     this.discovery.found = new Set([start]);
     this.discovery.all = false;
+    this.lastFound = -1;
     this.discoveryChanged();
     this.flyTo(start);
     this.saveSoon();
@@ -352,10 +379,10 @@ export class App {
     this.invalidate();
     this.list.syncAll();
     this.list.applyFilter();
-    this.discoverPanel.render();
+    this.syncControls();
   }
 
-  /** Whether a constellation's centre is on screen, away from the edges. */
+  /** Whether a constellation's centre is in the free part of the screen, away from its edges. */
   inView(index) {
     const v = this.view;
     v.timeMs = this.now();
@@ -364,7 +391,28 @@ export class App {
     const c = this.catalog.constellations[index];
     if (!v.projectEq(c.centerVec, p) || p.z < 0) return false;
     if (!this.layers.seeThrough && v.altOf(c.centerVec) < 0) return false;
-    return p.x > v.width * 0.15 && p.x < v.width * 0.85 && p.y > v.height * 0.2 && p.y < v.height * 0.8;
+    const a = this.freeArea();
+    const w = a.right - a.left;
+    const h = a.bottom - a.top;
+    return p.x > a.left + w * 0.15 && p.x < a.right - w * 0.15 && p.y > a.top + h * 0.2 && p.y < a.bottom - h * 0.2;
+  }
+
+  /**
+   * The part of the screen where the sky is not covered: the Upptäck panel takes the left
+   * edge on wide screens and the top on phones, and the info card the bottom. CSS px.
+   */
+  freeArea() {
+    const v = this.view;
+    const a = { left: 0, top: 0, right: v.width, bottom: v.height };
+    const panel = this.discoverPanel.root;
+    if (!panel.hidden && panel.style.visibility !== 'hidden') {
+      const r = panel.getBoundingClientRect();
+      if (window.innerWidth <= 640) a.top = Math.min(r.bottom, v.height * 0.5);
+      else a.left = Math.min(r.right, v.width * 0.5);
+    }
+    const card = this.card.root;
+    if (!card.hidden && card.style.visibility !== 'hidden') a.bottom = Math.max(a.top + 100, card.getBoundingClientRect().top);
+    return a;
   }
 
   // ------------------------------------------------------------------ selection
@@ -442,13 +490,13 @@ export class App {
     const aspect = Math.max(v.width, v.height) / Math.min(v.width, v.height);
     const fov = clamp(c.radius * 2.5 * Math.min(aspect, 2.2), 28, MAX_FOV - 10);
     let targetAlt = this.layers.seeThrough ? alt : Math.max(alt, Math.min(fov * 0.22, 20));
-    // Lift the figure above the info card.
-    const card = this.card.root;
-    if (!card.hidden) {
-      const scale = Math.max(v.width, v.height) / (4 * Math.tan((fov * Math.PI) / 720));
-      targetAlt -= ((card.offsetHeight / 2) / scale) * RAD;
-    }
-    const to = { az, alt: clamp(targetAlt, -85, 85), fov };
+    // Centre the figure in the sky left free by the panel and the info card.
+    const free = this.freeArea();
+    const scale = Math.max(v.width, v.height) / (4 * Math.tan((fov * Math.PI) / 720));
+    targetAlt += (((free.top + free.bottom - v.height) / 2) / scale) * RAD;
+    const shift = (((free.left + free.right - v.width) / 2) / scale) * RAD;
+    const targetAz = az - shift / Math.max(0.35, Math.cos((clamp(targetAlt, -85, 85) * Math.PI) / 180));
+    const to = { az: targetAz, alt: clamp(targetAlt, -85, 85), fov };
     if (instant || matchMedia('(prefers-reduced-motion: reduce)').matches) {
       Object.assign(v, to);
       this.invalidate();
@@ -535,20 +583,36 @@ export class App {
 
   syncControls() {
     for (const b of this.toggleButtons) b.setAttribute('aria-pressed', String(this.layerPressed(b.dataset.layer)));
-    this.markCount.hidden = this.marks.size === 0;
-    this.markCount.textContent = String(this.marks.size);
+    // Marks on constellations still to be discovered are kept but not counted.
+    let marks = 0;
+    for (const i of this.marks.keys()) if (this.isFound(i)) marks++;
+    this.markCount.hidden = marks === 0;
+    this.markCount.textContent = String(marks);
+    this.discoverPanel.render();
   }
 
   syncTimeUi(force = false) {
     this.lastUiSync = performance.now();
+    // Up/down states below are read off the view, so bring it to the current time first.
+    this.view.timeMs = this.now();
+    this.view.update();
     this.when.sync(force);
     this.list.syncAll();
     this.card.render();
+    this.discoverPanel.syncStates();
   }
 
   showToast(text) {
     this.toast.textContent = text;
     this.toast.hidden = false;
+    // Below the Upptäck panel where the two would overlap (on phones).
+    this.toast.style.top = '';
+    const panel = this.discoverPanel.root;
+    if (!panel.hidden && panel.style.visibility !== 'hidden') {
+      const p = panel.getBoundingClientRect();
+      const t = this.toast.getBoundingClientRect();
+      if (t.left < p.right && p.left < t.right && t.top < p.bottom) this.toast.style.top = `${Math.round(p.bottom + 8)}px`;
+    }
     clearTimeout(this.toastTimer);
     this.toastTimer = setTimeout(() => {
       this.toast.hidden = true;
@@ -567,6 +631,7 @@ export class App {
         discover: {
           on: this.discovery.on,
           all: this.discovery.all,
+          collapsed: this.discovery.collapsed,
           found: [...this.discovery.found].map((i) => this.catalog.constellations[i].id),
         },
         view: { az: Math.round(v.az * 10) / 10, alt: Math.round(v.alt * 10) / 10, fov: Math.round(v.fov * 10) / 10 },
@@ -576,6 +641,14 @@ export class App {
   }
 
   // ------------------------------------------------------------------ rendering
+
+  /** Screen boxes constellation names keep clear of: the brand and the Upptäck panel. */
+  labelObstacles() {
+    const out = [this.brand.getBoundingClientRect()];
+    const panel = this.discoverPanel.root;
+    if (!panel.hidden && panel.style.visibility !== 'hidden') out.push(panel.getBoundingClientRect());
+    return out;
+  }
 
   invalidate() {
     this.dirty = true;
@@ -627,6 +700,8 @@ export class App {
       artShown: (i) => this.isFound(i) && this.artShown(i),
       anyArt: this.anyArtShown(),
       reveal: this.reveal,
+      recent: this.reveal ? this.lastFound : -1,
+      avoid: this.labelObstacles(),
     };
     const gl = {
       scale: v.s,
