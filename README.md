@@ -27,6 +27,14 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   marken genomskinlig eftersom de stjärnbilderna aldrig går upp här. Panelen kan fällas
   ihop. "Visa hela himlen" visar allt igen och knappen "Upptäck" går tillbaka dit man var.
   "Börja om" tar två tryck.
+- **Träna:** flashcards med spaced repetition. En stjärnbild visas först med bara sina
+  stjärnor (de runtomkring dämpas), ett tryck visar linjerna och nästa namnet och
+  illustrationen. Sedan svarar man Fel, Rätt eller Lätt (eller tangenterna 1, 2 och 3;
+  mellanslag visar nästa steg). Man börjar med fyra, Stora björnen, Cassiopeja, Orion och
+  Svanen, och får två nya när man kan alla som är i spel, tills man kan alla som syns från
+  vald ort. Ett rätt svar flyttar stjärnbilden till en låda med längre vila (1 minut,
+  10 minuter, 1 dag, 3 dagar och så vidare), ett fel svar tar tillbaka den snart. Är den
+  under horisonten blir marken genomskinlig. Framstegen sparas.
 - **Titta runt:** dra för att vrida blicken, scrolla eller nyp för att zooma (piltangenter
   och `+`/`−` fungerar också). Projektionen är stereografisk, som i ett planetarium, och
   horisonten hålls vågrät.

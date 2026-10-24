@@ -107,7 +107,7 @@ export class ListPanel {
     this.empty.hidden = shown > 0;
     this.empty.textContent = !undiscovered ? 'Ingen stjärnbild matchar sökningen.'
       : undiscovered === 'many' ? 'Du har inte upptäckt någon av dem än.' : `${undiscovered.sv} har du inte upptäckt än.`;
-    this.note.hidden = !this.app.discovery.on;
+    this.note.hidden = !this.app.discovering;
     this.filterPlace.textContent = this.app.place.name;
     this.filterCount.textContent = String(visibleCount);
   }

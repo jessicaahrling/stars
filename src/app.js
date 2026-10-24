@@ -12,9 +12,11 @@ import { buildCatalog } from './sky/catalog.js';
 import { discoveryState, START_ID } from './sky/discovery.js';
 import { figureState } from './sky/facts.js';
 import { findNeighbours } from './sky/neighbours.js';
+import { grade, INTERVALS, introductionOrder, nextCard, trainingProgress } from './sky/training.js';
 import { MAX_FOV, MIN_FOV, SkyView } from './sky/view.js';
 import { DiscoverPanel } from './ui/discover-panel.js';
 import { ThemePanel } from './ui/theme-panel.js';
+import { TrainPanel } from './ui/train-panel.js';
 import { applyTheme, DEFAULT_THEME, THEMES } from './ui/themes.js';
 import { InfoCard } from './ui/info-card.js';
 import { attachSkyInput } from './ui/input.js';
@@ -81,6 +83,21 @@ export class App {
     }
     this.discovery.found.add(this.catalog.byId.get(START_ID).index);
     this.neighbours = findNeighbours(this.catalog.constellations);
+    /**
+     * "Träna": flashcards with spaced repetition. cards maps the constellations in play to
+     * their Leitner box, when they are due (ms) and how often they have been answered;
+     * card is the one shown and step how far it is revealed (1 stars, 2 lines, 3 name).
+     */
+    const tr = saved.training && typeof saved.training === 'object' ? saved.training : {};
+    this.training = { on: tr.on === true, cards: new Map(), card: -1, step: 1, stars: null, below: false };
+    for (const entry of Array.isArray(tr.cards) ? tr.cards : []) {
+      const [cid, box, due, n] = Array.isArray(entry) ? entry : [];
+      const c = this.catalog.byId.get(cid);
+      if (c && Number.isInteger(box) && box >= 0 && box < INTERVALS.length && Number.isFinite(due)) {
+        this.training.cards.set(c.index, { box, due, n: Number.isInteger(n) ? n : 1 });
+      }
+    }
+    this.trainOrder = introductionOrder(this.catalog.constellations, this.catalog.stars.mag);
     this.reveal = null;
     this.discoveryInfo = null;
     /** The constellation found last, named in the panel and on the sky until the next find. */
@@ -117,6 +134,7 @@ export class App {
     this.when = new WhenPanel(this, $);
     this.discoverPanel = new DiscoverPanel(this, $);
     this.themePanel = new ThemePanel(this, $);
+    this.trainPanel = new TrainPanel(this, $);
     this.toast = $('toast');
     this.brand = doc.querySelector('.brand');
     this.markCount = $('mark-count');
@@ -139,6 +157,8 @@ export class App {
       grab: () => {
         // A touch that stops a coasting or flying sky only stops it; it is not a tap.
         this.stoppedMotion = Boolean(this.velocity || this.anim);
+        // While training, the flight to the next card lands at once rather than halfway.
+        if (this.training.on && this.anim) Object.assign(this.view, this.anim.to);
         this.velocity = null;
         this.anim = null;
         this.hudCanvas.classList.add('dragging');
@@ -148,6 +168,11 @@ export class App {
       tap: (x, y) => {
         this.hudCanvas.classList.remove('dragging');
         if (this.stoppedMotion) return;
+        // While training, a tap shows the next step: the lines, then the name.
+        if (this.training.on) {
+          if (this.training.step < 3) this.advanceTraining();
+          return;
+        }
         // A tap only shows or hides the illustration. It never opens the info card (that
         // opens from the list) and closes it unless the tap is on the card's constellation.
         const index = this.pick(x, y);
@@ -161,7 +186,7 @@ export class App {
       hover: (x, y) => this.setHover(this.pickShown(x, y)),
       leave: () => this.setHover(-1),
       fling: (vx, vy) => {
-        this.velocity = { vx, vy, t: performance.now() };
+        this.velocity = { vx, vy, t: null };
       },
     });
     this.hudCanvas.addEventListener('pointerup', () => this.hudCanvas.classList.remove('dragging'));
@@ -178,7 +203,8 @@ export class App {
     this.discoveryChanged();
     this.resize();
     // A new discovery starts by looking at Ursa Major.
-    if (this.discovery.on && this.discovery.found.size === 1) this.flyTo(this.discovery.found.values().next().value, { instant: true });
+    if (this.discovering && this.discovery.found.size === 1) this.flyTo(this.discovery.found.values().next().value, { instant: true });
+    if (this.training.on) this.nextTrainingCard({ instant: true });
     this.tick = this.tick.bind(this);
     requestAnimationFrame(this.tick);
   }
@@ -221,6 +247,7 @@ export class App {
     this.invalidate();
     this.list.applyFilter();
     this.discoveryChanged();
+    if (this.training.on) this.trainPanel.render();
     this.syncTimeUi(true);
     this.saveSoon();
   }
@@ -315,10 +342,16 @@ export class App {
 
   /** Whether a constellation is drawn: always, unless it is still to be discovered. */
   isFound(index) {
-    return !this.discovery.on || this.discovery.found.has(index);
+    return !this.discovering || this.discovery.found.has(index);
+  }
+
+  /** Whether the sky is being discovered now ("Träna" puts discovering on hold). */
+  get discovering() {
+    return this.discovery.on && !this.training.on;
   }
 
   setDiscover(on) {
+    if (on && this.training.on) this.setTraining(false);
     if (this.discovery.on === on) return;
     this.discovery.on = on;
     this.lastFound = -1;
@@ -382,10 +415,103 @@ export class App {
     this.saveSoon();
   }
 
+  // ------------------------------------------------------------------ training
+
+  /** Turns "Träna" on or off. While training, discovering waits and the sky shows the cards. */
+  setTraining(on) {
+    const t = this.training;
+    if (t.on === on) return;
+    t.on = on;
+    this.select(-1);
+    this.setHover(-1);
+    this.closeList();
+    if (on) this.nextTrainingCard({ again: t.card });
+    else this.trainingChanged();
+    this.discoveryChanged();
+    this.saveSoon();
+  }
+
+  /** Constellations to learn: those whose figures rise from the chosen place. */
+  trainInGoal(index) {
+    return visibilityClass(this.catalog.constellations[index].figureDecs, this.view.lat) !== 'never';
+  }
+
+  trainingProgress() {
+    return trainingProgress(this.training.cards, (i) => this.trainInGoal(i), this.catalog.constellations.length);
+  }
+
+  /**
+   * Shows the next card, with its stars only, and turns the view to it. `again` shows that
+   * card once more instead (when coming back to training), if it is still one to learn.
+   */
+  nextTrainingCard({ instant = false, again = -1 } = {}) {
+    const t = this.training;
+    t.card = again >= 0 && this.trainInGoal(again)
+      ? again
+      : nextCard(t.cards, this.trainOrder, (i) => this.trainInGoal(i), Date.now(), t.card);
+    t.step = 1;
+    this.trainingChanged();
+    if (t.card >= 0) this.flyTo(t.card, { instant });
+    this.saveSoon();
+  }
+
+  /** Shows the lines, then the name. */
+  advanceTraining() {
+    const t = this.training;
+    if (!t.on || t.card < 0 || t.step >= 3) return;
+    t.step++;
+    this.trainingChanged();
+  }
+
+  /** Shows the name straight away. */
+  revealTraining() {
+    const t = this.training;
+    if (!t.on || t.card < 0) return;
+    t.step = 3;
+    this.trainingChanged();
+  }
+
+  /** Records how the card went ('again', 'good' or 'easy') and goes on to the next one. */
+  answerTraining(answer) {
+    const t = this.training;
+    if (!t.on || t.card < 0) return;
+    t.cards.set(t.card, grade(t.cards.get(t.card), answer, Date.now()));
+    this.nextTrainingCard();
+  }
+
+  restartTraining() {
+    this.training.cards.clear();
+    this.training.card = -1;
+    this.nextTrainingCard();
+  }
+
+  /** Recomputes what the card shows: its stars, and whether the ground must be see-through. */
+  trainingChanged() {
+    const t = this.training;
+    t.stars = null;
+    t.below = false;
+    if (t.on && t.card >= 0) {
+      const { catalog } = this;
+      const c = catalog.constellations[t.card];
+      const stars = new Uint8Array(catalog.stars.count);
+      for (let s = 0; s < stars.length; s++) stars[s] = catalog.stars.con[s] === t.card ? 1 : 0;
+      for (const s of c.figureStars) stars[s] = 1;
+      t.stars = stars;
+      this.view.timeMs = this.now();
+      this.view.update();
+      t.below = this.figureStateOf(c) !== 'up';
+    }
+    this.maskDirty = true;
+    this.invalidate();
+    this.syncControls();
+    this.trainPanel.render();
+    this.layoutChanged();
+  }
+
   /** Recomputes what is drawn while discovering, after a find, a restart, a new place or the mode changing. */
   discoveryChanged() {
     const { catalog, discovery: d } = this;
-    if (d.on) {
+    if (this.discovering) {
       const lat = this.view.lat;
       const inGoal = (i) => d.all || visibilityClass(catalog.constellations[i].figureDecs, lat) !== 'never';
       this.discoveryInfo = discoveryState(d.found, this.neighbours, inGoal);
@@ -434,12 +560,12 @@ export class App {
     const v = this.view;
     const a = { left: 0, top: 0, right: v.width, bottom: v.height };
     const narrow = window.innerWidth <= 640;
-    const panel = this.discoverPanel.root;
-    if (!panel.hidden && panel.style.visibility !== 'hidden') {
+    const panel = this.modePanel();
+    if (panel) {
       const r = panel.getBoundingClientRect();
-      // Folded up, the panel is a small box in the corner on wide screens.
+      // Folded up, the Upptäck panel is a small box in the corner on wide screens.
       if (narrow) a.top = Math.min(r.bottom, v.height * 0.5);
-      else if (!this.discovery.collapsed) a.left = Math.min(r.right, v.width * 0.5);
+      else if (!(panel === this.discoverPanel.root && this.discovery.collapsed)) a.left = Math.min(r.right, v.width * 0.5);
     }
     if (!narrow) {
       // The list and the time panel stand along the right edge while open.
@@ -477,8 +603,14 @@ export class App {
     this.invalidate();
   }
 
-  /** Like pick, but -1 for a constellation that is hidden while discovering. */
+  /** Whether the ground is see-through now: by choice, or for a training card below the horizon. */
+  seeThroughNow() {
+    return this.layers.seeThrough || (this.training.on && this.training.below);
+  }
+
+  /** Like pick, but -1 for a constellation that is hidden while discovering, and while training. */
   pickShown(x, y) {
+    if (this.training.on) return -1;
     const index = this.pick(x, y);
     return index >= 0 && this.reveal && !this.reveal.con[index] ? -1 : index;
   }
@@ -486,7 +618,7 @@ export class App {
   /** Constellation under a CSS pixel, or -1 (empty sky never happens; ground does). */
   pick(x, y) {
     const hor = this.view.unproject(x, y);
-    if (hor[2] < 0 && !this.layers.seeThrough) return -1;
+    if (hor[2] < 0 && !this.seeThroughNow()) return -1;
     return this.catalog.constellationAt(mat3Apply(this.view.horToEq, hor));
   }
 
@@ -528,7 +660,7 @@ export class App {
     // Frame the name as well as the figure (Cassiopeja's sits well outside its W).
     const reach = Math.max(c.radius, Math.min(...c.labelVecs.map((l) => angleBetween(c.centerVec, l))) + 2);
     const fov = clamp(reach * 2.5 * Math.min(aspect, 2.2), 28, MAX_FOV - 10);
-    let targetAlt = this.layers.seeThrough ? alt : Math.max(alt, Math.min(fov * 0.22, 20));
+    let targetAlt = this.seeThroughNow() ? alt : Math.max(alt, Math.min(fov * 0.22, 20));
     // Centre the figure in the sky left free by the panel and the info card.
     const free = this.freeArea();
     const scale = Math.max(v.width, v.height) / (4 * Math.tan((fov * Math.PI) / 720));
@@ -542,15 +674,17 @@ export class App {
       return;
     }
     this.velocity = null;
-    this.anim = { from: { az: v.az, alt: v.alt, fov: v.fov }, to, t0: performance.now() };
+    // t0 comes from the first frame, so that a flight is timed by frame timestamps alone.
+    this.anim = { from: { az: v.az, alt: v.alt, fov: v.fov }, to, t0: null };
   }
 
   stepCamera(t) {
     const v = this.view;
     let moving = false;
     if (this.anim) {
+      if (this.anim.t0 === null) this.anim.t0 = t;
       const { from, to, t0 } = this.anim;
-      const u = Math.min(1, (t - t0) / FLY_MS);
+      const u = clamp((t - t0) / FLY_MS, 0, 1);
       const e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
       v.az = from.az + wrap180(to.az - from.az) * e;
       v.alt = from.alt + (to.alt - from.alt) * e;
@@ -558,7 +692,8 @@ export class App {
       if (u >= 1) this.anim = null;
       moving = true;
     } else if (this.velocity) {
-      const dt = Math.min(48, t - this.velocity.t);
+      if (this.velocity.t === null) this.velocity.t = t;
+      const dt = clamp(t - this.velocity.t, 0, 48);
       this.velocity.t = t;
       this.pan(this.velocity.vx * dt, this.velocity.vy * dt);
       const decay = Math.pow(0.0035, dt / 1000);
@@ -581,6 +716,21 @@ export class App {
       if (e.key !== 'Escape') return;
       t.blur();
       if (t.type !== 'radio') return;
+    }
+    // Training: Space shows the next step, 1 2 3 answer wrong, right and easy.
+    const tr = this.training;
+    if (tr.on && tr.card >= 0 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const answer = { 1: 'again', 2: 'good', 3: 'easy' }[e.key];
+      if (e.key === ' ' && tr.step < 3 && !(t && t.closest && t.closest('button'))) {
+        e.preventDefault();
+        this.advanceTraining();
+        return;
+      }
+      if (answer && tr.step === 3) {
+        e.preventDefault();
+        this.answerTraining(answer);
+        return;
+      }
     }
     const step = e.shiftKey ? 15 : 4;
     const v = this.view;
@@ -645,7 +795,8 @@ export class App {
     this.card.root.style.visibility = narrow && this.list.open ? 'hidden' : '';
     // Below laptop widths the list and the Upptäck panel would leave little sky between them.
     const crowded = this.list.open && window.innerWidth <= 1100;
-    this.discoverPanel.root.style.visibility = crowded || (narrow && (this.when.open || this.themePanel.open)) ? 'hidden' : '';
+    const covered = crowded || (narrow && (this.when.open || this.themePanel.open));
+    for (const p of [this.discoverPanel.root, this.trainPanel.root]) p.style.visibility = covered ? 'hidden' : '';
     this.placeToast();
     // Names keep clear of the panel, so they are drawn again when it comes or goes.
     this.invalidate();
@@ -690,8 +841,8 @@ export class App {
     st.top = '';
     st.left = '';
     st.maxWidth = '';
-    const panel = this.discoverPanel.root;
-    if (panel.hidden || panel.style.visibility === 'hidden') return;
+    const panel = this.modePanel();
+    if (!panel) return;
     const p = panel.getBoundingClientRect();
     const t = this.toast.getBoundingClientRect();
     if (!(t.left < p.right && p.left < t.right && t.top < p.bottom)) return;
@@ -722,18 +873,37 @@ export class App {
         view: { az: Math.round(v.az * 10) / 10, alt: Math.round(v.alt * 10) / 10, fov: Math.round(v.fov * 10) / 10 },
         onlyVisible: this.list.onlyVisible,
         theme: this.theme,
+        training: {
+          on: this.training.on,
+          cards: [...this.training.cards].map(([i, c]) => [this.catalog.constellations[i].id, c.box, c.due, c.n]),
+        },
       });
     }, 400);
   }
 
   // ------------------------------------------------------------------ rendering
 
+  /** Tints of marked, selected and offered constellations, for the sky's mask. */
+  fillTints(tints) {
+    for (const [i, color] of this.marks) if (this.isFound(i)) tints.set(i, MARK_COLORS[color].rgb);
+    if (this.selected >= 0 && !this.marks.has(this.selected)) tints.set(this.selected, SELECT_COLOR.rgb.map((x) => x * 0.55));
+    if (this.discoveryInfo) for (const i of this.discoveryInfo.next) tints.set(i, CANDIDATE_COLOR.rgb.map((x) => x * 0.2));
+  }
+
   /** Screen boxes constellation names keep clear of: the brand and the Upptäck panel. */
   labelObstacles() {
     const out = [this.brand.getBoundingClientRect()];
-    const panel = this.discoverPanel.root;
-    if (!panel.hidden && panel.style.visibility !== 'hidden') out.push(panel.getBoundingClientRect());
+    const panel = this.modePanel();
+    if (panel) out.push(panel.getBoundingClientRect());
     return out;
+  }
+
+  /** The panel of the game being played (Upptäck or Träna) while it is on screen, or null. */
+  modePanel() {
+    for (const p of [this.trainPanel.root, this.discoverPanel.root]) {
+      if (!p.hidden && p.style.visibility !== 'hidden') return p;
+    }
+    return null;
   }
 
   invalidate() {
@@ -769,25 +939,40 @@ export class App {
     const v = this.view;
     v.timeMs = this.now();
     v.update();
+    // While training, the sky shows the card and nothing else: no marks, tints or hover.
+    const t = this.training;
+    const quiz = t.on && t.card >= 0 ? { target: t.card, step: t.step, stars: t.stars } : null;
     if (this.maskDirty) {
       this.maskDirty = false;
       const tints = new Map();
-      for (const [i, color] of this.marks) if (this.isFound(i)) tints.set(i, MARK_COLORS[color].rgb);
-      if (this.selected >= 0 && !this.marks.has(this.selected)) tints.set(this.selected, SELECT_COLOR.rgb.map((x) => x * 0.55));
-      if (this.discoveryInfo) for (const i of this.discoveryInfo.next) tints.set(i, CANDIDATE_COLOR.rgb.map((x) => x * 0.2));
+      if (!quiz) this.fillTints(tints);
       this.glSky.setMask(MASK_W, MASK_H, buildMask(this.catalog.constellations, tints));
     }
-    const st = {
+    const st = quiz ? {
+      layers: this.layers,
+      marks: new Map(),
+      selected: -1,
+      hover: -1,
+      groundOpaque: !this.seeThroughNow(),
+      // The illustration comes with the name.
+      artShown: (i) => quiz.step === 3 && i === quiz.target,
+      anyArt: quiz.step === 3,
+      reveal: null,
+      recent: -1,
+      avoid: this.labelObstacles(),
+      quiz,
+    } : {
       layers: this.layers,
       marks: this.reveal ? new Map([...this.marks].filter(([i]) => this.isFound(i))) : this.marks,
       selected: this.selected,
       hover: this.hover,
-      groundOpaque: !this.layers.seeThrough,
+      groundOpaque: !this.seeThroughNow(),
       artShown: (i) => this.isFound(i) && this.artShown(i),
       anyArt: this.anyArtShown(),
       reveal: this.reveal,
       recent: this.reveal ? this.lastFound : -1,
       avoid: this.labelObstacles(),
+      quiz: null,
     };
     const gl = {
       scale: v.s,
@@ -795,7 +980,7 @@ export class App {
       camToHor: v.camToHor,
       horToEq: v.horToEq,
       milkyWay: this.layers.milkyWay,
-      groundAlpha: this.layers.seeThrough ? 0.42 : 1,
+      groundAlpha: this.seeThroughNow() ? 0.42 : 1,
     };
     this.glSky.render(gl);
     this.skyLayer.render(v, st);

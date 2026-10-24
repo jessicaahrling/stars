@@ -261,8 +261,8 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px #000
 .card-head { gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--amber-line); }
 /* Mark colour as a plain square cell (the inline glow is removed) */
 .swatch { width: 12px; height: 12px; border-radius: 0; margin-top: 9px; box-shadow: none !important; }
-.card h3 { font-size: 32px; font-weight: 400; letter-spacing: 0.04em; line-height: 1; text-transform: uppercase; }
-.card .latin { font-family: var(--font-term); font-style: normal; font-size: 20px; color: var(--amber-2); }
+.card h3, .train-name { font-size: 32px; font-weight: 400; letter-spacing: 0.04em; line-height: 1; text-transform: uppercase; }
+.card .latin, .train-answer .latin { font-family: var(--font-term); font-style: normal; font-size: 20px; color: var(--amber-2); }
 .card .icon-btn { margin: -4px -6px 0 0; }
 .facts { gap: 3px; font-size: 19px; line-height: 1.2; color: var(--amber-2); }
 .facts b { font-weight: 400; color: var(--amber); }
@@ -319,7 +319,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px #000
   .theme-note { font-size: 17px; }
   .card { padding: 10px 12px 12px; }
   .card-head { padding-bottom: 6px; }
-  .card h3 { font-size: 28px; }
+  .card h3, .train-name { font-size: 28px; }
   .facts { font-size: 18px; line-height: 1.15; }
   .panel-discover { padding: 10px 10px 12px 12px; gap: 8px; }
   .discover-head h2 { flex: none; }

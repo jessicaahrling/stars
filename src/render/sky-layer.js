@@ -64,7 +64,9 @@ export class SkyLayer {
    *   selected, hover, groundOpaque, artShown(index), anyArt, and reveal while
    *   discovering the sky: {con: Uint8Array per constellation (1 found, 2 can be added
    *   next, 0 hidden), stars: Uint8Array per star (1 shown)}, otherwise null; recent (the
-   *   constellation found last) and avoid (screen boxes names keep clear of) are for the HUD
+   *   constellation found last) and avoid (screen boxes names keep clear of) are for the HUD;
+   *   quiz while training: {target, step (1 stars, 2 lines, 3 name), stars: Uint8Array per
+   *   star (1 for the target's)}, otherwise null
    */
   render(view, st) {
     const { ctx, catalog } = this;
@@ -82,8 +84,8 @@ export class SkyLayer {
     const rv = st.reveal;
     const found = (c) => !rv || rv.con[c.index] === 1;
 
-    // Boundaries
-    if (st.layers.bounds) {
+    // Boundaries (never while training: their shape would give the answer away)
+    if (st.layers.bounds && !st.quiz) {
       ctx.setLineDash([3, 4]);
       ctx.lineWidth = 1;
       ctx.strokeStyle = SKY.bound;
@@ -124,9 +126,19 @@ export class SkyLayer {
     ctx.globalAlpha = 1;
     ctx.setLineDash([]);
 
-    // Stick figures
+    // Stick figures (while training, only the target's, from the second step)
     ctx.lineCap = 'round';
-    if (st.layers.lines) {
+    if (st.quiz && st.quiz.step >= 2) {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = SELECT_COLOR.hex;
+      ctx.shadowColor = SELECT_COLOR.hex;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      this.traceSegments(catalog.constellations[st.quiz.target].segments);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    if (st.layers.lines && !st.quiz) {
       ctx.lineWidth = 1.1;
       ctx.strokeStyle = SKY.line;
       ctx.beginPath();
@@ -229,6 +241,8 @@ export class SkyLayer {
     const minZ = view.cosCorner - 0.02;
     const figureOnly = st.layers.figureStarsOnly;
     const shown = st.reveal?.stars;
+    // While training, the stars around the target stay as faint context.
+    const target = st.quiz?.stars;
     for (const b of this.buckets) b.length = 0;
     for (let i = 0; i < stars.count; i++) {
       this.px[i] = NaN;
@@ -249,11 +263,12 @@ export class SkyLayer {
       }
       if (mag > MAG_LIMIT) continue;
       if (!view.projectCam(m[0] * x + m[1] * y + m[2] * z, m[3] * x + m[4] * y + m[5] * z, cz, pt)) continue;
-      const r = radiusForMag(mag) * zoom;
+      const context = target && !target[i];
+      const r = radiusForMag(mag) * zoom * (context ? 0.8 : 1);
       this.px[i] = pt.x;
       this.py[i] = pt.y;
       this.pr[i] = r;
-      const a = alphaForMag(mag);
+      const a = alphaForMag(mag) * (context ? 0.3 : 1);
       let ai = 0;
       while (ai < ALPHA_STEPS.length - 1 && ALPHA_STEPS[ai] < a) ai++;
       this.buckets[this.colorStep[i] * ALPHA_STEPS.length + ai].push(i);

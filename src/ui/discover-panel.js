@@ -24,7 +24,7 @@ export class DiscoverPanel {
     this.restart = $('btn-discover-restart');
     this.nextKey = '';
     this.confirming = false;
-    this.button.addEventListener('click', () => app.setDiscover(!app.discovery.on));
+    this.button.addEventListener('click', () => app.setDiscover(!app.discovering));
     this.collapse.addEventListener('click', () => {
       app.discovery.collapsed = !app.discovery.collapsed;
       this.render();
@@ -63,9 +63,9 @@ export class DiscoverPanel {
     const { app } = this;
     const d = app.discovery;
     const info = app.discoveryInfo;
-    this.button.setAttribute('aria-pressed', String(d.on));
-    this.root.hidden = !d.on;
-    if (!d.on || !info) return;
+    this.button.setAttribute('aria-pressed', String(app.discovering));
+    this.root.hidden = !app.discovering;
+    if (!app.discovering || !info) return;
     const cons = app.catalog.constellations;
     const place = app.place.name;
     this.root.classList.toggle('collapsed', d.collapsed);
@@ -127,7 +127,7 @@ export class DiscoverPanel {
   /** Marks the neighbours on offer that are below the horizon now (the sky turns, so this runs every second). */
   syncStates() {
     const { app } = this;
-    if (!app.discovery.on || this.root.hidden) return;
+    if (!app.discovering || this.root.hidden) return;
     for (const b of this.next.children) {
       const c = app.catalog.byId.get(b.dataset.id);
       const st = app.layers.seeThrough ? 'up' : app.figureStateOf(c);

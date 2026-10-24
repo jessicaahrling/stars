@@ -49,8 +49,14 @@ export class HudLayer {
     ctx.clearRect(0, 0, view.width, view.height);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    if (st.layers.starNames) this.drawStarNames(view, sky);
-    this.drawConstellationNames(view, st);
+    // While training, names would give the answer away until the last step.
+    const quiz = st.quiz;
+    if (st.layers.starNames && (!quiz || quiz.step === 3)) this.drawStarNames(view, sky, quiz && quiz.stars);
+    if (quiz) {
+      if (quiz.step === 3) this.drawQuizName(view, st);
+    } else {
+      this.drawConstellationNames(view, st);
+    }
     this.drawCardinals(view);
   }
 
@@ -121,11 +127,24 @@ export class HudLayer {
     return false;
   }
 
-  drawStarNames(view, sky) {
+  /** The training card's name, once it is revealed. */
+  drawQuizName(view, st) {
+    const { pt } = this;
+    const c = this.catalog.constellations[st.quiz.target];
+    const font = `600 16px ${this.fontFamily}`;
+    for (const v of c.labelVecs) {
+      if (!view.projectEq(v, pt) || pt.z < view.cosCorner - 0.1) continue;
+      this.label(c.sv.toUpperCase(), pt.x, pt.y, font, SELECT_COLOR.hex, 16 * 0.18, true);
+    }
+  }
+
+  /** Names of the bright stars; `only` limits them to some stars (a Uint8Array, 1 to name). */
+  drawStarNames(view, sky, only = null) {
     const { ctx } = this;
     const limit = view.fov > 100 ? 1.6 : view.fov > 60 ? 2.4 : view.fov > 30 ? 3.4 : 4.5;
     ctx.textAlign = 'left';
     for (const i of this.namedStars) {
+      if (only && !only[i]) continue;
       if (this.catalog.stars.mag[i] > limit && this.catalog.stars.hip[i] !== POLARIS_HIP) continue;
       const x = sky.px[i];
       if (Number.isNaN(x)) continue;

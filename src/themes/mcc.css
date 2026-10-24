@@ -117,9 +117,9 @@
 /* Status square on the cap: open when off, filled when the lamp is on. */
 .toggle::before { width: 6px; height: 6px; border-radius: 0; border: 1px solid var(--legend-3); }
 .toggle[aria-pressed="true"]::before { background: var(--lamp-ink); border-color: var(--lamp-ink); }
-/* The game switch is its own group, set off by an engraved groove. */
-#btn-discover { margin-right: 6px; position: relative; }
-#btn-discover::after { content: ""; position: absolute; top: 1px; bottom: 1px; right: -7px;
+/* The game switches are their own group, set off by an engraved groove. */
+#btn-train { margin-right: 6px; position: relative; }
+#btn-train::after { content: ""; position: absolute; top: 1px; bottom: 1px; right: -7px;
   border-left: 1px solid var(--seam); border-right: 1px solid var(--enamel-hi); }
 /* Focus rings stay inside the scrolling strips. */
 .toggles .chip:focus-visible { outline-offset: 1px; }
@@ -260,9 +260,9 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 26px; box-sizing: b
 /* Mark colour as a square indicator lamp; no glow. */
 .swatch { width: 12px; height: 12px; border-radius: 1px; align-self: flex-start; margin-top: 8px;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4) !important; }
-.card h3 { font-family: var(--font-legend); font-weight: 600; font-size: 24px; letter-spacing: 0.08em;
+.card h3, .train-name { font-family: var(--font-legend); font-weight: 600; font-size: 24px; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--legend); }
-.card .latin { font-family: var(--font-mono); font-style: normal; font-size: 13px; color: var(--legend-2); }
+.card .latin, .train-answer .latin { font-family: var(--font-mono); font-style: normal; font-size: 13px; color: var(--legend-2); }
 /* Facts on a small CRT page. */
 .facts { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.4; color: var(--phos);
   background: var(--crt); border: 1px solid #000; border-radius: 1px; padding: 6px 10px; gap: 2px; }
@@ -299,7 +299,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 26px; box-sizing: b
   .live { font-size: 0; padding-right: 7px; }
   .panel-list { border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0;
     box-shadow: inset 0 1px 0 var(--enamel-hi); }
-  .card h3 { font-size: 21px; }
+  .card h3, .train-name { font-size: 21px; }
   .facts { font-size: 12px; letter-spacing: -0.01em; }
   .discover-head { margin: -9px -11px 0; padding: 2px 4px 2px 12px; }
   .discover-hint { font-size: 13px; }

@@ -240,8 +240,8 @@ input[type="range"]::-moz-range-thumb { width: 8px; height: 22px; border: 0; bor
 /* The constellation's colour as a round printed dot, never a square that reads as a checkbox */
 .swatch { width: 11px; height: 11px; box-sizing: border-box; border-radius: 50%; margin-top: 6px;
   border: 1px solid var(--ink); box-shadow: none !important; }
-.card h3 { font: 700 22px/1.15 var(--font-type); letter-spacing: 0.04em; text-transform: uppercase; }
-.card .latin { font-family: var(--font-type); font-style: italic; font-size: 14px; color: var(--ink-2); }
+.card h3, .train-name { font: 700 22px/1.15 var(--font-type); letter-spacing: 0.04em; text-transform: uppercase; }
+.card .latin, .train-answer .latin { font-family: var(--font-type); font-style: italic; font-size: 14px; color: var(--ink-2); }
 .card .icon-btn { margin: -6px -8px 0 0; }
 .facts { gap: 4px; font-size: 13px; line-height: 1.4; color: var(--ink-2); }
 .facts b { color: var(--ink); font-weight: 700; }
@@ -270,7 +270,7 @@ input[type="range"]::-moz-range-thumb { width: 8px; height: 22px; border: 0; bor
   .round { width: 40px; padding: 0; font-size: 20px; }
   .panel-list { border-radius: var(--radius) var(--radius) 0 0; }
   .card { padding: 14px 18px 16px; }
-  .card h3 { font-size: 20px; }
+  .card h3, .train-name { font-size: 20px; }
   .card .btn-row .chip { padding: 0 10px; font-size: 12px; }
   .panel-when { width: auto; }
   .panel-discover { width: auto; padding: 10px 12px 10px calc(var(--margin) + 10px); gap: 8px; }

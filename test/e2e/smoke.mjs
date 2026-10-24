@@ -1,7 +1,7 @@
 // Smoke test in headless Chromium: the sky renders, a tap on a constellation toggles its
 // illustration, the list opens the info card, marking works, the sky can be discovered
-// one neighbour at a time ("Upptäck"), and the interface designs switch. Screenshots
-// land in test/e2e/screenshots/ (git-ignored).
+// one neighbour at a time ("Upptäck"), training with flashcards works ("Träna"), and
+// the interface designs switch. Screenshots land in test/e2e/screenshots/ (git-ignored).
 //
 //   npm run test:e2e
 import { chromium } from 'playwright';
@@ -389,7 +389,7 @@ try {
     const owner = new Map();
     for (const c of a.catalog.constellations) for (const part of [c.segments, c.outlines, c.art]) owner.set(part, c.id);
     const names = new Map(a.catalog.constellations.map((c) => [c.sv.toUpperCase(), c.id]));
-    const seen = { segments: new Set(), outlines: new Set(), art: new Set(), names: new Set() };
+    const seen = { segments: new Set(), outlines: new Set(), art: new Set(), names: new Set(), texts: new Set() };
     const obstacles = a.labelObstacles();
     const boxes = [];
     let covered = 0;
@@ -405,6 +405,7 @@ try {
     wrap(sl, 'tracePolyline', (view, rings) => owner.has(rings) && seen.outlines.add(owner.get(rings)));
     wrap(sl, 'traceArt', (view, lines) => owner.has(lines) && seen.art.add(owner.get(lines)));
     wrap(a.hud, 'label', (text, x, y) => {
+      seen.texts.add(text);
       const id = names.get(text.replace(/^\+ /, ''));
       if (!id) return;
       seen.names.add(id);
@@ -740,6 +741,113 @@ try {
   const overflow = await phone.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert.ok(overflow <= 0, `no horizontal scroll on phones (overflow ${overflow}px)`);
   await phone.screenshot({ path: path.join(shots, 'phone-ursa-major.png') });
+
+  // "Träna": flashcards. Play starts with four striking constellations, Ursa Major first,
+  // shown with its stars only; a tap shows its lines and the next one its name and drawing.
+  const quiz = await openPage({ width: 1280, height: 800 }, { discover: true });
+  const quizState = () => quiz.evaluate(() => {
+    const a = window.stjarnhimlen;
+    const t = a.training;
+    return {
+      on: t.on,
+      card: t.card >= 0 ? a.catalog.constellations[t.card].id : null,
+      step: t.step,
+      inPlay: t.cards.size,
+      panel: !document.getElementById('panel-train').hidden,
+      discovering: !document.getElementById('panel-discover').hidden,
+    };
+  });
+  const quizParts = () => drawnParts(null, quiz);
+  await quiz.click('#btn-train');
+  await settle(quiz);
+  assert.deepEqual(await quizState(), { on: true, card: 'UMa', step: 1, inPlay: 4, panel: true, discovering: false });
+  assert.equal(await quiz.getAttribute('#btn-train', 'aria-pressed'), 'true');
+  assert.equal(await quiz.getAttribute('#btn-discover', 'aria-pressed'), 'false');
+  let seenNow = await quizParts();
+  assert.deepEqual([seenNow.segments, seenNow.outlines, seenNow.art, seenNow.names], [[], [], [], []], 'stars only: no lines, outlines, drawings or names');
+  assert.ok(!['Dubhe', 'Alioth', 'Mizar'].some((n) => seenNow.texts.includes(n)), 'no star names either');
+  assert.match(await quiz.textContent('#train-prompt'), /En ny stjärnbild/);
+  const uma = await quiz.evaluate(() => window.stjarnhimlen.catalog.byId.get('UMa').figureStars.filter((i) => !Number.isNaN(window.stjarnhimlen.skyLayer.px[i])).length);
+  assert.ok(uma >= 15, `its stars are drawn (${uma})`);
+  await quiz.mouse.click(700, 400);
+  await settle(quiz);
+  seenNow = await quizParts();
+  assert.equal((await quizState()).step, 2);
+  assert.deepEqual([seenNow.segments, seenNow.names], [['UMa'], []], 'a tap shows its lines, still without its name');
+  await quiz.mouse.move(640, 760);
+  await quiz.keyboard.press(' ');
+  await settle(quiz);
+  seenNow = await quizParts();
+  assert.deepEqual([seenNow.segments, seenNow.names, seenNow.art], [['UMa'], ['UMa'], ['UMa']], 'Space shows the name and the drawing');
+  assert.equal(await quiz.textContent('#train-name'), 'Stora björnen');
+  assert.equal(await quiz.isVisible('#train-answer'), true);
+
+  // Answers: 2 is right, and the next card comes; "Visa svaret" goes straight to the name.
+  await quiz.keyboard.press('2');
+  await settle(quiz);
+  assert.deepEqual(await quizState(), { on: true, card: 'Cas', step: 1, inPlay: 4, panel: true, discovering: false });
+  await quiz.click('#train-actions button:has-text("Visa svaret")');
+  assert.equal((await quizState()).step, 3);
+  await quiz.click('#train-actions button:has-text("Fel")');
+  const afterMiss = await quizState();
+  assert.equal(afterMiss.card, 'Ori');
+  await quiz.evaluate(() => window.stjarnhimlen.answerTraining('good'));
+  assert.equal((await quizState()).card, 'Cas', 'a missed card comes back after one other');
+
+  // Two more come in once the four in play are known.
+  await quiz.evaluate(() => {
+    const a = window.stjarnhimlen;
+    for (let k = 0; k < 12 && a.training.cards.size === 4; k++) a.answerTraining('good');
+  });
+  let q = await quizState();
+  assert.equal(q.inPlay, 6);
+  assert.match(await quiz.textContent('#train-count'), /^4 av 57$/);
+
+  // "Upptäck" takes over and keeps its own progress; "Träna" comes back to the same card.
+  const cardBefore = q.card;
+  await quiz.click('#btn-discover');
+  q = await quizState();
+  assert.deepEqual([q.on, q.panel, q.discovering], [false, false, true]);
+  assert.equal(await quiz.textContent('#discover-count'), '1 av 57');
+  await quiz.click('#btn-train');
+  q = await quizState();
+  assert.deepEqual([q.on, q.card, q.step], [true, cardBefore, 1]);
+
+  // What is learnt is remembered.
+  await quiz.waitForFunction(() => (JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').training?.cards || []).length === 6);
+  await quiz.reload();
+  await quiz.waitForFunction(() => window.stjarnhimlen);
+  q = await quizState();
+  assert.deepEqual([q.on, q.inPlay, q.panel, q.step], [true, 6, true, 1]);
+
+  // A card below the horizon is shown through see-through ground, without changing the setting.
+  const below = await quiz.evaluate(() => {
+    const a = window.stjarnhimlen;
+    a.setTime(Date.UTC(2026, 7, 15, 21, 0));
+    a.setSpeed(0);
+    a.nextTrainingCard({ again: a.catalog.byId.get('Ori').index });
+    return { below: a.training.below, ground: a.seeThroughNow(), setting: a.layers.seeThrough };
+  });
+  assert.deepEqual(below, { below: true, ground: true, setting: false });
+  assert.match(await quiz.textContent('#train-prompt'), /under horisonten/);
+
+  // Starting over takes two presses.
+  await quiz.click('#btn-train-restart');
+  assert.equal(await quiz.textContent('#btn-train-restart'), 'Säker? Tryck igen');
+  await quiz.click('#btn-train-restart');
+  q = await quizState();
+  assert.deepEqual([q.card, q.inPlay, q.step], ['UMa', 4, 1]);
+  await quiz.click('#btn-train-exit');
+  assert.equal((await quizState()).on, false);
+
+  // On a phone the panel fits, and a tap on the sky shows the next step.
+  const phoneQuiz = await openPage({ width: 390, height: 844 }, { discover: true });
+  await phoneQuiz.click('#btn-train');
+  await settle(phoneQuiz);
+  assert.ok((await phoneQuiz.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 0, 'no horizontal scroll');
+  await phoneQuiz.mouse.click(195, 600);
+  assert.equal(await phoneQuiz.evaluate(() => window.stjarnhimlen.training.step), 2);
+  await phoneQuiz.screenshot({ path: path.join(shots, 'phone-training.png') });
 
   // "Design": a list of interface designs. Each one is put on the page when chosen, keeps
   // the layout in one piece on a desktop and a phone, and is remembered.
