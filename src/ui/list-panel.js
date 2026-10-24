@@ -72,6 +72,7 @@ export class ListPanel {
     this.button.setAttribute('aria-expanded', String(open));
     if (open) {
       this.app.closeWhen();
+      this.app.closeTheme();
       this.syncAll();
     }
     this.app.layoutChanged();

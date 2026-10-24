@@ -47,6 +47,7 @@ export class WhenPanel {
     this.button.setAttribute('aria-expanded', String(open));
     if (open) {
       this.app.closeList();
+      this.app.closeTheme();
       this.sync(true);
     }
     this.app.layoutChanged();

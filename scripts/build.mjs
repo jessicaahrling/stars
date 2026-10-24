@@ -22,6 +22,8 @@ const options = {
   minify: !serve,
   sourcemap: serve ? 'inline' : 'external',
   legalComments: 'none',
+  // The designs in src/themes/ are style sheets the app adds to the page as text.
+  loader: { '.css': 'text' },
   logLevel: 'info',
 };
 

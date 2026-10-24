@@ -23,6 +23,8 @@ export class HudLayer {
     this.ctx = canvas.getContext('2d');
     this.catalog = catalog;
     this.pt = { x: 0, y: 0, z: 0 };
+    /** Font of the names on the sky; a design can change it (--sky-font). */
+    this.fontFamily = FONT_FAMILY;
     this.namedStars = Object.keys(catalog.starNames).map(Number).sort((a, b) => a - b);
   }
 
@@ -78,7 +80,7 @@ export class HudLayer {
         if (state === 2) {
           // A neighbour that can be added next is always named, with a plus.
           const text = `+ ${c.sv.toUpperCase()}`;
-          const font = `${hover ? 600 : 500} ${small + 1}px ${FONT_FAMILY}`;
+          const font = `${hover ? 600 : 500} ${small + 1}px ${this.fontFamily}`;
           if (this.covered(text, font, small * 0.18, small + 1, taken)) continue;
           this.label(text, pt.x, pt.y, font, hover ? SKY.candidateHover : SKY.candidateLabel, small * 0.18, true);
           continue;
@@ -96,7 +98,7 @@ export class HudLayer {
           color = SKY.labelHover;
           if (!hover) weight = 600;
         }
-        const font = `${weight} ${size}px ${FONT_FAMILY}`;
+        const font = `${weight} ${size}px ${this.fontFamily}`;
         if (this.covered(text, font, size * 0.18, size, taken)) continue;
         this.label(text, pt.x, pt.y, font, color, size * 0.18, special);
       }
@@ -128,7 +130,7 @@ export class HudLayer {
       const x = sky.px[i];
       if (Number.isNaN(x)) continue;
       const r = sky.pr[i];
-      this.label(this.catalog.starNames[i], x + r + 5, sky.py[i] + r * 0.6 + 6, `400 11px ${FONT_FAMILY}`, SKY.starName, 0.4, false);
+      this.label(this.catalog.starNames[i], x + r + 5, sky.py[i] + r * 0.6 + 6, `400 11px ${this.fontFamily}`, SKY.starName, 0.4, false);
     }
     ctx.textAlign = 'center';
   }
@@ -148,7 +150,7 @@ export class HudLayer {
       const y = pt.y + ((below.y - pt.y) / len) * off;
       const size = main ? 15 : 11;
       const color = az === 0 ? SKY.north : SKY.cardinal;
-      this.label(text, x, y, `${main ? 600 : 500} ${size}px ${FONT_FAMILY}`, color, size * 0.12, true);
+      this.label(text, x, y, `${main ? 600 : 500} ${size}px ${this.fontFamily}`, color, size * 0.12, true);
     }
   }
 

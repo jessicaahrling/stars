@@ -14,6 +14,8 @@ import { figureState } from './sky/facts.js';
 import { findNeighbours } from './sky/neighbours.js';
 import { MAX_FOV, MIN_FOV, SkyView } from './sky/view.js';
 import { DiscoverPanel } from './ui/discover-panel.js';
+import { ThemePanel } from './ui/theme-panel.js';
+import { applyTheme, DEFAULT_THEME, THEMES } from './ui/themes.js';
 import { InfoCard } from './ui/info-card.js';
 import { attachSkyInput } from './ui/input.js';
 import { ListPanel } from './ui/list-panel.js';
@@ -39,6 +41,8 @@ export class App {
     this.catalog = buildCatalog();
     const saved = loadSettings();
 
+    // The chosen design goes on first, so that every panel is measured in it.
+    this.theme = applyTheme(THEMES.some((t) => t.id === saved.theme) ? saved.theme : DEFAULT_THEME, doc).id;
     this.layers = { ...DEFAULT_LAYERS };
     for (const k of Object.keys(DEFAULT_LAYERS)) if (typeof saved.layers?.[k] === 'boolean') this.layers[k] = saved.layers[k];
     this.place = PLACES.find((p) => p.id === saved.placeId) || PLACES.find((p) => p.id === DEFAULT_PLACE_ID);
@@ -112,6 +116,7 @@ export class App {
     this.card = new InfoCard(this, $);
     this.when = new WhenPanel(this, $);
     this.discoverPanel = new DiscoverPanel(this, $);
+    this.themePanel = new ThemePanel(this, $);
     this.toast = $('toast');
     this.brand = doc.querySelector('.brand');
     this.markCount = $('mark-count');
@@ -162,7 +167,7 @@ export class App {
     this.hudCanvas.addEventListener('pointerup', () => this.hudCanvas.classList.remove('dragging'));
     doc.addEventListener('keydown', (e) => this.onKey(e));
     window.addEventListener('resize', () => this.resize());
-    doc.fonts?.load?.(`500 12px ${FONT_FAMILY}`).then(() => this.invalidate(), () => {});
+    this.syncSkyFont();
     doc.fonts?.ready?.then(() => this.invalidate());
 
     this.maskDirty = true;
@@ -438,7 +443,7 @@ export class App {
     }
     if (!narrow) {
       // The list and the time panel stand along the right edge while open.
-      for (const p of [this.list.panel, this.when.panel]) {
+      for (const p of [this.list.panel, this.when.panel, this.themePanel.panel]) {
         if (!p.hidden) a.right = Math.max(a.left + 200, Math.min(a.right, p.getBoundingClientRect().left));
       }
     }
@@ -585,7 +590,8 @@ export class App {
       '=': () => this.zoomAt(1 / 1.2, v.width / 2, v.height / 2),
       '-': () => this.zoomAt(1.2, v.width / 2, v.height / 2),
       Escape: () => {
-        if (this.list.open) this.list.toggle(false);
+        if (this.themePanel.open) this.themePanel.toggle(false);
+        else if (this.list.open) this.list.toggle(false);
         else if (this.when.open) this.when.toggle(false);
         else this.select(-1);
       },
@@ -604,6 +610,28 @@ export class App {
     if (this.list.open) this.list.toggle(false);
   }
 
+  closeTheme() {
+    if (this.themePanel.open) this.themePanel.toggle(false);
+  }
+
+  /** Switches the interface design (the sky itself stays the same). */
+  setTheme(id) {
+    this.theme = applyTheme(id, this.doc).id;
+    this.themePanel.sync();
+    this.syncSkyFont();
+    this.discoverPanel.render();
+    this.layoutChanged();
+    this.saveSoon();
+  }
+
+  /** The names on the sky use the design's --sky-font, redrawn once it has loaded. */
+  syncSkyFont() {
+    const font = getComputedStyle(this.doc.documentElement).getPropertyValue('--sky-font').trim() || FONT_FAMILY;
+    this.hud.fontFamily = font;
+    this.doc.fonts?.load?.(`500 12px ${font}`).then(() => this.invalidate(), () => {});
+    this.invalidate();
+  }
+
   closeWhen() {
     if (this.when.open) this.when.toggle(false);
   }
@@ -614,7 +642,7 @@ export class App {
     this.card.root.style.visibility = narrow && this.list.open ? 'hidden' : '';
     // Below laptop widths the list and the Upptäck panel would leave little sky between them.
     const crowded = this.list.open && window.innerWidth <= 1100;
-    this.discoverPanel.root.style.visibility = crowded || (narrow && this.when.open) ? 'hidden' : '';
+    this.discoverPanel.root.style.visibility = crowded || (narrow && (this.when.open || this.themePanel.open)) ? 'hidden' : '';
     this.placeToast();
     // Names keep clear of the panel, so they are drawn again when it comes or goes.
     this.invalidate();
@@ -690,6 +718,7 @@ export class App {
         },
         view: { az: Math.round(v.az * 10) / 10, alt: Math.round(v.alt * 10) / 10, fov: Math.round(v.fov * 10) / 10 },
         onlyVisible: this.list.onlyVisible,
+        theme: this.theme,
       });
     }, 400);
   }

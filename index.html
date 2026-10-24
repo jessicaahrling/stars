@@ -128,6 +128,20 @@
     .panel-foot .chip { min-height: 36px; font-size: 13px; }
     .empty { padding: 18px 12px; color: var(--ink-2); }
     .list-note { margin: 0; font-size: 13px; color: var(--ink-2); }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    .chip-theme svg { width: 14px; height: 14px; flex: none; fill: currentColor; opacity: 0.8; }
+    .panel-theme { top: calc(var(--top) + 52px); right: var(--gutter-r); width: 300px; box-sizing: border-box;
+      max-height: calc(100% - var(--top) - var(--bottom) - 120px); display: flex; flex-direction: column; overflow: hidden; }
+    .theme-list { border: 0; margin: 0; padding: 0 8px 8px; display: grid; gap: 2px; overflow-y: auto; min-height: 0; }
+    .theme-option { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; align-items: center;
+      padding: 9px 10px; border-radius: 10px; cursor: pointer; }
+    .theme-option input { grid-row: span 2; margin: 0; accent-color: var(--gold); width: 16px; height: 16px; }
+    .theme-option:hover { background: rgba(255, 255, 255, 0.05); }
+    .theme-option:has(input:checked) { background: rgba(255, 255, 255, 0.08); }
+    .theme-name { font-weight: 500; }
+    .theme-note { grid-column: 2; font-size: 13px; color: var(--ink-2); }
+    .theme-foot { margin: 0; padding: 10px 18px 14px; font-size: 12px; color: var(--ink-3); border-top: 1px solid var(--hairline); }
 
     .panel-discover { top: calc(var(--top) + 52px); left: var(--gutter-l); width: 300px; box-sizing: border-box;
       max-height: calc(100% - var(--top) - var(--bottom) - 120px); padding: 14px 16px; display: flex;
@@ -181,6 +195,9 @@
 
     @media (max-width: 640px) {
       .brand span { display: none; }
+      .chip-theme { width: 40px; padding: 0; justify-content: center; }
+      .chip-theme .label { display: none; }
+      .panel-theme { left: var(--gutter-l); right: var(--gutter-r); width: auto; }
       .chip-when .where { display: none; }
       .panel-when { left: var(--gutter-l); right: var(--gutter-r); width: auto; }
       .panel-list { left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: 72%; border-radius: 18px 18px 0 0;
@@ -216,6 +233,10 @@
       </svg>
       <span>Stjärnhimlen</span>
     </div>
+    <button id="btn-theme" class="chip chip-theme" type="button" aria-label="Design" aria-expanded="false" aria-controls="panel-theme">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+      <span class="label">Design</span>
+    </button>
     <button id="btn-when" class="chip chip-when" aria-expanded="false" aria-controls="panel-when">
       <span class="where"><span id="when-place">Stockholm</span> <span class="sep">·</span></span>
       <span id="when-time">–</span>
@@ -274,6 +295,15 @@
       <button id="btn-clear" type="button" class="chip">Rensa markeringar</button>
     </div>
   </aside>
+
+  <section id="panel-theme" class="panel panel-theme" aria-label="Design" hidden>
+    <div class="panel-head">
+      <h2>Design</h2>
+      <button id="btn-theme-close" class="icon-btn" type="button" aria-label="Stäng">×</button>
+    </div>
+    <fieldset id="theme-list" class="theme-list"><legend class="sr-only">Välj design</legend></fieldset>
+    <p class="theme-foot">Jämför designerna och behåll den du gillar.</p>
+  </section>
 
   <section id="panel-discover" class="panel panel-discover" aria-label="Upptäck himlen" hidden>
     <div class="discover-head">
