@@ -30,6 +30,8 @@ export class SkyLayer {
     this.px = new Float32Array(n);
     this.py = new Float32Array(n);
     this.pr = new Float32Array(n);
+    /** 1 for a star kept as faint context while training. */
+    this.dim = new Uint8Array(n);
     this.colorStep = new Uint8Array(n);
     const bvMin = -0.3;
     const bvMax = 1.8;
@@ -255,19 +257,23 @@ export class SkyLayer {
       if (cz < minZ) continue;
       const sinAlt = h[6] * x + h[7] * y + h[8] * z;
       let mag = stars.mag[i];
+      const context = target && !target[i];
       if (sinAlt > 0) {
-        const airmass = 1 / (sinAlt + 0.025 * Math.exp(-11 * sinAlt));
-        mag += Math.min(4, EXTINCTION * (airmass - 1));
+        // While training, the target's stars keep their light down to the horizon.
+        if (!(target && target[i])) {
+          const airmass = 1 / (sinAlt + 0.025 * Math.exp(-11 * sinAlt));
+          mag += Math.min(4, EXTINCTION * (airmass - 1));
+        }
       } else if (st.groundOpaque) {
         continue;
       }
       if (mag > MAG_LIMIT) continue;
       if (!view.projectCam(m[0] * x + m[1] * y + m[2] * z, m[3] * x + m[4] * y + m[5] * z, cz, pt)) continue;
-      const context = target && !target[i];
       const r = radiusForMag(mag) * zoom * (context ? 0.8 : 1);
       this.px[i] = pt.x;
       this.py[i] = pt.y;
       this.pr[i] = r;
+      this.dim[i] = context ? 1 : 0;
       const a = alphaForMag(mag) * (context ? 0.3 : 1);
       let ai = 0;
       while (ai < ALPHA_STEPS.length - 1 && ALPHA_STEPS[ai] < a) ai++;
@@ -282,7 +288,7 @@ export class SkyLayer {
       if (this.catalog.stars.mag[i] > 2.2) break; // sorted bright first
       if (Number.isNaN(this.px[i])) continue;
       const r = this.pr[i] * 4.2;
-      ctx.globalAlpha = Math.min(0.55, (2.4 - this.catalog.stars.mag[i]) / 5);
+      ctx.globalAlpha = Math.min(0.55, (2.4 - this.catalog.stars.mag[i]) / 5) * (this.dim[i] ? 0.3 : 1);
       ctx.drawImage(this.glows[this.colorStep[i]], this.px[i] - r, this.py[i] - r, 2 * r, 2 * r);
     }
     for (let c = 0; c < COLOR_STEPS; c++) {

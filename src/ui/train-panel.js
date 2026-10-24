@@ -23,7 +23,11 @@ export class TrainPanel {
     this.restart = $('btn-train-restart');
     this.actionsKey = '';
     this.confirming = false;
-    this.button.addEventListener('click', () => app.setTraining(!app.training.on));
+    this.button.addEventListener('click', () => {
+      app.setTraining(!app.training.on);
+      // Space then shows the next step rather than pressing this toggle again.
+      if (app.training.on) this.actions.querySelector('.primary')?.focus();
+    });
     $('btn-train-exit').addEventListener('click', () => {
       app.setTraining(false);
       this.button.focus();
@@ -52,7 +56,10 @@ export class TrainPanel {
     const t = app.training;
     this.button.setAttribute('aria-pressed', String(t.on));
     this.root.hidden = !t.on;
+    // The constellation list would give the answers away (and fly off the card).
+    app.list.button.disabled = t.on;
     if (!t.on) return;
+    const active = document.activeElement;
     const p = app.trainingProgress();
     const place = app.place.name;
     this.count.textContent = `${p.known} av ${p.goal}`;
@@ -76,10 +83,17 @@ export class TrainPanel {
     } else if (t.step === 2) {
       prompt = 'Här är linjerna. Vilken stjärnbild är det?';
     } else {
-      prompt = isNew ? 'Kunde du den redan?' : 'Visste du?';
+      prompt = 'Hade du rätt?';
     }
-    // The prompt is a live region, so it is only written when it says something new.
-    if (this.prompt.textContent !== prompt) this.prompt.textContent = prompt;
+    // The prompt is a live region, so it is only written when it says something new. The
+    // name is spoken with it; on screen it stands in large type below.
+    const said = c && t.step === 3 ? `Det var ${c.sv} (${c.la}). ` : '';
+    if (this.prompt.textContent !== said + prompt) {
+      const name = document.createElement('span');
+      name.className = 'sr-only';
+      name.textContent = said;
+      this.prompt.replaceChildren(...(said ? [name] : []), prompt);
+    }
     this.answer.hidden = !c || t.step < 3;
     if (c) {
       this.name.textContent = c.sv;
@@ -89,7 +103,7 @@ export class TrainPanel {
     const key = c ? `${t.card}:${t.step}` : '';
     if (key === this.actionsKey) return;
     this.actionsKey = key;
-    const focused = this.actions.contains(document.activeElement);
+    const focused = this.actions.contains(active) || active === this.answer;
     const button = (text, onClick, { primary = false, title = '' } = {}) => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -111,6 +125,10 @@ export class TrainPanel {
             button('Lätt', () => app.answerTraining('easy'), { title: 'Tangent 3: dröjer längre till nästa gång' }),
           ];
     this.actions.replaceChildren(...buttons);
-    if (focused && buttons.length) buttons.find((b) => b.classList.contains('primary'))?.focus();
+    // Focus follows the steps, but never rests on an answer: Space must not answer for the learner.
+    if (focused && buttons.length) {
+      if (t.step === 3) this.answer.focus();
+      else buttons.find((b) => b.classList.contains('primary'))?.focus();
+    }
   }
 }

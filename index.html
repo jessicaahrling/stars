@@ -170,6 +170,8 @@
     .discover-foot .chip.primary { color: #1b1406; }
     .discover-foot .chip:disabled { opacity: 0.45; cursor: default; }
     .train-answer { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+    .train-answer:focus { outline: none; }
+    .chip:disabled { opacity: 0.45; cursor: default; }
     .train-name { font-size: 24px; font-weight: 500; letter-spacing: 0.02em; line-height: 1.15; }
     .train-answer .latin { font-family: var(--font-latin); font-style: italic; font-size: 17px; color: var(--ink-2); }
     .train-actions .chip { min-height: 38px; padding: 0 14px; font-size: 14px; }
@@ -336,7 +338,7 @@
     <div id="train-meter" class="meter" role="progressbar" aria-label="Stjärnbilder du kan" aria-valuemin="0"><span id="train-bar"></span></div>
     <div class="discover-body">
       <p id="train-prompt" class="discover-hint" aria-live="polite"></p>
-      <p id="train-answer" class="train-answer" aria-live="polite" hidden><span id="train-name" class="train-name"></span> <span id="train-latin" class="latin"></span></p>
+      <p id="train-answer" class="train-answer" tabindex="-1" hidden><span id="train-name" class="train-name"></span> <span id="train-latin" class="latin"></span></p>
       <div id="train-actions" class="discover-next train-actions" role="group" aria-label="Nästa steg"></div>
       <div class="discover-foot">
         <button id="btn-train-restart" type="button" class="chip">Börja om</button>

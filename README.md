@@ -33,8 +33,11 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   mellanslag visar nästa steg). Man börjar med fyra, Stora björnen, Cassiopeja, Orion och
   Svanen, och får två nya när man kan alla som är i spel, tills man kan alla som syns från
   vald ort. Ett rätt svar flyttar stjärnbilden till en låda med längre vila (1 minut,
-  10 minuter, 1 dag, 3 dagar och så vidare), ett fel svar tar tillbaka den snart. Är den
-  under horisonten blir marken genomskinlig. Framstegen sparas.
+  10 minuter, 1 dag, 3 dagar och så vidare), ett fel svar tar tillbaka den snart. Den som
+  vill öva mer får repetera kort som vilar, men de flyttas bara upp när de är i tur. Står
+  stjärnbilden lågt eller under horisonten blir marken genomskinlig. Listan och lagren
+  Linjer, Namn, Gränser och Illustrationer vilar medan man tränar, eftersom de skulle
+  avslöja svaret. Framstegen sparas.
 - **Titta runt:** dra för att vrida blicken, scrolla eller nyp för att zooma (piltangenter
   och `+`/`−` fungerar också). Projektionen är stereografisk, som i ett planetarium, och
   horisonten hålls vågrät.

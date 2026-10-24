@@ -35,6 +35,8 @@ const DEFAULT_LAYERS = {
   seeThrough: false,
 };
 const FLY_MS = 900;
+/** Layers that "Träna" sets itself, step by step. */
+const TRAINING_LAYERS = new Set(['lines', 'names', 'bounds', 'art']);
 
 export class App {
   constructor(doc = document) {
@@ -236,6 +238,7 @@ export class App {
   timeChanged() {
     this.invalidate();
     this.syncTimeUi(true);
+    this.trainingResync();
   }
 
   setPlace(id) {
@@ -247,6 +250,7 @@ export class App {
     this.invalidate();
     this.list.applyFilter();
     this.discoveryChanged();
+    this.trainingResync();
     if (this.training.on) this.trainPanel.render();
     this.syncTimeUi(true);
     this.saveSoon();
@@ -425,10 +429,35 @@ export class App {
     this.select(-1);
     this.setHover(-1);
     this.closeList();
-    if (on) this.nextTrainingCard({ again: t.card });
-    else this.trainingChanged();
+    if (on) {
+      this.nextTrainingCard({ again: t.card });
+    } else {
+      const wasBelow = t.below;
+      this.trainingChanged();
+      // Back on opaque ground, a view left looking below the horizon is lifted above it.
+      if (wasBelow && !this.layers.seeThrough) {
+        const v = this.view;
+        const to = this.anim ? { ...this.anim.to } : { az: v.az, alt: v.alt, fov: v.fov };
+        to.alt = Math.max(to.alt, Math.min(to.fov * 0.22, 20));
+        this.velocity = null;
+        this.anim = { from: { az: v.az, alt: v.alt, fov: v.fov }, to, t0: null };
+      }
+    }
     this.discoveryChanged();
     this.saveSoon();
+  }
+
+  /** Keeps the training card in view, and its ground right, after the time or the place changes. */
+  trainingResync() {
+    const t = this.training;
+    if (!t.on || t.card < 0) return;
+    if (!this.trainInGoal(t.card)) {
+      this.nextTrainingCard({ instant: true });
+      return;
+    }
+    this.anim = null;
+    this.trainingChanged();
+    this.flyTo(t.card, { instant: true });
   }
 
   /** Constellations to learn: those whose figures rise from the chosen place. */
@@ -499,7 +528,8 @@ export class App {
       t.stars = stars;
       this.view.timeMs = this.now();
       this.view.update();
-      t.below = this.figureStateOf(c) !== 'up';
+      // Low figures sink into the haze and behind the trees, so they are seen through the ground.
+      t.below = c.figureStars.some((s) => this.view.altOf(catalog.starVec(s)) < 10);
     }
     this.maskDirty = true;
     this.invalidate();
@@ -545,7 +575,7 @@ export class App {
     const p = { x: 0, y: 0, z: 0 };
     const c = this.catalog.constellations[index];
     if (!v.projectEq(c.centerVec, p) || p.z < 0) return false;
-    if (!this.layers.seeThrough && v.altOf(c.centerVec) < 0) return false;
+    if (!this.seeThroughNow() && v.altOf(c.centerVec) < 0) return false;
     const a = this.freeArea();
     const w = a.right - a.left;
     const h = a.bottom - a.top;
@@ -803,7 +833,14 @@ export class App {
   }
 
   syncControls() {
-    for (const b of this.toggleButtons) b.setAttribute('aria-pressed', String(this.layerPressed(b.dataset.layer)));
+    // While training, the cards decide on lines, names, boundaries and drawings.
+    for (const b of this.toggleButtons) {
+      const byCards = this.training.on && TRAINING_LAYERS.has(b.dataset.layer);
+      b.disabled = byCards;
+      b.setAttribute('aria-pressed', String(!byCards && this.layerPressed(b.dataset.layer)));
+      if (b.dataset.title === undefined) b.dataset.title = b.title;
+      b.title = byCards ? 'Styrs av Träna just nu' : b.dataset.title;
+    }
     // Marks on constellations still to be discovered are kept but not counted.
     let marks = 0;
     for (const i of this.marks.keys()) if (this.isFound(i)) marks++;

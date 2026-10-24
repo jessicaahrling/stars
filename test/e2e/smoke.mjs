@@ -743,7 +743,7 @@ try {
   await phone.screenshot({ path: path.join(shots, 'phone-ursa-major.png') });
 
   // "Träna": flashcards. Play starts with four striking constellations, Ursa Major first,
-  // shown with its stars only; a tap shows its lines and the next one its name and drawing.
+  // shown with its stars only; then its lines, then its name and drawing.
   const quiz = await openPage({ width: 1280, height: 800 }, { discover: true });
   const quizState = () => quiz.evaluate(() => {
     const a = window.stjarnhimlen;
@@ -758,29 +758,61 @@ try {
     };
   });
   const quizParts = () => drawnParts(null, quiz);
+  const CARDINALS = /^(N|NO|Ö|SO|S|SV|V|NV)$/;
+  /** Before the last step nothing names the card: no names on the sky, no answer in the panel. */
+  const unnamed = async (parts) => {
+    assert.ok(parts.texts.every((text) => CARDINALS.test(text)), `nothing named on the sky: ${parts.texts}`);
+    assert.equal(await quiz.isHidden('#train-answer'), true, 'the answer waits');
+    assert.doesNotMatch(await quiz.textContent('#train-prompt'), /Stora björnen|Ursa/);
+  };
+  const umaCard = () => quiz.evaluate(() => JSON.stringify(window.stjarnhimlen.training.cards.get(window.stjarnhimlen.catalog.byId.get('UMa').index)));
   await quiz.click('#btn-train');
   await settle(quiz);
   assert.deepEqual(await quizState(), { on: true, card: 'UMa', step: 1, inPlay: 4, panel: true, discovering: false });
   assert.equal(await quiz.getAttribute('#btn-train', 'aria-pressed'), 'true');
   assert.equal(await quiz.getAttribute('#btn-discover', 'aria-pressed'), 'false');
+  // The list would give the answers away, and the cards decide on lines, names and drawings.
+  assert.equal(await quiz.isDisabled('#btn-list'), true);
+  assert.equal(await quiz.isDisabled('[data-layer="lines"]'), true);
+  assert.equal(await quiz.getAttribute('[data-layer="lines"]', 'aria-pressed'), 'false');
   let seenNow = await quizParts();
   assert.deepEqual([seenNow.segments, seenNow.outlines, seenNow.art, seenNow.names], [[], [], [], []], 'stars only: no lines, outlines, drawings or names');
-  assert.ok(!['Dubhe', 'Alioth', 'Mizar'].some((n) => seenNow.texts.includes(n)), 'no star names either');
+  await unnamed(seenNow);
   assert.match(await quiz.textContent('#train-prompt'), /En ny stjärnbild/);
-  const uma = await quiz.evaluate(() => window.stjarnhimlen.catalog.byId.get('UMa').figureStars.filter((i) => !Number.isNaN(window.stjarnhimlen.skyLayer.px[i])).length);
-  assert.ok(uma >= 15, `its stars are drawn (${uma})`);
-  await quiz.mouse.click(700, 400);
-  await settle(quiz);
-  seenNow = await quizParts();
-  assert.equal((await quizState()).step, 2);
-  assert.deepEqual([seenNow.segments, seenNow.names], [['UMa'], []], 'a tap shows its lines, still without its name');
-  await quiz.mouse.move(640, 760);
+  const stars = await quiz.evaluate(() => {
+    const a = window.stjarnhimlen;
+    const sl = a.skyLayer;
+    const fig = a.catalog.byId.get('UMa').figureStars;
+    let context = 0;
+    sl.px.forEach((x, i) => { if (!Number.isNaN(x) && sl.dim[i]) context++; });
+    return { drawn: fig.filter((i) => !Number.isNaN(sl.px[i])).length, bright: fig.every((i) => !sl.dim[i]), context };
+  });
+  assert.ok(stars.drawn >= 15 && stars.bright, `its stars are drawn in full (${stars.drawn})`);
+  assert.ok(stars.context > 50, 'the stars around it stay as faint context');
+  // Keys that answer do nothing before the name is shown.
+  const umaBefore = await umaCard();
+  await quiz.keyboard.press('2');
+  assert.deepEqual([(await quizState()).step, await umaCard()], [1, umaBefore]);
+  // Space right after choosing "Träna" shows the lines (focus has moved to "Visa linjerna").
   await quiz.keyboard.press(' ');
   await settle(quiz);
   seenNow = await quizParts();
-  assert.deepEqual([seenNow.segments, seenNow.names, seenNow.art], [['UMa'], ['UMa'], ['UMa']], 'Space shows the name and the drawing');
+  assert.deepEqual([(await quizState()).on, (await quizState()).step], [true, 2]);
+  assert.deepEqual([seenNow.segments, seenNow.names, seenNow.art], [['UMa'], [], []], 'its lines, still without its name or drawing');
+  await unnamed(seenNow);
+  await quiz.keyboard.press('1');
+  assert.equal((await quizState()).step, 2);
+  // A tap on the sky shows the name and the drawing.
+  await quiz.mouse.click(700, 400);
+  await settle(quiz);
+  seenNow = await quizParts();
+  assert.deepEqual([seenNow.segments, seenNow.names, seenNow.art], [['UMa'], ['UMa'], ['UMa']], 'a tap shows the name and the drawing');
   assert.equal(await quiz.textContent('#train-name'), 'Stora björnen');
   assert.equal(await quiz.isVisible('#train-answer'), true);
+  assert.match(await quiz.textContent('#train-prompt'), /^Det var Stora björnen \(Ursa Major\)\. Hade du rätt\?$/);
+  // Space never answers for the learner.
+  await quiz.keyboard.press(' ');
+  assert.deepEqual([(await quizState()).card, (await quizState()).step], ['UMa', 3]);
 
   // Answers: 2 is right, and the next card comes; "Visa svaret" goes straight to the name.
   await quiz.keyboard.press('2');
@@ -789,16 +821,30 @@ try {
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   assert.equal((await quizState()).step, 3);
   await quiz.click('#train-actions button:has-text("Fel")');
-  const afterMiss = await quizState();
-  assert.equal(afterMiss.card, 'Ori');
-  await quiz.evaluate(() => window.stjarnhimlen.answerTraining('good'));
+  assert.equal((await quizState()).card, 'Ori');
+  // A touch during the flight to the next card lands it rather than stopping halfway.
+  const flight = await quiz.evaluate(() => {
+    const a = window.stjarnhimlen;
+    a.answerTraining('good');
+    const to = a.anim && { ...a.anim.to };
+    const el = a.hudCanvas;
+    el.setPointerCapture = () => {};
+    const r = el.getBoundingClientRect();
+    const send = (type) => el.dispatchEvent(new PointerEvent(type, { pointerId: 9, pointerType: 'touch', isPrimary: true, button: 0, bubbles: true, clientX: r.left + 700, clientY: r.top + 400 }));
+    send('pointerdown');
+    send('pointerup');
+    return { to, az: a.view.az, alt: a.view.alt, step: a.training.step, anim: a.anim };
+  });
+  assert.ok(flight.to && Math.abs(flight.az - flight.to.az) < 1e-6 && Math.abs(flight.alt - flight.to.alt) < 1e-6, 'the flight flight');
+  assert.deepEqual([flight.step, flight.anim], [1, null], 'and the touch did not count as a tap');
   assert.equal((await quizState()).card, 'Cas', 'a missed card comes back after one other');
 
-  // Two more come in once the four in play are known.
-  await quiz.evaluate(() => {
-    const a = window.stjarnhimlen;
-    for (let k = 0; k < 12 && a.training.cards.size === 4; k++) a.answerTraining('good');
-  });
+  // Two more come in once the four in play are known. Cards move up only when due, so the
+  // clock is moved on between answers.
+  for (let k = 1; k <= 14 && (await quizState()).inPlay === 4; k++) {
+    await quiz.clock.setFixedTime(new Date(Date.UTC(2026, 0, 15, 21, 0) + k * 61_000));
+    await quiz.evaluate(() => window.stjarnhimlen.answerTraining('good'));
+  }
   let q = await quizState();
   assert.equal(q.inPlay, 6);
   assert.match(await quiz.textContent('#train-count'), /^4 av 57$/);
@@ -809,27 +855,41 @@ try {
   q = await quizState();
   assert.deepEqual([q.on, q.panel, q.discovering], [false, false, true]);
   assert.equal(await quiz.textContent('#discover-count'), '1 av 57');
+  assert.equal(await quiz.isDisabled('#btn-list'), false);
+  assert.equal(await quiz.isDisabled('[data-layer="lines"]'), false);
   await quiz.click('#btn-train');
   q = await quizState();
   assert.deepEqual([q.on, q.card, q.step], [true, cardBefore, 1]);
 
-  // What is learnt is remembered.
-  await quiz.waitForFunction(() => (JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').training?.cards || []).length === 6);
+  // What is learnt is remembered, boxes and all.
+  await quiz.waitForFunction(() => {
+    const saved = JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').training;
+    return saved?.on === true && saved.cards.length === 6;
+  });
+  const cardsBefore = await quiz.evaluate(() => JSON.stringify([...window.stjarnhimlen.training.cards]));
   await quiz.reload();
   await quiz.waitForFunction(() => window.stjarnhimlen);
   q = await quizState();
   assert.deepEqual([q.on, q.inPlay, q.panel, q.step], [true, 6, true, 1]);
+  assert.equal(await quiz.evaluate(() => JSON.stringify([...window.stjarnhimlen.training.cards])), cardsBefore);
 
-  // A card below the horizon is shown through see-through ground, without changing the setting.
+  // A card below the horizon is shown through see-through ground, without changing the
+  // setting, and stays in view when the time changes. Leaving training lifts the view
+  // back above the opaque ground.
   const below = await quiz.evaluate(() => {
     const a = window.stjarnhimlen;
     a.setTime(Date.UTC(2026, 7, 15, 21, 0));
     a.setSpeed(0);
-    a.nextTrainingCard({ again: a.catalog.byId.get('Ori').index });
-    return { below: a.training.below, ground: a.seeThroughNow(), setting: a.layers.seeThrough };
+    const kept = a.inView(a.training.card);
+    a.nextTrainingCard({ again: a.catalog.byId.get('Ori').index, instant: true });
+    return { kept, below: a.training.below, ground: a.seeThroughNow(), setting: a.layers.seeThrough, alt: a.view.alt < 0 };
   });
-  assert.deepEqual(below, { below: true, ground: true, setting: false });
+  assert.deepEqual(below, { kept: true, below: true, ground: true, setting: false, alt: true });
   assert.match(await quiz.textContent('#train-prompt'), /under horisonten/);
+  await quiz.click('#btn-train-exit');
+  await settle(quiz);
+  assert.ok(await quiz.evaluate(() => window.stjarnhimlen.view.alt > 5), 'the view is above the ground again');
+  await quiz.click('#btn-train');
 
   // Starting over takes two presses.
   await quiz.click('#btn-train-restart');

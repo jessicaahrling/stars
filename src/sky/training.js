@@ -37,22 +37,25 @@ export function introductionOrder(constellations, mag) {
 
 /**
  * A card after an answer: 'again' sends it back to the first box, 'good' moves it one box
- * up and 'easy' two.
+ * up and 'easy' two. A right answer before the card is due changes nothing but the count:
+ * it keeps its box and its rest, so that a long session cannot push cards months ahead.
  * @param {{box: number, due: number, n: number} | undefined} card
  * @param {'again' | 'good' | 'easy'} answer
  * @param {number} now  ms
  */
 export function grade(card, answer, now) {
-  const from = card ? card.box : 0;
-  const box = answer === 'again' ? 0 : Math.min(INTERVALS.length - 1, from + (answer === 'easy' ? 2 : 1));
-  return { box, due: now + INTERVALS[box], n: (card ? card.n : 0) + 1 };
+  const n = (card ? card.n : 0) + 1;
+  if (answer !== 'again' && card && card.n > 0 && now < card.due) return { box: card.box, due: card.due, n };
+  const box = answer === 'again' ? 0 : Math.min(INTERVALS.length - 1, (card ? card.box : 0) + (answer === 'easy' ? 2 : 1));
+  return { box, due: now + INTERVALS[box], n };
 }
 
 /**
  * Picks the card to show next. Constellations come into play START_CARDS at first and
  * MORE_CARDS at a time once every card in play is known; new cards are added to `cards`.
- * The card that has waited longest goes first, or, when none is due yet, the one due
- * soonest, so practice never has to stop. The card just shown waits a turn if it can.
+ * A card that was just missed comes back first, as soon as one other has been shown;
+ * otherwise the card that has waited longest goes first, or, when none is due yet, the one
+ * due soonest, so practice never has to stop. The card just shown waits a turn if it can.
  * @param {Map<number, {box: number, due: number, n: number}>} cards  constellations in play
  * @param {number[]} order  see introductionOrder
  * @param {(index: number) => boolean} inGoal  constellations to learn (seen from here)
@@ -71,7 +74,11 @@ export function nextCard(cards, order, inGoal, now, last = -1) {
   const play = inPlay();
   if (!play.length) return -1;
   const pool = play.length > 1 ? play.filter((i) => i !== last) : play;
-  return pool.reduce((a, b) => (cards.get(b).due < cards.get(a).due ? b : a));
+  const missed = pool.filter((i) => {
+    const c = cards.get(i);
+    return c.box === 0 && c.n > 0 && c.due <= now;
+  });
+  return (missed.length ? missed : pool).reduce((a, b) => (cards.get(b).due < cards.get(a).due ? b : a));
 }
 
 /**
