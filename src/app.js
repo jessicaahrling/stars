@@ -1,6 +1,6 @@
 // Stjärnhimlen: wires the sky renderer, the observer's view and the controls.
 import { azAltFromVec } from './astro/frames.js';
-import { clamp, mat3Apply, RAD, wrap180 } from './astro/math.js';
+import { angleBetween, clamp, mat3Apply, RAD, wrap180 } from './astro/math.js';
 import { visibilityClass } from './astro/visibility.js';
 import { DEFAULT_PLACE_ID, PLACES } from './data/places.js';
 import { GlLayer } from './render/gl-layer.js';
@@ -63,7 +63,14 @@ export class App {
      * the chosen place to the whole sky.
      */
     const disc = saved.discover && typeof saved.discover === 'object' ? saved.discover : {};
-    this.discovery = { on: disc.on !== false, all: disc.all === true, collapsed: disc.collapsed === true, found: new Set() };
+    this.discovery = {
+      on: disc.on !== false,
+      all: disc.all === true,
+      collapsed: disc.collapsed === true,
+      // Whether "Fortsätt med resten av himlen" turned on see-through ground (a restart turns it off again).
+      autoSeeThrough: disc.autoSeeThrough === true,
+      found: new Set(),
+    };
     for (const id of Array.isArray(disc.found) ? disc.found : []) {
       const c = this.catalog.byId.get(id);
       if (c) this.discovery.found.add(c.index);
@@ -111,7 +118,13 @@ export class App {
     if (saved.onlyVisible === false) this.list.setOnlyVisible(false);
 
     this.toggleButtons = [...$('toggles').querySelectorAll('[data-layer]')];
-    for (const b of this.toggleButtons) b.addEventListener('click', () => this.setLayer(b.dataset.layer, !this.layerPressed(b.dataset.layer)));
+    for (const b of this.toggleButtons) {
+      b.addEventListener('click', () => {
+        // Once the learner sets the ground themselves, a restart leaves it as they chose.
+        if (b.dataset.layer === 'seeThrough') this.discovery.autoSeeThrough = false;
+        this.setLayer(b.dataset.layer, !this.layerPressed(b.dataset.layer));
+      });
+    }
     $('zoom-in').addEventListener('click', () => this.zoomAt(1 / 1.35, view.width / 2, view.height / 2));
     $('zoom-out').addEventListener('click', () => this.zoomAt(1.35, view.width / 2, view.height / 2));
 
@@ -264,15 +277,20 @@ export class App {
       }
     }
     this.marksChanged();
-    this.showToast(added ? `Markerade ${added} stjärnbilder som är uppe just nu` : 'Alla som är uppe är redan markerade');
+    this.showToast(added ? `Markerade ${added} ${added === 1 ? 'stjärnbild som är uppe' : 'stjärnbilder som är uppe'} just nu` : 'Alla som är uppe är redan markerade');
   }
 
+  /** Removes the marks that can be seen; marks on constellations still to be discovered stay. */
   clearMarks() {
-    const n = this.marks.size;
-    this.marks.clear();
-    this.nextColor = 0;
+    let n = 0;
+    for (const i of [...this.marks.keys()]) {
+      if (!this.isFound(i)) continue;
+      this.marks.delete(i);
+      n++;
+    }
+    if (!this.marks.size) this.nextColor = 0;
     this.marksChanged();
-    if (n) this.showToast(`Tog bort ${n} markeringar`);
+    if (n) this.showToast(`Tog bort ${n} ${n === 1 ? 'markering' : 'markeringar'}`);
   }
 
   marksChanged() {
@@ -315,7 +333,7 @@ export class App {
     const c = this.catalog.constellations[index];
     const state = this.layers.seeThrough ? 'up' : this.figureStateOf(c);
     if (fly && state !== 'up') {
-      this.showToast(`${c.sv} är ${state === 'down' ? 'under' : 'delvis under'} horisonten just nu. Slå på Se genom marken för att se den.`);
+      this.showToast(`${c.sv} är ${state === 'down' ? 'under' : 'delvis under'} horisonten just nu. Slå på Se genom marken för att se ${c.plural ? 'dem' : 'den'}.`);
     }
     this.saveSoon();
   }
@@ -323,7 +341,11 @@ export class App {
   /** Goes on from the constellations seen from here to the rest of the sky, which never rise here. */
   discoverRest() {
     this.discovery.all = true;
-    this.setLayer('seeThrough', true);
+    this.lastFound = -1;
+    if (!this.layers.seeThrough) {
+      this.discovery.autoSeeThrough = true;
+      this.setLayer('seeThrough', true);
+    }
     this.discoveryChanged();
     const next = this.discoveryInfo.next;
     if (next.length && !next.some((i) => this.inView(i))) this.flyTo(next[0]);
@@ -348,6 +370,8 @@ export class App {
     this.discovery.found = new Set([start]);
     this.discovery.all = false;
     this.lastFound = -1;
+    if (this.discovery.autoSeeThrough && this.layers.seeThrough) this.setLayer('seeThrough', false);
+    this.discovery.autoSeeThrough = false;
     this.discoveryChanged();
     this.flyTo(start);
     this.saveSoon();
@@ -404,11 +428,19 @@ export class App {
   freeArea() {
     const v = this.view;
     const a = { left: 0, top: 0, right: v.width, bottom: v.height };
+    const narrow = window.innerWidth <= 640;
     const panel = this.discoverPanel.root;
     if (!panel.hidden && panel.style.visibility !== 'hidden') {
       const r = panel.getBoundingClientRect();
-      if (window.innerWidth <= 640) a.top = Math.min(r.bottom, v.height * 0.5);
-      else a.left = Math.min(r.right, v.width * 0.5);
+      // Folded up, the panel is a small box in the corner on wide screens.
+      if (narrow) a.top = Math.min(r.bottom, v.height * 0.5);
+      else if (!this.discovery.collapsed) a.left = Math.min(r.right, v.width * 0.5);
+    }
+    if (!narrow) {
+      // The list and the time panel stand along the right edge while open.
+      for (const p of [this.list.panel, this.when.panel]) {
+        if (!p.hidden) a.right = Math.max(a.left + 200, Math.min(a.right, p.getBoundingClientRect().left));
+      }
     }
     const card = this.card.root;
     if (!card.hidden && card.style.visibility !== 'hidden') a.bottom = Math.max(a.top + 100, card.getBoundingClientRect().top);
@@ -488,7 +520,9 @@ export class App {
     const [az, alt] = v.azAltOf(c.centerVec);
     // fov spans the longer screen side; fit the figure across the shorter one.
     const aspect = Math.max(v.width, v.height) / Math.min(v.width, v.height);
-    const fov = clamp(c.radius * 2.5 * Math.min(aspect, 2.2), 28, MAX_FOV - 10);
+    // Frame the name as well as the figure (Cassiopeja's sits well outside its W).
+    const reach = Math.max(c.radius, Math.min(...c.labelVecs.map((l) => angleBetween(c.centerVec, l))) + 2);
+    const fov = clamp(reach * 2.5 * Math.min(aspect, 2.2), 28, MAX_FOV - 10);
     let targetAlt = this.layers.seeThrough ? alt : Math.max(alt, Math.min(fov * 0.22, 20));
     // Centre the figure in the sky left free by the panel and the info card.
     const free = this.freeArea();
@@ -578,7 +612,12 @@ export class App {
   layoutChanged() {
     const narrow = window.innerWidth <= 640;
     this.card.root.style.visibility = narrow && this.list.open ? 'hidden' : '';
-    this.discoverPanel.root.style.visibility = narrow && (this.list.open || this.when.open) ? 'hidden' : '';
+    // Below laptop widths the list and the Upptäck panel would leave little sky between them.
+    const crowded = this.list.open && window.innerWidth <= 1100;
+    this.discoverPanel.root.style.visibility = crowded || (narrow && this.when.open) ? 'hidden' : '';
+    this.placeToast();
+    // Names keep clear of the panel, so they are drawn again when it comes or goes.
+    this.invalidate();
   }
 
   syncControls() {
@@ -605,18 +644,32 @@ export class App {
   showToast(text) {
     this.toast.textContent = text;
     this.toast.hidden = false;
-    // Below the Upptäck panel where the two would overlap (on phones).
-    this.toast.style.top = '';
-    const panel = this.discoverPanel.root;
-    if (!panel.hidden && panel.style.visibility !== 'hidden') {
-      const p = panel.getBoundingClientRect();
-      const t = this.toast.getBoundingClientRect();
-      if (t.left < p.right && p.left < t.right && t.top < p.bottom) this.toast.style.top = `${Math.round(p.bottom + 8)}px`;
-    }
+    this.placeToast();
     clearTimeout(this.toastTimer);
+    // Long enough to read: about 18 characters a second.
     this.toastTimer = setTimeout(() => {
       this.toast.hidden = true;
-    }, 2600);
+    }, Math.min(8000, Math.max(2600, 1500 + 55 * text.length)));
+  }
+
+  /** Keeps a note clear of the Upptäck panel: below it on phones, beside it on wider screens. */
+  placeToast() {
+    if (!this.toast || this.toast.hidden) return;
+    const st = this.toast.style;
+    st.top = '';
+    st.left = '';
+    st.maxWidth = '';
+    const panel = this.discoverPanel.root;
+    if (panel.hidden || panel.style.visibility === 'hidden') return;
+    const p = panel.getBoundingClientRect();
+    const t = this.toast.getBoundingClientRect();
+    if (!(t.left < p.right && p.left < t.right && t.top < p.bottom)) return;
+    if (window.innerWidth <= 640) {
+      st.top = `${Math.round(p.bottom + 8)}px`;
+    } else {
+      st.left = `${Math.round((p.right + window.innerWidth) / 2)}px`;
+      st.maxWidth = `${Math.round(window.innerWidth - p.right - 32)}px`;
+    }
   }
 
   saveSoon() {
@@ -632,6 +685,7 @@ export class App {
           on: this.discovery.on,
           all: this.discovery.all,
           collapsed: this.discovery.collapsed,
+          autoSeeThrough: this.discovery.autoSeeThrough,
           found: [...this.discovery.found].map((i) => this.catalog.constellations[i].id),
         },
         view: { az: Math.round(v.az * 10) / 10, alt: Math.round(v.alt * 10) / 10, fov: Math.round(v.fov * 10) / 10 },

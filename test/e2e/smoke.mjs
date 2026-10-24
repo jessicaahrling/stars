@@ -379,7 +379,7 @@ try {
   // Nothing else of a hidden constellation is drawn either, with every layer on and a mark
   // on it: one frame is drawn while recording whose figures, outlines, illustrations and
   // names are traced, and how much of the sky is tinted.
-  const drawnParts = (hover = null) => sky.evaluate((hoverId) => {
+  const drawnParts = (hover = null, page = sky) => page.evaluate((hoverId) => {
     const a = window.stjarnhimlen;
     if (hoverId) a.hover = a.catalog.byId.get(hoverId).index;
     const sl = a.skyLayer;
@@ -388,6 +388,7 @@ try {
     const names = new Map(a.catalog.constellations.map((c) => [c.sv.toUpperCase(), c.id]));
     const seen = { segments: new Set(), outlines: new Set(), art: new Set(), names: new Set() };
     const obstacles = a.labelObstacles();
+    const boxes = [];
     let covered = 0;
     let tinted = 0;
     const wrap = (obj, name, record) => {
@@ -405,6 +406,8 @@ try {
       if (!id) return;
       seen.names.add(id);
       if (obstacles.some((r) => x > r.left && x < r.right && y > r.top && y < r.bottom)) covered++;
+      const w = a.hud.ctx.measureText(text).width / 2;
+      boxes.push([x - w, x + w, y - 5, y + 5]);
     });
     wrap(a.glSky, 'setMask', (w, h, data) => {
       for (let k = 3; k < data.length; k += 4) if (data[k]) tinted++;
@@ -415,7 +418,11 @@ try {
     for (const name of ['traceSegments', 'tracePolyline', 'traceArt']) delete sl[name];
     delete a.hud.label;
     delete a.glSky.setMask;
-    return { ...Object.fromEntries(Object.entries(seen).map(([k, v]) => [k, [...v].sort()])), covered, tinted };
+    let overlaps = 0;
+    boxes.forEach((p, i) => boxes.slice(i + 1).forEach((q) => {
+      if (p[0] < q[1] && q[0] < p[1] && p[2] < q[3] && q[2] < p[3]) overlaps++;
+    }));
+    return { ...Object.fromEntries(Object.entries(seen).map(([k, v]) => [k, [...v].sort()])), covered, overlaps, tinted };
   }, hover);
   const offer = (await discovery()).next;
   const plain = await drawnParts();
@@ -432,6 +439,7 @@ try {
   assert.deepEqual(parts.outlines, ['UMa', ...offer].sort(), 'outlines: found and on offer');
   assert.ok(parts.names.includes('UMa') && parts.names.every((id) => id === 'UMa' || offer.includes(id)), `names: ${parts.names}`);
   assert.equal(parts.covered, 0, 'no name is drawn under the panel or the brand');
+  assert.equal(parts.overlaps, 0, 'names do not run into each other');
   // A name that would land under the panel is left out.
   const umaLabel = await sky.evaluate(() => window.stjarnhimlen.catalog.byId.get('UMa').labelVecs[0]);
   const box = (await onScreen(umaLabel)).panel;
@@ -446,9 +454,17 @@ try {
   assert.equal(await sky.textContent('#mark-count'), '1', 'the hidden mark is not counted');
   await sky.evaluate(() => window.stjarnhimlen.toggleMark(window.stjarnhimlen.catalog.byId.get('UMa').index));
   assert.equal((await drawnParts()).tinted, plain.tinted, 'the hidden Orion is not tinted');
+  // "Rensa markeringar" removes the marks that can be seen and keeps the hidden one.
+  await sky.evaluate(() => window.stjarnhimlen.toggleMark(window.stjarnhimlen.catalog.byId.get('UMa').index));
+  await sky.click('#btn-list');
+  await sky.click('#btn-clear');
+  assert.equal(await sky.textContent('#toast'), 'Tog bort 1 markering');
+  assert.deepEqual(await sky.evaluate(() => [...window.stjarnhimlen.marks.keys()].map((i) => window.stjarnhimlen.catalog.constellations[i].id)), ['Ori']);
+  await sky.click('#btn-list-close');
   await sky.evaluate(() => {
     const a = window.stjarnhimlen;
-    a.clearMarks();
+    a.marks.clear();
+    a.marksChanged();
     for (const layer of ['art', 'bounds']) a.setLayer(layer, false);
   });
 
@@ -540,7 +556,15 @@ try {
   await sky.screenshot({ path: path.join(shots, 'discover-four.png') });
 
   // The list holds only what has been found, and says so when a search finds a hidden one.
+  // Choosing one there turns the view so that it lands between the panel and the list.
   await sky.click('#btn-list');
+  await sky.click(`#con-list li[data-index="${await sky.evaluate((c) => window.stjarnhimlen.catalog.byId.get(c).index, chipId)}"] .con-name`);
+  await settle(sky);
+  const between = await onScreen(chipVec);
+  const listLeft = await sky.$eval('#panel-list', (e) => e.getBoundingClientRect().left);
+  const gap = (between.panel.right + listLeft) / 2;
+  assert.ok(Math.abs(between.x - gap) < 40, `centred between the panel and the list (${Math.round(between.x)}, gap centre ${Math.round(gap)})`);
+  await sky.click('#card .icon-btn');
   const listed = await sky.$$eval('#con-list li:not([hidden]):not(.empty) strong', (els) => els.length);
   assert.equal(listed, 4);
   assert.equal(await sky.isVisible('#list-note'), true);
@@ -558,13 +582,22 @@ try {
 
   // What has been found is remembered between visits.
   const foundIds = JSON.stringify(d.found);
-  await sky.waitForFunction((ids) => JSON.stringify([...(JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').discover?.found || [])].sort()) === ids, foundIds);
+  await sky.waitForFunction((ids) => {
+    const saved = JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').discover;
+    return saved?.collapsed === false && JSON.stringify([...saved.found].sort()) === ids;
+  }, foundIds);
   await sky.reload();
   await sky.waitForFunction(() => window.stjarnhimlen);
   assert.deepEqual((await discovery()).found, d.found);
 
   // "Visa hela himlen" leaves the mode, shows every star and lists every constellation;
   // "Upptäck" comes back to where it was.
+  await sky.evaluate(() => {
+    const a = window.stjarnhimlen;
+    a.flyTo(a.catalog.byId.get('UMa').index, { instant: true });
+    a.view.fov = 120;
+    a.invalidate();
+  });
   await settle(sky);
   const discovering = await drawnStars();
   await sky.click('#btn-discover-exit');
@@ -573,6 +606,14 @@ try {
   assert.deepEqual([d.on, d.panel, d.pressed, d.next], [false, false, 'false', null]);
   const whole = await drawnStars();
   assert.ok(whole.n > discovering.n * 2, `the whole sky is back (${discovering.n} -> ${whole.n} stars)`);
+  // Zoomed all the way out, crowded names are left out rather than drawn over each other.
+  await sky.evaluate(() => {
+    window.stjarnhimlen.view.fov = 160;
+    window.stjarnhimlen.invalidate();
+  });
+  await settle(sky);
+  const crowded = await drawnParts();
+  assert.ok(crowded.names.length > 20 && crowded.overlaps === 0, `${crowded.names.length} names, ${crowded.overlaps} overlapping`);
   await sky.click('#btn-list');
   assert.ok((await sky.$$eval('#con-list li:not([hidden]):not(.empty)', (els) => els.length)) > 50);
   assert.equal(await sky.isVisible('#list-note'), false);
@@ -626,7 +667,6 @@ try {
   // Starting over takes two presses and turns back to Ursa Major.
   await sky.evaluate(() => {
     const a = window.stjarnhimlen;
-    a.setLayer('seeThrough', false);
     Object.assign(a.view, { az: 180, alt: 20, fov: 60 });
     a.invalidate();
   });
@@ -638,6 +678,7 @@ try {
   d = await discovery();
   assert.deepEqual([d.found, d.count], [['UMa'], '1 av 57']);
   assert.equal(await inView('UMa'), true);
+  assert.equal(await sky.evaluate(() => window.stjarnhimlen.layers.seeThrough), false, 'the see-through ground it turned on is off again');
   // Turning the mode back on with only Ursa Major found turns to it as well.
   await sky.click('#btn-discover-exit');
   await sky.evaluate(() => {
@@ -655,6 +696,19 @@ try {
   await sky.click('#discover-next button[data-id="Leo"]');
   assert.match(await sky.textContent('#toast'), /^Lejonet är (delvis )?under horisonten just nu/);
 
+  // A flight frames a constellation's name too; Cassiopeja's sits well outside its W.
+  const casNamed = (page) => page.evaluate(() => {
+    const a = window.stjarnhimlen;
+    // 24 October 00:10, when the name stands to the side of the W.
+    a.setTime(Date.UTC(2026, 9, 23, 22, 10));
+    const cas = a.catalog.byId.get('Cas');
+    a.flyTo(cas.index, { instant: true });
+    a.view.update();
+    const p = { x: 0, y: 0, z: 0 };
+    return cas.labelVecs.some((v) => a.view.projectEq(v, p) && p.x > 20 && p.x < innerWidth - 20 && p.y > 0 && p.y < innerHeight - 60);
+  });
+  assert.ok(await casNamed(sky), 'Cassiopeja is named on screen after a flight');
+
   // On a phone the panel fits across the top, the view opens below it, and notes are
   // shown below it too.
   const phoneSky = await openPage({ width: 390, height: 844 }, { discover: true });
@@ -665,6 +719,17 @@ try {
   const [panelBox, toastBox] = await Promise.all(['#panel-discover', '#toast'].map((sel) => phoneSky.$eval(sel, (e) => e.getBoundingClientRect().toJSON())));
   assert.ok(toastBox.top >= panelBox.bottom, 'the note does not cover the panel');
   await phoneSky.screenshot({ path: path.join(shots, 'phone-discover.png') });
+  assert.ok(await casNamed(phoneSky), 'Cassiopeja is named on a phone screen after a flight');
+  // Names crowd on a narrow screen; they are left out rather than drawn over each other.
+  await phoneSky.evaluate(() => {
+    const a = window.stjarnhimlen;
+    a.setDiscover(false);
+    a.view.fov = 160;
+    a.invalidate();
+  });
+  await settle(phoneSky);
+  const phoneNames = await drawnParts(null, phoneSky);
+  assert.ok(phoneNames.names.length > 15 && phoneNames.overlaps === 0, `${phoneNames.names.length} names, ${phoneNames.overlaps} overlapping`);
 
   const phone = await openPage({ width: 390, height: 844 });
   await phone.evaluate(() => window.stjarnhimlen.select(window.stjarnhimlen.catalog.byId.get('UMa').index, { fly: true }));

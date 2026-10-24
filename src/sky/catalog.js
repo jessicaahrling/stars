@@ -85,6 +85,7 @@ function buildStars() {
  * @property {number} index
  * @property {string} id      IAU abbreviation, e.g. 'UMa'
  * @property {string} sv      Swedish name
+ * @property {boolean} plural whether the Swedish name is a plural
  * @property {string} la      Latin name
  * @property {string} gen     Latin genitive
  * @property {number[]} centerVec   J2000 unit vector of the framing centre
@@ -125,6 +126,8 @@ export function buildCatalog() {
       index,
       id: c.id,
       sv: c.sv,
+      // Jakthundarna, Tvillingarna and Fiskarna take plural words ("upptäckta", "dem").
+      plural: /(arna|erna)$/.test(c.sv),
       la: c.la,
       gen: c.gen,
       rank: c.rank,

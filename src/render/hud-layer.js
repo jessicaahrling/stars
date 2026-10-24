@@ -53,9 +53,18 @@ export class HudLayer {
   }
 
   drawConstellationNames(view, st) {
-    const { ctx, pt } = this;
+    const { pt } = this;
     const small = view.fov > 110 ? 10 : 11;
-    for (const c of this.catalog.constellations) {
+    // Names never run into each other or into the boxes in st.avoid. The more important
+    // ones go first: the one just found, marked and selected ones, the hovered one, the
+    // neighbours on offer, then the rest.
+    const taken = st.avoid ? [...st.avoid] : [];
+    const rank = (c) => (c.index === st.recent ? 0
+      : st.marks.has(c.index) || c.index === st.selected ? 1
+        : c.index === st.hover ? 2
+          : st.reveal && st.reveal.con[c.index] === 2 ? 3 : 4);
+    const order = [...this.catalog.constellations].sort((a, b) => rank(a) - rank(b));
+    for (const c of order) {
       const state = st.reveal ? st.reveal.con[c.index] : 1;
       if (!state) continue;
       const mark = st.marks.get(c.index);
@@ -70,7 +79,7 @@ export class HudLayer {
           // A neighbour that can be added next is always named, with a plus.
           const text = `+ ${c.sv.toUpperCase()}`;
           const font = `${hover ? 600 : 500} ${small + 1}px ${FONT_FAMILY}`;
-          if (this.covered(text, font, small * 0.18, small + 1, st.avoid)) continue;
+          if (this.covered(text, font, small * 0.18, small + 1, taken)) continue;
           this.label(text, pt.x, pt.y, font, hover ? SKY.candidateHover : SKY.candidateLabel, small * 0.18, true);
           continue;
         }
@@ -88,21 +97,26 @@ export class HudLayer {
           if (!hover) weight = 600;
         }
         const font = `${weight} ${size}px ${FONT_FAMILY}`;
-        if (this.covered(text, font, size * 0.18, size, st.avoid)) continue;
+        if (this.covered(text, font, size * 0.18, size, taken)) continue;
         this.label(text, pt.x, pt.y, font, color, size * 0.18, special);
       }
     }
   }
 
-  /** Whether a name centred on this.pt would run into one of the screen boxes in `avoid`. */
-  covered(text, font, spacingPx, size, avoid) {
-    if (!avoid || !avoid.length) return false;
+  /**
+   * Whether a name centred on this.pt would run into one of the screen boxes in `taken`;
+   * if not, its own box is added there.
+   */
+  covered(text, font, spacingPx, size, taken) {
     const { ctx, pt } = this;
     ctx.font = font;
     if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacingPx.toFixed(1)}px`;
-    const w = ctx.measureText(text).width / 2 + 4;
-    const h = size / 2 + 4;
-    return avoid.some((r) => pt.x + w > r.left && pt.x - w < r.right && pt.y + h > r.top && pt.y - h < r.bottom);
+    const w = ctx.measureText(text).width / 2;
+    const h = size / 2;
+    const pad = 4;
+    if (taken.some((r) => pt.x + w + pad > r.left && pt.x - w - pad < r.right && pt.y + h + pad > r.top && pt.y - h - pad < r.bottom)) return true;
+    taken.push({ left: pt.x - w, right: pt.x + w, top: pt.y - h, bottom: pt.y + h });
+    return false;
   }
 
   drawStarNames(view, sky) {

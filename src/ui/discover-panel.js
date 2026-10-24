@@ -28,6 +28,7 @@ export class DiscoverPanel {
     this.collapse.addEventListener('click', () => {
       app.discovery.collapsed = !app.discovery.collapsed;
       this.render();
+      app.layoutChanged();
       app.saveSoon();
     });
     $('btn-discover-exit').addEventListener('click', () => {
@@ -79,7 +80,8 @@ export class DiscoverPanel {
     this.meter.setAttribute('aria-valuetext', `${info.foundInGoal} av ${info.goal} ${d.all ? 'stjärnbilder' : `som syns från ${place}`}`);
 
     const left = cons.length - d.found.size;
-    const recent = app.lastFound >= 0 ? `${cons[app.lastFound].sv} är upptäckt! ` : '';
+    const last = cons[app.lastFound];
+    const recent = last ? `${last.sv} är ${last.plural ? 'upptäckta' : 'upptäckt'}! ` : '';
     let hint;
     if (info.done && (d.all || !left)) hint = `Hela himlen! Du har hittat alla ${cons.length} stjärnbilder.`;
     else if (info.done) hint = `${recent}Klart! Du har hittat alla ${info.goal} som syns från ${place}.`;

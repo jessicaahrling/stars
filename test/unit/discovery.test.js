@@ -26,6 +26,10 @@ test('only constellations seen from here are offered while some of them are left
   assert.ok(!idsOf(s.next).includes('Ant') && !idsOf(s.next).includes('Cen'));
 });
 
+test('the three constellations with plural Swedish names are known', () => {
+  assert.deepEqual(catalog.constellations.filter((c) => c.plural).map((c) => c.id).sort(), ['CVn', 'Gem', 'Psc']);
+});
+
 test('the offer grows with every constellation found', () => {
   const found = new Set([index('UMa'), index('Dra')]);
   const s = discoveryState(found, neighbours, () => true);
