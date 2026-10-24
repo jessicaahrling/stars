@@ -1,1 +1,266 @@
-/* Design "nasa75": written in the design round. */
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&display=swap");
+
+/* Design "nasa75": the NASA Graphics Standards Manual, 1975 (Danne & Blackburn).
+   Helvetica Medium set flush left, one accent colour (NASA Red) with black, white
+   and neutral greys, thin 1 px rules on a strict grid, square corners, flat fills.
+   Red also keeps the eye dark-adapted, which suits a sky map used at night. */
+
+:root {
+  --red: #fc3d21;          /* NASA Red (PMS 179): rules, bars, indicators */
+  --red-fill: #c42a14;     /* the same red printed deeper, for keys under white type (5.7:1) */
+  --black: #0b0b0b;        /* button stock */
+  --sheet: #111111;        /* panel stock: dark, so nothing glares at night */
+  --sheet-2: #222222;      /* selected row */
+  --sheet-hover: #1b1b1b;  /* row under the pointer */
+  --rule: #363636;         /* 1 px rules between parts */
+  --rule-soft: #262626;    /* rules between table rows */
+  --edge: #5a5a5a;         /* outline of an unpressed button */
+  --ink: #f2f2f2;
+  --ink-2: #b8b8b8;
+  --ink-3: #8e8e8e;        /* 5.6:1 on the panel stock */
+
+  /* Helvetica where it is installed; Archivo, a close grotesque, everywhere else. */
+  --font-sans: "Helvetica Neue", "Archivo", Helvetica, "Nimbus Sans", "Nimbus Sans L", Arial, sans-serif;
+  --font-latin: var(--font-sans);
+  --sky-font: "Helvetica Neue", "Archivo", Helvetica, "Nimbus Sans", Arial, sans-serif;
+
+  /* The base tokens, flattened to the manual's palette. */
+  --glass: var(--black);
+  --glass-strong: var(--sheet);
+  --hairline: var(--rule);
+  --gold: var(--red);
+  --up: var(--ink);
+  --radius: 0;
+}
+
+/* Keyboard focus: a plain white keyline, the strongest mark the palette has. */
+:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* ---- Agency signature: logotype mark in NASA Red, name in Helvetica Medium. ---- */
+.brand { gap: 12px; font-size: 17px; font-weight: 500; letter-spacing: -0.005em; text-transform: none;
+  color: var(--ink); text-shadow: 0 1px 2px #000; }
+.brand svg { width: 40px; height: 22px; overflow: visible; }
+.brand svg polyline { stroke: var(--red); stroke-opacity: 1; stroke-width: 2; stroke-linejoin: miter; }
+.brand svg circle { fill: #fff; }
+
+/* ---- Buttons: flat rectangles. Outlined when off, solid NASA Red when on. ---- */
+.chip { border-radius: 0; border: 1px solid var(--edge); background: var(--black);
+  -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+  font-weight: 500; letter-spacing: 0.005em; color: var(--ink); padding: 0 14px;
+  transition: background-color .12s, border-color .12s, color .12s; }
+.chip:hover { background: #1d1d1d; border-color: var(--ink-2); }
+.chip[aria-expanded="true"], .chip[aria-pressed="true"] { background: var(--red-fill);
+  border-color: var(--red-fill); color: #fff; }
+.chip[aria-expanded="true"]:hover, .chip[aria-pressed="true"]:hover { background: var(--red-fill); border-color: #fff; }
+.chip .muted { color: var(--ink-2); font-weight: 400; }
+.chip[aria-pressed="true"] .muted, .chip[aria-expanded="true"] .muted { color: #fff; }
+.chip:disabled { opacity: 0.4; cursor: default; }
+.chip:disabled:hover { background: var(--black); border-color: var(--edge); }
+
+/* Primary action: the manual's heavy 2 pt keyline. No white slab, so the eye stays dark-adapted. */
+.chip.primary { background: var(--black); border: 2px solid var(--ink); color: var(--ink); font-weight: 600; }
+.chip.primary:hover { background: #1d1d1d; border-color: #fff; }
+.chip.primary:disabled:hover { background: var(--black); border-color: var(--ink); }
+
+/* Design chip: the four squares lose their rounding. */
+.chip-theme svg { opacity: 1; }
+.chip-theme svg rect { rx: 0; ry: 0; }
+
+/* Place and time: a vertical rule instead of the middle dot, a red square for "now". */
+.chip-when .sep { display: inline-block; width: 1px; height: 16px; margin: 0 2px 0 8px; vertical-align: -3px;
+  background: var(--edge); font-size: 0; overflow: hidden; }
+.chip-when[aria-expanded="true"] .sep { background: rgba(255, 255, 255, 0.6); }
+.live { font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--ink-2); gap: 5px; }
+.live::before { width: 6px; height: 6px; border-radius: 0; background: var(--red); box-shadow: none; }
+.chip[aria-expanded="true"] .live { color: #fff; }
+.chip[aria-expanded="true"] .live::before { background: #fff; }
+
+/* Count: a solid red square with the figure reversed out, like a section number. */
+.count { min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 0;
+  background: var(--red-fill); color: #fff; font-size: 12px; font-weight: 600; }
+.chip[aria-expanded="true"] .count { background: #fff; color: #0b0b0b; }
+
+/* ---- Bottom bar: layer switches with a square indicator, square zoom keys. ---- */
+.toggles { gap: 6px; padding: 4px; margin: -4px; }
+.toggle { min-height: 36px; padding: 0 12px 0 11px; gap: 8px; font-size: 13px; letter-spacing: 0.01em;
+  color: var(--ink-2); }
+.toggle:hover { color: var(--ink); }
+.toggle::before { width: 8px; height: 8px; box-sizing: border-box; border-radius: 0; border: 1px solid var(--ink-3); }
+.toggle[aria-pressed="true"] { color: #fff; background: var(--red-fill); }
+.toggle[aria-pressed="true"]::before { background: #fff; background-clip: padding-box; border-color: transparent; }
+.zoom { gap: 6px; }
+.chip.round { width: 40px; padding: 0; font-size: 22px; font-weight: 400; }
+
+/* ---- Panels: dark sheets, square, with the red band across the head. ---- */
+.panel { background: var(--sheet); border: 1px solid var(--rule); border-top: 4px solid var(--red);
+  border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+.panel h2 { font-size: 11px; font-weight: 600; letter-spacing: 0.16em; color: var(--ink); }
+.panel-head { padding: 12px 8px 10px 16px; }
+
+/* Close (x) and collapse keys: square, no fill until pointed at. */
+.icon-btn { width: 36px; height: 36px; border-radius: 0; color: var(--ink-2); font-size: 24px; font-weight: 400;
+  line-height: 1; transition: background-color .12s, color .12s; }
+.icon-btn:hover { background: #262626; color: var(--ink); }
+
+/* ---- Place and time: a form, with small capital field labels over ruled fields. ---- */
+.panel-when { padding: 14px 16px 18px; gap: 16px; }
+.field { gap: 6px; }
+.field label, .field legend { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-2); }
+.field-row { align-items: flex-end; }
+.field output { font-size: 24px; font-weight: 500; letter-spacing: -0.01em; line-height: 1; color: var(--ink); }
+select, input[type="date"], input[type="search"] { border-radius: 0; border: 1px solid var(--edge);
+  background-color: var(--black); color: var(--ink); padding: 0 12px; }
+select:hover, input[type="date"]:hover, input[type="search"]:hover { border-color: var(--ink-2); }
+select { -webkit-appearance: none; appearance: none; padding-right: 34px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0h10L5 6z' fill='%23f2f2f2'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 13px center; }
+select option { background: var(--sheet); color: var(--ink); }
+input[type="search"]::placeholder { color: var(--ink-3); opacity: 1; }
+
+/* Clock slider: a hairline scale with a red rectangular index. */
+input[type="range"] { -webkit-appearance: none; appearance: none; height: 28px; margin: 0; background: transparent;
+  cursor: pointer; accent-color: var(--red); }
+input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: var(--edge); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 24px;
+  margin-top: -11px; border: 0; border-radius: 0; background: var(--red); }
+input[type="range"]::-moz-range-track { height: 2px; background: var(--edge); }
+input[type="range"]::-moz-range-progress { height: 2px; background: var(--red); }
+input[type="range"]::-moz-range-thumb { width: 12px; height: 24px; border: 0; border-radius: 0; background: var(--red); }
+input[type="range"]:hover::-webkit-slider-thumb { box-shadow: 0 0 0 1px #fff; }
+input[type="range"]:hover::-moz-range-thumb { box-shadow: 0 0 0 1px #fff; }
+
+.btn-row { gap: 8px; }
+
+/* Segmented keys: rectangles butted together on a shared 1 px rule. */
+.seg { gap: 0; padding: 0 1px 1px 0; }
+.seg button { flex: 1 1 auto; justify-content: center; min-height: 34px; margin: 0 -1px -1px 0; padding: 0 10px;
+  font-size: 13px; position: relative; }
+.seg button:hover, .seg button[aria-pressed="true"], .seg button:focus-visible { z-index: 1; }
+
+/* ---- Constellation list: a ruled table, flush left on one edge. ---- */
+.panel-list .tools { gap: 10px; padding: 0 16px 14px; }
+.list-note { font-size: 13px; color: var(--ink-2); }
+.con-list { padding: 0 0 8px; border-top: 1px solid var(--rule); }
+.con-list li { position: relative; gap: 2px; padding: 0 6px 0 16px; border-radius: 0; }
+.con-list li::after { content: ""; position: absolute; left: 16px; right: 16px; bottom: 0; height: 1px;
+  background: var(--rule-soft); pointer-events: none; }
+.con-list li:hover { background: var(--sheet-hover); }
+.con-list li.is-selected { background: var(--sheet-2); box-shadow: inset 4px 0 0 var(--red); }
+.mark-box { width: 34px; height: 44px; place-items: center start; }
+.mark-box span { width: 16px; height: 16px; box-sizing: border-box; border-radius: 0; border: 1px solid var(--ink-3); }
+.mark-box:hover span { border-color: var(--ink); }
+.mark-box:focus-visible { outline: none; }
+.mark-box:focus-visible span { outline: 2px solid #fff; outline-offset: 3px; }
+.mark-box[aria-pressed="true"] span::after { border-color: #0b0b0b; }
+.con-name { padding: 7px 4px; border-radius: 0; }
+.con-name strong { font-size: 15px; font-weight: 500; color: var(--ink); }
+.con-name em { font-family: var(--font-sans); font-style: normal; font-size: 13px; color: var(--ink-3); }
+.state { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: var(--ink-3); padding-right: 10px; }
+.state.up { color: var(--ink); }
+.con-list li.empty { padding: 18px 16px; color: var(--ink-2); }
+.con-list li.empty::after { display: none; }
+.panel-foot { gap: 8px; padding: 12px 16px 16px; border-top: 1px solid var(--rule); }
+.panel-foot .chip { flex: 1 1 auto; justify-content: center; min-height: 36px; font-size: 12px; padding: 0 9px; }
+
+/* ---- Design list: a form with square check boxes. ---- */
+.theme-list { padding: 0 0 6px; gap: 0; border-top: 1px solid var(--rule); }
+.theme-option { position: relative; column-gap: 14px; padding: 11px 16px; border-radius: 0; }
+.theme-option::after { content: ""; position: absolute; left: 16px; right: 16px; bottom: 0; height: 1px;
+  background: var(--rule-soft); }
+.theme-option:last-child::after { display: none; }
+.theme-option:hover { background: var(--sheet-hover); }
+.theme-option:has(input:checked) { background: var(--sheet-2); box-shadow: inset 4px 0 0 var(--red); }
+.theme-option input { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; box-sizing: border-box;
+  border: 1px solid var(--ink-3); border-radius: 0; background: var(--black); cursor: pointer; }
+.theme-option input:checked { border-color: var(--red); background: var(--red); box-shadow: inset 0 0 0 3px var(--sheet-2); }
+.theme-option:hover input:not(:checked) { border-color: var(--ink); }
+.theme-name { font-size: 15px; font-weight: 500; color: var(--ink); }
+.theme-note { font-size: 13px; color: var(--ink-2); }
+.theme-foot { padding: 10px 16px 14px; font-size: 12px; color: var(--ink-3); border-top: 1px solid var(--rule); }
+
+/* ---- Discover: progress as a red bar on a grey scale, neighbours as a field of keys. ---- */
+.panel-discover { padding: 12px 16px 16px; gap: 12px; }
+.discover-progress { font-size: 13px; color: var(--ink-2); }
+.discover-progress b { color: var(--ink); font-weight: 600; }
+.discover-head .icon-btn { width: 32px; height: 32px; margin: -6px -10px -6px 0; }
+.discover-head .icon-btn::before { width: 8px; height: 8px; border-width: 0 2px 2px 0; }
+.meter { height: 4px; border-radius: 0; background: #3a3a3a; }
+.meter span { border-radius: 0; background: var(--red); }
+.discover-body { gap: 12px; }
+.discover-hint { font-size: 14px; color: var(--ink); }
+.discover-next { gap: 6px; padding: 4px; margin: -4px; }
+.discover-next .chip { min-height: 34px; padding: 0 11px; font-size: 13px; gap: 7px; }
+.discover-next .state { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; color: var(--ink-3); padding: 0; }
+.discover-next .chip.below { color: var(--ink-2); border-style: dashed; border-color: #4a4a4a; }
+.discover-next .chip.below:hover { border-color: var(--ink-3); color: var(--ink); }
+.discover-foot { gap: 6px; padding-top: 12px; border-top: 1px solid var(--rule); }
+.discover-foot .chip { min-height: 32px; padding: 0 11px; font-size: 12px; color: var(--ink-2); }
+.discover-foot .chip:hover { color: var(--ink); }
+.discover-foot .chip.primary { color: var(--ink); }
+
+/* ---- Info card: a data sheet, title in Helvetica Medium over ruled lines of facts. ---- */
+.card { padding: 14px 16px 16px 18px; gap: 12px; background: var(--sheet); border: 1px solid var(--rule);
+  border-top: 4px solid var(--red); border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: none; }
+.card-head { gap: 12px; }
+.card-head .icon-btn { margin: -4px -6px 0 0; }
+.swatch { width: 12px; height: 12px; border-radius: 0; margin-top: 9px; box-shadow: none !important; }
+.card h3 { font-size: 26px; font-weight: 500; letter-spacing: -0.015em; line-height: 1.12; }
+.card .latin { margin-top: 3px; font-family: var(--font-sans); font-style: normal; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-2); }
+.facts { gap: 0; font-size: 14px; color: var(--ink-2); border-bottom: 1px solid var(--rule-soft); }
+.facts > div { padding: 4px 0; border-top: 1px solid var(--rule-soft); }
+.facts b { color: var(--ink); font-weight: 600; }
+.card .btn-row { gap: 8px; }
+.card .btn-row .chip { min-height: 38px; font-size: 14px; }
+
+/* ---- Toast: a notice with a red margin bar, set flush left in a caption column of
+   about 65 characters, so it stays clear of the panels on both sides. (The script's
+   inline max-width still takes over when it has to steer the note past a panel.) ---- */
+.toast { max-width: min(34em, calc(100vw - 32px)); padding: 10px 16px 10px 14px; text-align: left;
+  text-wrap: pretty; border-radius: 0; background: var(--sheet); border: 1px solid var(--rule);
+  border-left: 4px solid var(--red); font-size: 14px; line-height: 1.45; color: var(--ink);
+  -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+
+/* ---- Phone ---- */
+@media (max-width: 640px) {
+  .chip { padding: 0 11px; }
+  /* Top bar: tighter keys so the count and the "now" lamp fit beside each other. */
+  .bar-top { gap: 6px; }
+  .bar-top .chip { padding: 0 9px; font-size: 14px; }
+  .bar-top .chip-theme { flex: none; width: 40px; padding: 0; justify-content: center; }
+  #btn-list { gap: 6px; }
+  .count { min-width: 18px; height: 18px; padding: 0 4px; font-size: 11px; }
+  /* When the bar is full the decorative mark gives way. */
+  .bar-top:has(#when-live:not([hidden])) .brand svg,
+  .bar-top:has(#mark-count:not([hidden])) .brand svg { display: none; }
+  /* Design list: tighter rows so it ends above the card. */
+  .panel-theme .panel-head { padding-top: 10px; padding-bottom: 8px; }
+  .theme-option { padding: 8px 16px; }
+  .panel-list { border-left: 0; border-right: 0; border-bottom: 0; border-radius: 0; }
+  .card { padding: 12px 14px 14px 16px; gap: 10px; }
+  .card h3 { font-size: 22px; }
+  .card .btn-row { gap: 6px; }
+  .card .btn-row .chip { padding: 0 11px; }
+  .panel-discover { padding: 10px 12px 12px; gap: 8px; }
+  .discover-body { gap: 8px; }
+  .discover-hint { font-size: 13px; }
+  .discover-foot { padding-top: 8px; }
+  /* The neighbour row runs to the sheet's edge, like a table bleeding off the page. */
+  .discover-next { margin-right: -12px; padding-right: 12px; }
+  .toggle { padding: 0 11px 0 10px; }
+}
+
+/* Narrow phones (360-380 px): the top bar gives up a few pixels of air everywhere. */
+@media (max-width: 380px) {
+  .bar-top { gap: 4px; }
+  .bar-top .chip { padding: 0 7px; }
+  .bar-top .chip-theme { width: 36px; padding: 0; }
+  .chip-when, #btn-list { gap: 5px; }
+  .live { letter-spacing: 0.1em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip, .icon-btn, .meter span { transition: none; }
+}

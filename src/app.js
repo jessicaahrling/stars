@@ -576,8 +576,11 @@ export class App {
   onKey(e) {
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) {
-      if (e.key === 'Escape') t.blur();
-      return;
+      // Keys belong to the field, but Escape leaves it. In the design list (radio buttons)
+      // Escape goes on to close the list, as it does from anywhere else.
+      if (e.key !== 'Escape') return;
+      t.blur();
+      if (t.type !== 'radio') return;
     }
     const step = e.shiftKey ? 15 : 4;
     const v = this.view;

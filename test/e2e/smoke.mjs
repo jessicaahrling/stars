@@ -1,7 +1,7 @@
 // Smoke test in headless Chromium: the sky renders, a tap on a constellation toggles its
-// illustration, the list opens the info card, marking works, and the sky can be
-// discovered one neighbour at a time ("Upptäck"). Screenshots land in
-// test/e2e/screenshots/ (git-ignored).
+// illustration, the list opens the info card, marking works, the sky can be discovered
+// one neighbour at a time ("Upptäck"), and the interface designs switch. Screenshots
+// land in test/e2e/screenshots/ (git-ignored).
 //
 //   npm run test:e2e
 import { chromium } from 'playwright';
@@ -24,9 +24,12 @@ async function openPage(viewport, { discover = false } = {}) {
   const page = await browser.newPage({ viewport });
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
-    // Web fonts are optional; offline runs fall back to system fonts.
+    // Web fonts are optional and blocked here (see below).
     if (m.type() === 'error' && !/fonts\.(googleapis|gstatic)|ERR_|net::/.test(m.text())) errors.push(m.text());
   });
+  // Web fonts are left out, so that the test does not wait on the network and every
+  // design is checked with its fallback fonts.
+  await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.abort());
   // 15 January 2026, 22:00 in Stockholm, from the very start.
   await page.clock.setFixedTime(new Date(Date.UTC(2026, 0, 15, 21, 0)));
   await page.goto(url);
@@ -737,6 +740,47 @@ try {
   const overflow = await phone.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert.ok(overflow <= 0, `no horizontal scroll on phones (overflow ${overflow}px)`);
   await phone.screenshot({ path: path.join(shots, 'phone-ursa-major.png') });
+
+  // "Design": a list of interface designs. Each one is put on the page when chosen, keeps
+  // the layout in one piece on a desktop and a phone, and is remembered.
+  const themeIds = await phone.evaluate(() => [...document.querySelectorAll('#theme-list input')].map((i) => i.value));
+  assert.deepEqual(themeIds, ['glas', 'mcc', 'dsky', 'crt', 'nasa75', 'checklista']);
+  for (const [page, kind] of [[await openPage({ width: 1280, height: 800 }, { discover: true }), 'desktop'], [phone, 'phone']]) {
+    await page.click('#btn-theme');
+    assert.equal(await page.isVisible('#panel-theme'), true);
+    assert.equal(await page.isChecked('#theme-list input[value="glas"]'), true, 'the current design is chosen at first');
+    for (const themeId of themeIds) {
+      await page.click(`#theme-list input[value="${themeId}"]`);
+      const state = await page.evaluate(() => ({
+        theme: document.documentElement.dataset.theme,
+        css: document.getElementById('theme-style').textContent.length,
+        overflow: document.documentElement.scrollWidth - innerWidth,
+        toggles: document.getElementById('toggles').getBoundingClientRect().height,
+      }));
+      assert.equal(state.theme, themeId);
+      assert.ok(themeId === 'glas' ? state.css === 0 : state.css > 2000, `${themeId}: its style sheet is on the page (${state.css} characters)`);
+      assert.ok(state.overflow <= 0, `${themeId} on a ${kind}: no horizontal scroll`);
+      assert.ok(state.toggles >= 30 && state.toggles < 80, `${themeId} on a ${kind}: the toggles keep their row (${state.toggles}px)`);
+      await settle(page);
+      await page.waitForTimeout(250); // colour transitions between designs
+      await page.screenshot({ path: path.join(shots, `design-${themeId}-${kind}.png`) });
+    }
+    // Escape closes the list of designs; opening the constellation list closes it too.
+    await page.keyboard.press('Escape');
+    assert.equal(await page.isHidden('#panel-theme'), true);
+    await page.click('#btn-theme');
+    await page.click('#btn-list');
+    assert.equal(await page.isHidden('#panel-theme'), true);
+    await page.click('#btn-list-close');
+  }
+  // The choice is remembered.
+  await phone.evaluate(() => window.stjarnhimlen.setTheme('crt'));
+  await phone.waitForFunction(() => JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').theme === 'crt');
+  await phone.reload();
+  await phone.waitForFunction(() => window.stjarnhimlen);
+  assert.equal(await phone.evaluate(() => document.documentElement.dataset.theme), 'crt');
+  await phone.click('#btn-theme');
+  assert.equal(await phone.isChecked('#theme-list input[value="crt"]'), true);
 
   assert.deepEqual(errors, [], 'no errors in the console');
   console.log('e2e smoke: ok');

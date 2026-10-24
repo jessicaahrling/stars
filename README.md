@@ -45,6 +45,9 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
 - **Markera stjärnbilder:** i listan, med rutan framför namnet eller med knappen på
   infokortet. Markerade stjärnbilder får en egen färg på figur, gräns och yta. Listan kan filtreras på de stjärnbilder som syns
   från vald ort och visar vilka som är uppe just nu.
+- **Design:** knappen "Design" i övre raden byter utseende på knappar och paneler.
+  Förutom det nuvarande finns fem designer i stil med äldre NASA-gränssnitt: Mission
+  Control 1969, Apollo DSKY, Bärnstensskärm, NASA 1975 och Checklista. Valet sparas.
 - **Infokort:** välj en stjärnbild i listan så vänder sig vyn dit och ett kort visar var
   den står nu, när den går upp, står högst och går ner, om den är cirkumpolär, vilken
   månad den står högst på kvällen och dess ljusstarkaste stjärna.
@@ -57,10 +60,11 @@ Inställningar och markeringar sparas i webbläsaren.
 src/astro/      tid, precession, höjd/azimut, synlighet (ren matematik, testad)
 src/sky/        stjärnkatalog, stjärnbildsgränser och grannar, kamera och projektion
 src/render/     WebGL (himmel, Vintergatan, mark) och 2D-canvas (stjärnor, linjer, namn)
-src/ui/         listan, infokortet, plats/tid-panelen, upptäck-panelen, gester
+src/ui/         listan, infokortet, plats/tid-panelen, upptäck-panelen, designlistan, gester
+src/themes/     designerna, en stilmall per design
 src/data/       svenska namn, orter och genererad stjärn- och bilddata
 art/            illustrationerna, en SVG per stjärnbild (se art/STYLE.md)
-scripts/        bygge, datagenerering och verktyg för illustrationerna
+scripts/        bygge, datagenerering och verktyg för illustrationerna och designerna
 test/           enhetstester (node --test) och ett webbläsartest (Playwright)
 ```
 
@@ -78,6 +82,7 @@ så att de följer stjärnorna exakt i alla vyer.
 
 ```sh
 node scripts/art-tool.mjs preview Ori   # förhandsvisa en illustration över sina stjärnor
+node scripts/theme-shots.mjs crt        # skärmbilder av en design i de viktigaste lägena
 npm run art                             # src/data/art-data.js från art/*.svg (ingår i npm run build)
 npm test           # enhetstester
 npm run test:e2e   # bygger och kör webbläsartestet i Chromium

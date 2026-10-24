@@ -1,1 +1,328 @@
-/* Design "crt": written in the design round. */
+@import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
+
+/* Bärnstensskärm: a 1970s amber-phosphor character terminal of the IBM 3270 / DEC VT class,
+   as on the consoles in mission operations and at JPL. Text on black, single-line boxes with
+   square corners, [ FIELD ] buttons, reverse video for what is on or chosen, an underline
+   cursor for keyboard focus. Nothing blinks. */
+
+:root {
+  /* P3-type amber phosphor at its intensities, on unlit glass */
+  --crt-glass: #060400;
+  --amber: #ffb000;          /* intensified */
+  --amber-2: #d39300;        /* normal intensity: secondary text, reverse video (7.6:1) */
+  --amber-3: #ab7800;        /* low intensity: tertiary text, dim reverse video (5.2:1) */
+  --amber-line: #7d5700;     /* frames and rules, never text */
+  --amber-wash: #1d1400;     /* a field under the pointer */
+  --bloom: 0 0 2px rgba(255, 176, 0, 0.4);
+  --scanlines: repeating-linear-gradient(to bottom, rgba(255, 176, 0, 0.028) 0 1px, transparent 1px 3px);
+  --cursor: linear-gradient(var(--amber), var(--amber));
+  --cursor-rev: linear-gradient(#000, #000);
+
+  --font-term: "VT323", ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", "Courier New", monospace;
+  --font-sans: var(--font-term);
+  --font-latin: var(--font-term);
+  /* Names on the sky: the system's own terminal mono, which keeps its shapes at 10-15 px where
+     VT323 cannot, and is there from the first frame without a download */
+  --sky-font: ui-monospace, "SF Mono", Menlo, Consolas, "Roboto Mono", "DejaVu Sans Mono", "Liberation Mono", monospace;
+
+  --ink: var(--amber);
+  --ink-2: var(--amber-2);
+  --ink-3: var(--amber-3);
+  --gold: var(--amber);
+  --up: var(--amber);
+  --hairline: var(--amber-line);
+  --glass: var(--crt-glass);
+  --glass-strong: var(--crt-glass);
+  --radius: 0;
+}
+
+/* One character cell per letter: no ligatures, so "fi" stays two cells on the grid */
+body { font: 19px/1.2 var(--font-term); font-variant-ligatures: none; font-feature-settings: "liga" 0, "clig" 0;
+  color: var(--amber); }
+::selection { background: var(--amber); color: #000; }
+
+/* ---- Top bar: the screen's header line ---- */
+
+.brand { font-size: 21px; font-weight: 400; letter-spacing: 0.14em; color: var(--amber);
+  text-shadow: var(--bloom), 0 0 6px #000, 0 1px 8px #000; }
+.brand svg polyline { stroke: var(--amber); stroke-opacity: 0.55; }
+.brand svg g { fill: var(--amber); }
+
+/* ---- Fields: every button is a field between brackets, as on a formatted 3270 screen ---- */
+
+.chip { gap: 0.4em; padding: 0 6px; border: 0; border-radius: 0; background: var(--crt-glass);
+  -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+  color: var(--amber); font-size: 19px; line-height: 1; text-transform: uppercase; text-shadow: var(--bloom);
+  transition: background-color .12s, color .12s; }
+.chip::before, .chip::after { flex: none; color: var(--amber-3); text-shadow: none; }
+.chip::before { content: "["; content: "[" / ""; }
+.chip::after { content: "]"; content: "]" / ""; }
+.panel .chip, .card .chip { background-color: transparent; }  /* in a panel the field is part of the screen */
+.chip:hover { background-color: var(--amber-wash); border-color: var(--amber-line); }
+.chip:hover::before, .chip:hover::after { color: var(--amber); }
+.chip .sep { color: var(--amber-3); }
+.chip .muted { color: var(--amber-2); }
+
+/* Reverse video, at normal intensity: on, open or chosen */
+.chip[aria-expanded="true"], .chip[aria-pressed="true"] { background-color: var(--amber-2); color: #000;
+  border-color: var(--amber-2); text-shadow: none; }
+.chip[aria-expanded="true"]::before, .chip[aria-expanded="true"]::after,
+.chip[aria-pressed="true"]::before, .chip[aria-pressed="true"]::after,
+.chip[aria-expanded="true"] .sep, .chip[aria-pressed="true"] .sep,
+.chip[aria-expanded="true"] .muted, .chip[aria-pressed="true"] .muted { color: #000; }
+.chip[aria-expanded="true"]:hover, .chip[aria-pressed="true"]:hover { background-color: var(--amber); border-color: var(--amber); }
+
+/* The default action: the one field framed in a double rule, as drawn with ╔═╗ line graphics */
+.chip.primary { padding: 0 10px; border: 3px double var(--amber); color: var(--amber); font-weight: 400; }
+.chip.primary::before, .chip.primary::after { content: none; }
+.chip.primary:hover { background-color: var(--amber-wash); border-color: var(--amber); box-shadow: inset 0 0 0 1px var(--amber); }
+
+.chip:disabled { color: var(--amber-line); cursor: default; }
+.chip:disabled::before, .chip:disabled::after { color: var(--amber-line); }
+.chip:disabled:hover { background-color: transparent; }
+
+/* Keyboard focus: the cursor, a steady underscore bar under the field's text */
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.chip:focus-visible, .icon-btn:focus-visible, .con-name:focus-visible, .mark-box:focus-visible,
+.theme-option:has(input:focus-visible) {
+  outline: none; background-image: var(--cursor); background-repeat: no-repeat;
+  background-size: calc(100% - 8px) 3px; background-position: 50% calc(100% - 3px); }
+.chip[aria-expanded="true"]:focus-visible, .chip[aria-pressed="true"]:focus-visible,
+.con-list li.is-selected .con-name:focus-visible, .con-list li.is-selected .mark-box:focus-visible,
+.theme-option:has(input:checked:focus-visible) { background-image: var(--cursor-rev); }
+
+.chip-theme svg { opacity: 1; }
+.chip-theme svg rect { rx: 0; ry: 0; }
+
+/* Live clock: a lit status cell, no glow */
+.live { font-size: 17px; letter-spacing: 0; color: inherit; gap: 4px; }
+.live::before { width: 7px; height: 7px; border-radius: 0; background: currentColor; box-shadow: none; }
+
+/* Count of marked constellations: a reverse-video number cell */
+.count { min-width: 20px; height: 20px; padding: 0 3px; box-sizing: border-box; border-radius: 0;
+  background: var(--amber); color: #000; font-size: 18px; font-weight: 400; text-shadow: none; }
+.chip[aria-expanded="true"] .count { background: #000; color: var(--amber); }
+
+/* ---- Bottom bar: the function-key line, one unbroken row of fields ---- */
+
+.toggles, .zoom { gap: 0; }
+.toggle + .toggle, .round + .round { box-shadow: -1px 0 0 #000; }
+.toggle { min-height: 36px; padding: 0 6px; font-size: 18px; letter-spacing: 0; color: var(--amber-2); }
+.toggle::before { width: auto; height: auto; border: 0; border-radius: 0; background: none; }
+.toggle[aria-pressed="true"]::before { background: none; border: 0; }
+/* Layers that are on: reverse video at low intensity, so the line never outshines the sky */
+.toggle[aria-pressed="true"] { background-color: var(--amber-3); border-color: var(--amber-3); }
+.toggle[aria-pressed="true"]:hover { background-color: var(--amber-2); border-color: var(--amber-2); }
+.round { width: 40px; gap: 1px; padding: 0; font-size: 22px; }
+
+/* ---- Panels: single-line boxes with square corners ---- */
+
+.panel { border-radius: 0; border: 1px solid var(--amber-2); background-color: var(--crt-glass);
+  background-image: var(--scanlines); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+  text-shadow: var(--bloom); }
+/* Title line: NAME followed by a rule to the end of the line, as drawn with line graphics */
+.panel h2 { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 400; line-height: 1.1;
+  letter-spacing: 0.06em; color: var(--amber); }
+.panel h2::after { content: ""; flex: 1; min-width: 16px; border-top: 1px solid var(--amber-line); }
+.panel-head { padding: 10px 8px 8px 14px; gap: 8px; }
+.panel-head h2 { flex: 1; }
+
+/* Close and fold controls as bracketed characters: [×] [-] [+] */
+.icon-btn { width: 40px; height: 36px; border-radius: 0; display: inline-flex; align-items: center; justify-content: center;
+  gap: 1px; color: var(--amber-2); font-size: 22px; line-height: 1; }
+.panel-head .icon-btn::before, .card-head .icon-btn::before { content: "["; content: "[" / ""; font-size: 19px; color: var(--amber-3); }
+.panel-head .icon-btn::after, .card-head .icon-btn::after { content: "]"; content: "]" / ""; font-size: 19px; color: var(--amber-3); }
+.icon-btn:hover { background-color: var(--amber-wash); color: var(--amber); }
+.icon-btn:hover::before, .icon-btn:hover::after { color: var(--amber); }
+.discover-head .icon-btn { width: 40px; height: 32px; margin: -6px -6px -6px 0; }
+.discover-head .icon-btn::before { content: "[-]"; content: "[-]" / ""; width: auto; height: auto; border: 0;
+  transform: none; font-size: 20px; }
+.collapsed .discover-head .icon-btn::before { content: "[+]"; content: "[+]" / ""; transform: none; }
+
+/* ---- Plats och tid ---- */
+
+.panel-when { padding: 12px 16px 16px; gap: 10px; }
+.field { gap: 4px; }
+.field label, .field legend { font-size: 17px; color: var(--amber-2); letter-spacing: 0.04em; text-transform: uppercase; }
+.field output { font-size: 32px; font-weight: 400; line-height: 1; color: var(--amber); }
+
+/* Unprotected input fields: an underscored field, as the 3270 showed where to type */
+select, input[type="date"], input[type="search"] { min-height: 40px; padding: 0 10px; border-radius: 0;
+  border: 1px solid var(--amber-line); border-bottom: 2px solid var(--amber-2); background-color: #000;
+  color: var(--amber); font-size: 19px; text-shadow: var(--bloom); }
+select:hover, input[type="date"]:hover, input[type="search"]:hover { border-color: var(--amber-2); border-bottom-color: var(--amber); }
+select:focus-visible, input[type="date"]:focus-visible, input[type="search"]:focus-visible {
+  outline: none; border-color: var(--amber); box-shadow: inset 0 -3px 0 var(--amber); }
+input[type="search"]::placeholder { color: var(--amber-3); opacity: 1; }
+/* Clearing the search: an X on the character grid, in phosphor amber */
+input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; width: 12px; height: 12px;
+  cursor: pointer; filter: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath d='M1 1l10 10M11 1L1 11' stroke='%23d39300' stroke-width='2'/%3E%3C/svg%3E") center / contain no-repeat; }
+/* A stepped down-arrow, drawn on the character grid */
+select, input[type="date"] { padding-right: 32px; background-repeat: no-repeat; background-position: right 12px center;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h10v2H8v2H6v2H4V4H2V2H0z' fill='%23ffb000'/%3E%3C/svg%3E"); }
+select { -webkit-appearance: none; appearance: none; cursor: pointer; }
+select option { background: #000; color: var(--amber); }
+input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; }
+/* The part of the date being edited is shown in reverse video */
+input[type="date"]::-webkit-datetime-edit-day-field:focus,
+input[type="date"]::-webkit-datetime-edit-month-field:focus,
+input[type="date"]::-webkit-datetime-edit-year-field:focus { background: var(--amber); color: #000; }
+
+/* Clock slider: an hour scale with a block cursor */
+input[type="range"] { -webkit-appearance: none; appearance: none; height: 28px; margin: 0; background: transparent;
+  accent-color: var(--amber); cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { height: 9px; border-bottom: 1px solid var(--amber-2);
+  background: repeating-linear-gradient(to right, var(--amber-line) 0 1px, transparent 1px calc(100% / 24)); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 22px; margin-top: -8px;
+  border: 0; border-radius: 0; background: var(--amber); }
+input[type="range"]::-moz-range-track { height: 9px; border-bottom: 1px solid var(--amber-2);
+  background: repeating-linear-gradient(to right, var(--amber-line) 0 1px, transparent 1px calc(100% / 24)); }
+input[type="range"]::-moz-range-thumb { width: 11px; height: 22px; border: 0; border-radius: 0; background: var(--amber); }
+input[type="range"]:focus-visible { outline: none; }
+input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px #000, 0 0 0 4px var(--amber); }
+input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px #000, 0 0 0 4px var(--amber); }
+
+.btn-row { gap: 6px; }
+
+/* A choice field: the options side by side in one box, the chosen one in reverse video */
+.seg { gap: 0; justify-self: start; max-width: 100%; box-sizing: border-box; border: 1px solid var(--amber-line); }
+.seg .chip { min-height: 32px; padding: 0 8px; gap: 0.4em; font-size: 18px; }
+.seg .chip + .chip { border-left: 1px solid var(--amber-line); }
+.seg .chip::before, .seg .chip::after { content: none; }
+
+/* ---- Stjärnbilder: a directory listing ---- */
+
+.panel-list .tools { gap: 8px; padding: 0 12px 10px; }
+.list-note { font-size: 18px; line-height: 1.15; color: var(--amber-2); }
+.con-list { padding: 4px 6px 8px; border-top: 1px solid var(--amber-line); }
+.con-list li { border-radius: 0; gap: 2px; }
+.con-list li:not(.empty):hover { background-color: var(--amber-wash); }
+.mark-box span { width: 14px; height: 14px; border-radius: 0; border: 1px solid var(--amber-2); }
+.mark-box[aria-pressed="true"] span::after { border-color: #000; }
+.con-name { border-radius: 0; padding: 5px 4px; line-height: 1.05; }
+.con-name strong { font-weight: 400; font-size: 21px; color: var(--amber); }
+.con-name em { font-family: var(--font-term); font-style: normal; font-size: 18px; color: var(--amber-3); }
+.state { font-size: 17px; letter-spacing: 0.04em; color: var(--amber-3); padding-right: 8px; }
+.state.up { color: var(--amber); }
+/* The chosen row in reverse video, intensified under the pointer; the mark keeps its own colour */
+.con-list li.is-selected { background-color: var(--amber-2); text-shadow: none; }
+.con-list li.is-selected:not(.empty):hover { background-color: var(--amber); }
+.con-list li.is-selected .con-name strong, .con-list li.is-selected .con-name em,
+.con-list li.is-selected .state { color: #000; }
+.con-list li.is-selected .mark-box span { border-color: #000; }
+.empty { padding: 16px 10px; color: var(--amber-2); }
+.panel-foot { gap: 6px; padding: 10px 12px 12px; border-top: 1px solid var(--amber-line); }
+.panel-foot .chip { min-height: 36px; font-size: 18px; }
+
+/* ---- Design: a menu screen, the chosen line in reverse video behind a ▶ cursor ---- */
+
+.theme-list { padding: 2px 8px 8px; gap: 2px; }
+.theme-option { border-radius: 0; padding: 7px 10px; column-gap: 10px; }
+.theme-option:hover { background-color: var(--amber-wash); }
+.theme-option input { -webkit-appearance: none; appearance: none; align-self: start; width: 10px; height: 14px;
+  margin-top: 4px; border: 0; border-radius: 0; background: none; box-shadow: none; cursor: pointer; }
+.theme-option input:checked { background: #000; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.theme-option input:focus-visible { outline: none; }
+.theme-option:has(input:checked) { background-color: var(--amber-2); color: #000; text-shadow: none; }
+.theme-option:has(input:checked) .theme-note { color: #000; }
+.theme-name { font-weight: 400; font-size: 21px; text-transform: uppercase; line-height: 1.1; }
+.theme-note { font-size: 18px; color: var(--amber-2); line-height: 1.1; }
+.theme-foot { padding: 8px 14px 12px; font-size: 17px; line-height: 1.15; color: var(--amber-3); border-top: 1px solid var(--amber-line); }
+
+/* ---- Upptäck himlen ---- */
+
+.panel-discover { padding: 12px 12px 14px 14px; gap: 10px; }
+.discover-head { gap: 4px 10px; }
+.discover-progress { font-size: 18px; color: var(--amber-2); }
+.discover-progress b { color: var(--amber); font-weight: 400; }
+/* Progress as a bar graph of character cells */
+.meter { height: 10px; border-radius: 0; background: none; border: 1px solid var(--amber-line); padding: 1px; }
+.meter span { border-radius: 0; background: repeating-linear-gradient(to right, var(--amber) 0 6px, transparent 6px 8px); }
+.discover-hint { font-size: 19px; line-height: 1.2; color: var(--amber-2); }
+.discover-next { gap: 4px 2px; }
+.discover-next .chip { min-height: 34px; padding: 0 3px; gap: 2px; font-size: 18px; }
+.discover-next .state { margin-left: 4px; font-size: 17px; color: var(--amber-3); padding: 0; }
+/* A neighbour below the horizon: low intensity, in parentheses */
+.discover-next .chip.below { color: var(--amber-3); border-style: none; }
+.discover-next .chip.below::before { content: "("; content: "(" / ""; color: var(--amber-line); }
+.discover-next .chip.below::after { content: ")"; content: ")" / ""; color: var(--amber-line); }
+.discover-foot { gap: 4px; }
+.discover-foot .chip { min-height: 32px; padding: 0 4px; font-size: 17px; color: var(--amber-2); }
+/* The long "Fortsätt med resten av himlen" may take two lines rather than leave the box */
+.discover-foot .chip.primary { padding: 4px 8px; font-size: 17px; color: var(--amber); white-space: normal; text-align: left; line-height: 1.1; }
+.discover-foot .chip:disabled { color: var(--amber-line); opacity: 1; }
+
+/* ---- Card: one record on the screen ---- */
+
+.card { padding: 12px 14px 14px; gap: 10px; border-radius: 0; border: 1px solid var(--amber-2);
+  background-color: var(--crt-glass); background-image: var(--scanlines);
+  -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; text-shadow: var(--bloom); }
+.card-head { gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--amber-line); }
+/* Mark colour as a plain square cell (the inline glow is removed) */
+.swatch { width: 12px; height: 12px; border-radius: 0; margin-top: 9px; box-shadow: none !important; }
+.card h3 { font-size: 32px; font-weight: 400; letter-spacing: 0.04em; line-height: 1; text-transform: uppercase; }
+.card .latin { font-family: var(--font-term); font-style: normal; font-size: 20px; color: var(--amber-2); }
+.card .icon-btn { margin: -4px -6px 0 0; }
+.facts { gap: 3px; font-size: 19px; line-height: 1.2; color: var(--amber-2); }
+.facts b { font-weight: 400; color: var(--amber); }
+.card .btn-row .chip { min-height: 38px; font-size: 18px; }
+/* Its on/off fields (Avmarkera, Dölj illustration) at low intensity, like the layers, so the
+   double-ruled default action stays the strongest thing in the record */
+.card .chip[aria-pressed="true"] { background-color: var(--amber-3); border-color: var(--amber-3); }
+.card .chip[aria-pressed="true"]:hover { background-color: var(--amber-2); border-color: var(--amber-2); }
+
+/* ---- Toast: a message on the screen's message line ---- */
+
+/* Narrow enough to sit between the side panels; placeToast() may still narrow it beside Upptäck */
+.toast { max-width: min(30em, calc(100vw - 32px)); padding: 8px 14px; border-radius: 0; border: 1px solid var(--amber-2);
+  background: var(--crt-glass); font-size: 18px; line-height: 1.2; color: var(--amber); text-shadow: var(--bloom); }
+
+/* ---- Narrow screens up to small tablets and landscape phones ---- */
+
+@media (max-width: 860px) {
+  /* The header fields go boxed instead of bracketed, so the line fits in live mode */
+  .bar-top { gap: 4px; }
+  .bar-top .chip { padding: 0 5px; gap: 4px; font-size: 18px; border: 1px solid var(--amber-line); }
+  .bar-top .chip::before, .bar-top .chip::after { content: none; }
+  .brand { letter-spacing: 0.08em; }
+}
+@media (max-width: 700px) {
+  .chip-when .where { display: none; }
+}
+
+/* A short landscape screen: the neighbours go on one scrolling line, as on the phone */
+@media (max-height: 500px) and (min-width: 641px) {
+  .panel-discover { padding: 8px 10px 10px 12px; gap: 6px; }
+  .discover-head h2 { flex: none; }
+  .discover-head h2::after { display: none; }
+  .discover-progress { order: 0; flex: 1; flex-basis: auto; }
+  #discover-of { display: none; }
+  .discover-body { gap: 6px; }
+  .discover-hint { font-size: 17px; line-height: 1.1; }
+  .discover-next { flex: none; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  .discover-next::-webkit-scrollbar { display: none; }
+}
+
+/* ---- Phone ---- */
+
+@media (max-width: 640px) {
+  /* Brackets sit closer to their text, so a row of fields fits a 390 px screen */
+  .chip { gap: 2px; padding: 0 3px; }
+  .chip.primary { padding: 0 7px; }
+  .btn-row { gap: 4px; }
+  .bar-top .chip { font-size: 17px; }
+  .bar-top .chip-theme { width: 34px; padding: 0; }
+  .live { font-size: 16px; }
+  .panel-list { border-radius: 0; border-width: 1px 0 0; }
+  .theme-option { padding: 6px 10px; }
+  .theme-note { font-size: 17px; }
+  .card { padding: 10px 12px 12px; }
+  .card-head { padding-bottom: 6px; }
+  .card h3 { font-size: 28px; }
+  .facts { font-size: 18px; line-height: 1.15; }
+  .panel-discover { padding: 10px 10px 12px 12px; gap: 8px; }
+  .discover-head h2 { flex: none; }
+  .discover-head h2::after { display: none; }
+  .discover-hint { font-size: 18px; line-height: 1.15; }
+}

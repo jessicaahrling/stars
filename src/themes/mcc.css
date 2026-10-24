@@ -1,1 +1,322 @@
-/* Design "mcc": written in the design round. */
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+/* Design "mcc": Mission Operations Control Room, Houston, 1965-1975.
+   Philco-Ford consoles: flat grey-green enamel faces, darker bezel strips, engraved
+   condensed legends, backlit square pushbuttons and small black CRT readouts. */
+
+:root {
+  /* Console enamel, flat, no gloss. */
+  --enamel: #323d3a;
+  --enamel-hi: #56625d;      /* top/left edge of a raised bezel */
+  --enamel-lo: #161c1b;      /* bottom/right edge */
+  --bezel: #1b2221;          /* darker strip that carries the label plate */
+  --seam: #0a0d0d;           /* gaps between sheet-metal parts */
+  --lens: #121716;           /* unlit smoky pushbutton lens */
+  --lens-hover: #283130;
+  --legend: #dde0d8;         /* white engraving fill */
+  --legend-2: #adb6ae;
+  --legend-3: #808a83;
+  /* Lit lens: warm white with an amber cast, run at night level on the lamp dimmer. */
+  --lamp: #b8a36e;
+  --lamp-ink: #1d1708;
+  --lamp-ink-2: #3a2f13;
+  --go: #1f4a31;             /* green lens, the GO key */
+  --go-hover: #245236;
+  --go-ink: #d0f7da;
+  --row: #3c4844;            /* selected row on the console face */
+  --row-hover: #38433f;
+  --crt: #040706;            /* CRT face */
+  --phos: #b4ecc1;           /* P4-ish pale green phosphor */
+  --phos-dim: #73a982;
+  --up: #94e2a6;
+  --focus: #ffffff;
+
+  --font-sans: "Barlow", "DIN Alternate", "Helvetica Neue", Arial, sans-serif;
+  --font-legend: "Barlow Condensed", "Roboto Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --font-mono: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+  --sky-font: "Barlow", "DIN Alternate", "Helvetica Neue", Arial, sans-serif;
+  --radius: 3px;
+  --hairline: var(--seam);
+}
+
+/* ---------------------------------------------------------------- keyboard focus */
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------------------------------------------------------------- nameplate */
+/* Position placard on top of a console: black anodised plate, engraved letters. */
+.brand { font-family: var(--font-legend); font-weight: 600; font-size: 14px; letter-spacing: 0.3em;
+  color: var(--legend); text-shadow: none; min-height: 32px; padding: 0 8px 0 10px; gap: 10px;
+  background: #0d1110; border: 1px solid var(--seam); border-radius: 2px;
+  box-shadow: 0 0 0 3px var(--enamel), 0 0 0 4px var(--seam); }
+.brand svg polyline { stroke: var(--legend-3); stroke-opacity: 1; }
+.brand svg circle { fill: var(--legend); }
+
+/* ---------------------------------------------------------------- pushbuttons */
+/* Square backlit pushbutton cap: smoky lens, engraved upper-case legend. */
+.chip { border-radius: 1px; border: 1px solid #000; background: var(--lens); color: var(--legend);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  font-family: var(--font-legend); font-weight: 600; font-size: 14px; letter-spacing: 0.08em;
+  text-transform: uppercase; transition: background-color .12s, color .12s, border-color .12s; }
+.chip:hover { background: var(--lens-hover); border-color: #5d6863; color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1); }
+.chip:active:not(:disabled) { translate: 0 1px; }
+
+/* Lit: the lamp behind the lens is on, the legend reads dark. */
+.chip[aria-pressed="true"], .chip[aria-expanded="true"] { background: var(--lamp); color: var(--lamp-ink);
+  border-color: #000; box-shadow: inset 0 0 0 1px rgba(90, 70, 20, 0.35); }
+.chip[aria-pressed="true"]:hover, .chip[aria-expanded="true"]:hover { background: var(--lamp); color: var(--lamp-ink);
+  border-color: var(--legend); }
+.chip .sep { color: var(--legend-3); }
+.chip .muted { color: var(--legend-2); font-family: var(--font-mono); font-weight: 500; font-size: 12px; letter-spacing: 0; }
+.chip[aria-pressed="true"] .muted { color: var(--lamp-ink-2); }
+
+/* Green GO key for the main action: a coloured lens, never mistaken for a lit lamp. */
+.chip.primary { background: var(--go); color: var(--go-ink); border-color: #4f8a60; font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(160, 230, 180, 0.18); }
+.chip.primary:hover { background: var(--go-hover); color: #e0fbe6; border-color: #7fbf90; }
+
+/* Unpowered cap. */
+.chip:disabled, .chip:disabled:hover { background: #181e1d; color: #858e88; border-color: #000;
+  box-shadow: none; cursor: default; translate: none; }
+
+/* ---------------------------------------------------------------- top bar */
+/* Each cap sits in its own enamel bezel ring. */
+.bar-top .chip { min-height: 40px; box-shadow: 0 0 0 3px var(--enamel), 0 0 0 4px var(--seam),
+  inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+.bar-top .chip[aria-expanded="true"] { box-shadow: 0 0 0 3px var(--enamel), 0 0 0 4px var(--seam),
+  inset 0 0 0 1px rgba(90, 70, 20, 0.35); }
+.bar-top .chip:focus-visible { outline-offset: 4px; }
+.chip-theme svg { opacity: 0.9; }
+
+/* Clock button: the time sits in a CRT window set into the cap. */
+.chip-when { gap: 0; padding: 0 4px 0 12px; }
+.chip-when .where { margin-right: 10px; }
+.chip-when .sep { display: none; }
+#when-time { font-family: var(--font-mono); font-weight: 500; font-size: 13px; letter-spacing: 0;
+  text-transform: uppercase; line-height: 28px; padding: 0 8px; background: var(--crt); color: var(--phos);
+  border: 1px solid #000; border-radius: 1px; }
+#when-time:has(+ .live:not([hidden])) { border-right: 0; padding-right: 6px; }
+.live { font-family: var(--font-mono); font-weight: 500; font-size: 11px; letter-spacing: 0.06em;
+  color: var(--up); background: var(--crt); align-self: stretch; margin: 4px 0 4px -1px; padding: 0 8px 0 2px;
+  border: 1px solid #000; border-left: 0; }
+.live::before { width: 6px; height: 6px; border-radius: 0; background: var(--up); box-shadow: none; }
+
+/* Count of marks: a small readout window. */
+.count { min-width: 24px; height: 24px; box-sizing: border-box; padding: 0 6px; border-radius: 1px;
+  background: var(--crt); color: var(--phos); border: 1px solid #000; font-family: var(--font-mono);
+  font-size: 12px; font-weight: 500; letter-spacing: 0; }
+
+/* ---------------------------------------------------------------- bottom bar */
+/* The layer buttons sit in one console strip, like a row of display-request keys. */
+.toggles { flex: 0 1 auto; gap: 4px; padding: 4px; background: var(--enamel); border: 1px solid var(--seam);
+  border-radius: 3px; box-shadow: inset 1px 1px 0 var(--enamel-hi), inset -1px -1px 0 var(--enamel-lo); }
+.toggle { min-height: 36px; padding: 0 11px; font-size: 13px; letter-spacing: 0.07em; color: var(--legend-2); }
+.toggle:hover { color: #fff; }
+.toggle[aria-pressed="true"] { color: var(--lamp-ink); background: var(--lamp); }
+/* Status square on the cap: open when off, filled when the lamp is on. */
+.toggle::before { width: 6px; height: 6px; border-radius: 0; border: 1px solid var(--legend-3); }
+.toggle[aria-pressed="true"]::before { background: var(--lamp-ink); border-color: var(--lamp-ink); }
+/* The game switch is its own group, set off by an engraved groove. */
+#btn-discover { margin-right: 6px; position: relative; }
+#btn-discover::after { content: ""; position: absolute; top: 1px; bottom: 1px; right: -7px;
+  border-left: 1px solid var(--seam); border-right: 1px solid var(--enamel-hi); }
+/* Focus rings stay inside the scrolling strips. */
+.toggles .chip:focus-visible { outline-offset: 1px; }
+.zoom { margin-left: auto; gap: 4px; padding: 4px; background: var(--enamel); border: 1px solid var(--seam);
+  border-radius: 3px; box-shadow: inset 1px 1px 0 var(--enamel-hi), inset -1px -1px 0 var(--enamel-lo); }
+.round { min-height: 36px; height: 36px; width: 40px; font-family: var(--font-mono); font-size: 18px; font-weight: 500; }
+
+/* ---------------------------------------------------------------- console modules */
+.panel { background: var(--enamel); border: 1px solid var(--seam); border-radius: var(--radius);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: inset 1px 1px 0 var(--enamel-hi), inset -1px -1px 0 var(--enamel-lo), 0 0 0 1px var(--seam);
+  scrollbar-color: #4b5653 transparent; }
+/* Silk-screened label: condensed capitals, wide tracking. */
+.panel h2 { font-family: var(--font-legend); font-weight: 600; font-size: 13px; letter-spacing: 0.24em;
+  color: var(--legend); }
+
+/* Darker bezel strip across the top of a module, carrying its label. */
+.panel-head { background: var(--bezel); border-bottom: 1px solid var(--seam); padding: 6px 6px 6px 16px;
+  margin: 1px 1px 0; }
+.panel-when > h2 { margin: -17px -17px 0; padding: 0 18px; line-height: 44px; background: var(--bezel);
+  border-bottom: 1px solid var(--seam); border-radius: 2px 2px 0 0; }
+
+.icon-btn { width: 32px; height: 32px; border-radius: 2px; border: 1px solid #000; background: var(--lens);
+  color: var(--legend); font-family: var(--font-sans); font-size: 24px; font-weight: 500; line-height: 1; padding: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+.icon-btn:hover { background: var(--lens-hover); color: #fff; }
+
+/* ---------------------------------------------------------------- place and time */
+.field label, .field legend { font-family: var(--font-legend); font-weight: 600; font-size: 12px;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--legend-2); }
+/* Readouts and entry fields are CRT windows. */
+select, input[type="date"], input[type="search"] { border-radius: 1px; border: 1px solid #000;
+  background: var(--crt); color: var(--phos); font-family: var(--font-mono); font-size: 14px;
+  box-shadow: inset 0 0 0 1px #1d2423; }
+select { text-transform: uppercase; }
+select option { background: #0b100f; color: var(--phos); }
+input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.6; cursor: pointer; }
+input[type="search"]::placeholder { color: var(--phos-dim); opacity: 1; }
+/* Clear key drawn in phosphor, not the browser's white glyph. */
+input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; width: 12px; height: 12px;
+  margin: 0; cursor: pointer;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 2l8 8M10 2l-8 8' stroke='%23b4ecc1' stroke-width='1.5'/%3E%3C/svg%3E") center / 12px no-repeat; }
+.field output { font-family: var(--font-mono); font-size: 18px; font-weight: 500; color: var(--phos);
+  background: var(--crt); border: 1px solid #000; padding: 0 8px; line-height: 30px; border-radius: 1px; }
+.field-row { align-items: center; gap: 12px; }
+/* Silk-screened demarcation line running from each legend, as around console button groups. */
+.panel-when .field > label, .panel-when .field-row > label, .panel-when legend { display: flex; align-items: center; gap: 10px; }
+.panel-when legend { width: 100%; }
+.panel-when .field-row > label { flex: 1; }
+.panel-when .field > label::after, .panel-when .field-row > label::after, .panel-when legend::after {
+  content: ""; flex: 1; border-top: 1px solid rgba(221, 224, 216, 0.22); }
+
+/* Slide control: dark slot, flat rectangular knob with an index line. */
+input[type="range"] { -webkit-appearance: none; appearance: none; height: 28px; margin: 0;
+  background: transparent; accent-color: var(--lamp); cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { height: 6px; background: var(--crt); border: 1px solid #000;
+  border-radius: 1px; box-shadow: 0 1px 0 var(--enamel-hi); }
+input[type="range"]::-moz-range-track { height: 6px; background: var(--crt); border: 1px solid #000;
+  border-radius: 1px; box-shadow: 0 1px 0 var(--enamel-hi); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 26px;
+  margin-top: -11px; box-sizing: border-box; border: 1px solid #6a7570; border-radius: 1px;
+  background: linear-gradient(90deg, transparent 6px, var(--legend) 6px 8px, transparent 8px), #1a201f; }
+input[type="range"]::-moz-range-thumb { width: 16px; height: 26px; box-sizing: border-box; border: 1px solid #6a7570;
+  border-radius: 1px; background: linear-gradient(90deg, transparent 6px, var(--legend) 6px 8px, transparent 8px), #1a201f; }
+
+.btn-row { gap: 6px; }
+.btn-row .chip { min-height: 36px; padding: 0 12px; font-size: 13px; }
+.seg { gap: 4px; }
+.seg button { min-height: 34px; padding: 0 10px; font-size: 13px; }
+
+/* ---------------------------------------------------------------- constellation list */
+.panel-list .tools { padding: 12px 14px 10px; }
+.list-note { font-size: 13px; color: var(--legend-2); }
+.con-list { border-top: 1px solid var(--seam); padding: 4px 6px 6px; }
+.con-list li { border-radius: 2px; }
+.con-list li.is-selected { background: var(--row); box-shadow: inset 3px 0 0 var(--lamp); }
+/* Mark box: a small square indicator lamp in the mark's colour. */
+.mark-box span { width: 14px; height: 14px; border-radius: 1px; border: 1px solid var(--legend-3); background: var(--lens); }
+.mark-box[aria-pressed="true"] span { background: var(--mark, var(--lamp)); border-color: #000; }
+.mark-box[aria-pressed="true"] span::after { border-color: #10131c; }
+.con-name { border-radius: 2px; }
+.con-name strong { font-weight: 500; color: var(--legend); }
+.con-name em { font-family: var(--font-mono); font-style: normal; font-size: 12px; color: var(--legend-2); }
+.state { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; color: var(--legend-2); }
+.state.up { color: var(--up); }
+.empty { color: var(--legend-2); }
+.panel-foot { background: var(--bezel); border-top: 1px solid var(--seam); margin: 0 1px 1px; gap: 6px; }
+.panel-foot .chip { min-height: 34px; padding: 0 9px; font-size: 12px; letter-spacing: 0.05em; }
+
+/* ---------------------------------------------------------------- design list */
+.theme-list { padding: 6px 6px 8px; }
+.theme-option { border-radius: 2px; padding: 9px 10px; }
+.theme-option:hover { background: var(--row-hover); }
+.theme-option:has(input:checked) { background: var(--row); box-shadow: inset 3px 0 0 var(--lamp); }
+/* One-of-many selector: a horizontal indicator bar, unlike the square mark boxes. */
+.theme-option input { -webkit-appearance: none; appearance: none; width: 18px; height: 10px; border-radius: 1px;
+  border: 1px solid var(--legend-3); background: var(--lens); cursor: pointer; }
+.theme-option input:checked { background: var(--lamp); border-color: #000; box-shadow: none; }
+.theme-name { font-family: var(--font-legend); font-weight: 600; font-size: 15px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--legend); }
+.theme-note { font-size: 13px; color: var(--legend-2); }
+.theme-foot { background: var(--bezel); border-top: 1px solid var(--seam); margin: 0 1px 1px; color: var(--legend-2); }
+
+/* ---------------------------------------------------------------- discovery game */
+.discover-head { margin: -13px -15px 0; padding: 6px 6px 6px 16px; background: var(--bezel);
+  border-bottom: 1px solid var(--seam); border-radius: 2px 2px 0 0; }
+.discover-head .icon-btn { width: 32px; height: 32px; margin: 0; }
+.discover-progress { font-size: 13px; color: var(--legend-2); }
+.discover-progress b { font-family: var(--font-mono); font-weight: 500; font-size: 12px; text-transform: uppercase;
+  color: var(--phos); background: var(--crt); border: 1px solid #000; padding: 1px 6px; border-radius: 1px; }
+/* Bar readout: a CRT strip filled with segments. */
+.meter { height: 10px; border-radius: 1px; background: var(--crt); border: 1px solid #000; padding: 2px;
+  box-sizing: border-box; box-shadow: 0 1px 0 var(--enamel-hi); }
+.meter span { border-radius: 0;
+  background: linear-gradient(90deg, var(--phos) 0 66.6%, transparent 66.6%) left / 6px 100% round; }
+.discover-hint { font-size: 14px; color: var(--legend-2); }
+.discover-next { gap: 4px; }
+.discover-next .chip { min-height: 32px; padding: 0 10px; font-size: 13px; gap: 6px; }
+.discover-next .state { font-family: var(--font-mono); font-size: 10px; font-weight: 400; letter-spacing: 0.02em;
+  color: var(--legend-3); padding: 0; }
+/* Neighbour below the horizon: dimmed cap. */
+.discover-next .chip.below { color: var(--legend-3); background: #171d1c; border-style: dashed; border-color: var(--legend-3); }
+.discover-next .chip:hover .state { color: var(--legend-2); }
+.discover-next .chip.below:hover { color: var(--legend); border-color: var(--legend-2); }
+.discover-next .chip:focus-visible { outline-offset: 0; }
+.discover-foot { gap: 4px; }
+.discover-foot .chip { min-height: 32px; padding: 0 10px; font-size: 12px; color: var(--legend-2); }
+.discover-foot .chip:hover { color: #fff; }
+.discover-foot .chip.primary { color: var(--go-ink); }
+.discover-foot .chip:disabled { opacity: 1; color: #858e88; }
+
+/* ---------------------------------------------------------------- info card */
+.card { background: var(--enamel); border: 1px solid var(--seam); border-radius: var(--radius);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: inset 1px 1px 0 var(--enamel-hi), inset -1px -1px 0 var(--enamel-lo), 0 0 0 1px var(--seam); }
+.card-head { margin: -15px -17px 0; padding: 10px 8px 8px 16px; background: var(--bezel);
+  border-bottom: 1px solid var(--seam); align-items: center; gap: 12px; }
+/* Mark colour as a square indicator lamp; no glow. */
+.swatch { width: 12px; height: 12px; border-radius: 1px; align-self: flex-start; margin-top: 8px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4) !important; }
+.card h3 { font-family: var(--font-legend); font-weight: 600; font-size: 24px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--legend); }
+.card .latin { font-family: var(--font-mono); font-style: normal; font-size: 13px; color: var(--legend-2); }
+/* Facts on a small CRT page. */
+.facts { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.4; color: var(--phos);
+  background: var(--crt); border: 1px solid #000; border-radius: 1px; padding: 6px 10px; gap: 2px; }
+.facts b { color: #e6fbe9; font-weight: 500; }
+.card .btn-row .chip { min-height: 36px; }
+
+/* ---------------------------------------------------------------- message */
+/* A message on a console monitor, in its bezel. */
+.toast { border-radius: 1px; background: var(--crt); border: 1px solid #000; color: var(--phos);
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.45;
+  box-shadow: 0 0 0 4px var(--enamel), 0 0 0 5px var(--seam);
+  /* A monitor page is about 60 columns wide: long messages wrap instead of spanning the screen. */
+  width: max-content; width: calc-size(max-content, min(size, 31rem)); text-wrap: balance; }
+
+/* ---------------------------------------------------------------- narrow screens */
+/* Engraved capitals run wider than the old lower case, so the placard keeps only its emblem. */
+@media (max-width: 800px) {
+  .brand span { display: none; }
+  .brand { padding: 0 8px; }
+}
+
+@media (max-width: 640px) {
+  /* Narrow top bar: the caps keep their size; the logo gives way first if space runs out. */
+  .bar-top { gap: 8px; }
+  .bar-top .chip { flex: none; padding-left: 10px; padding-right: 10px; font-size: 13px; letter-spacing: 0.06em; }
+  .brand { background: none; border: 0; box-shadow: none; padding: 0; min-height: 0; min-width: 0; overflow: hidden;
+    flex: 0 1 34px; container-type: inline-size; }
+  .brand svg { width: 34px; height: 19px; }
+  .bar-top .chip-theme { padding: 0; }
+  .bar-top .chip-when { padding: 0 4px; }
+  .chip-when .where { margin: 0; }
+  #when-time { font-size: 12px; padding: 0 6px; }
+  /* Only the lamp says "live" here; the word stays for screen readers. */
+  .live { font-size: 0; padding-right: 7px; }
+  .panel-list { border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0;
+    box-shadow: inset 0 1px 0 var(--enamel-hi); }
+  .card h3 { font-size: 21px; }
+  .facts { font-size: 12px; letter-spacing: -0.01em; }
+  .discover-head { margin: -9px -11px 0; padding: 2px 4px 2px 12px; }
+  .discover-hint { font-size: 13px; }
+}
+
+/* A logo with no room is left out rather than cut in half. */
+@container (max-width: 33px) { .brand svg { visibility: hidden; } }
+
+/* Smallest phones: tighter caps so the clock and the list button still fit. */
+@media (max-width: 374px) {
+  .bar-top { gap: 6px; }
+  .bar-top .chip { padding-left: 8px; padding-right: 8px; letter-spacing: 0.04em; }
+  .bar-top .chip-when { padding: 0 3px; }
+  #when-time { font-size: 11.5px; padding: 0 5px; }
+  .count { min-width: 22px; padding: 0 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip:active:not(:disabled) { translate: none; }
+}

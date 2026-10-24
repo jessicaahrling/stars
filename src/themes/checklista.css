@@ -1,1 +1,294 @@
-/* Design "checklista": written in the design round. */
+@import url("https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap");
+
+/* Design "checklista": the Apollo Flight Data File. Crew checklists and cue cards,
+   typed on an IBM Selectric in black and red ribbon on dimmed fireproof paper,
+   punched for the binder rings. Panels are checklist pages, the info card is a cue card,
+   the chips are typed labels stuck on the dark sky. */
+
+:root {
+  color-scheme: dark;
+  --paper: #ddd5bf;            /* Beta paper, dimmed so it does not glare at night */
+  --paper-2: #d0c6ac;          /* pencil-shaded: hover and the selected row */
+  --paper-edge: #a2967a;       /* cut edge of a label */
+  --sheet-edge: #7d7258;       /* cut edge of a page, so stacked pages stay apart */
+  --label: #c6bda5;            /* manila tab stock for the bars: a shade under the pages, quiet on the sky */
+  --label-2: #bfb69d;          /* the same tab, pencil-shaded on hover */
+  --label-edge: #8f846a;
+  --red-label: #861b13;        /* red ribbon on the darker tab stock, still 4.7:1 or more */
+  --ink: #1e1b16;              /* black ribbon */
+  --ink-2: #4a443a;            /* lighter strike / carbon copy */
+  --ink-3: #554e41;            /* faintest strike, still 4.5:1 on shaded paper */
+  --red: #9c2118;              /* red half of the two-colour ribbon */
+  --red-sky: #e0705f;          /* the same red where it sits on the night sky */
+  --rule: rgba(30, 27, 22, 0.22);
+  --hole: #04070f;             /* binder punch: the sky shows through */
+  --font-type: "Courier Prime", "Courier New", Courier, "Nimbus Mono PS", "Liberation Mono", monospace;
+  --font-sans: var(--font-type);
+  --font-latin: var(--font-type);
+  /* Names on the chart: a narrow IBM grotesque, like the lettering on the FDF star charts.
+     Mixed-case star names come out as wide as Jost's, so dense fields do not run together */
+  --sky-font: "IBM Plex Sans Condensed", "Arial Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
+  --radius: 3px;
+  --margin: 34px;              /* hole column plus the red margin rule of a checklist page */
+  --x-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1.6 1.6l8.8 8.8M10.4 1.6l-8.8 8.8' stroke='%23861b13' stroke-width='2.1' fill='none'/%3E%3C/svg%3E");
+}
+
+body { font: 14px/1.4 var(--font-type); }
+
+/* ---- Masthead: typed title on the sky, the logo redrawn in paper and red ink ---- */
+.brand { font-family: var(--font-type); font-weight: 700; font-size: 13px; letter-spacing: 0.2em;
+  color: var(--label); text-shadow: 0 0 3px var(--hole), 0 0 1px var(--hole); }
+.brand svg polyline { stroke: var(--red-sky); stroke-opacity: 0.9; }
+.brand svg g { fill: var(--label); }
+
+/* ---- Chips: typed labels cut from the same paper, square-cornered ---- */
+.chip { border-radius: 2px; border: 1px solid var(--paper-edge); background: var(--paper); color: var(--ink);
+  -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+  font-family: var(--font-type); font-size: 13px; font-weight: 400; letter-spacing: 0;
+  text-transform: uppercase; transition: background-color .15s, border-color .15s, color .15s; }
+.chip:hover { background: var(--paper-2); border-color: var(--ink-3); }
+/* Active = boxed in red ink (border plus an inner line, so nothing shifts) */
+.chip[aria-expanded="true"], .chip[aria-pressed="true"] { color: var(--red); border-color: var(--red);
+  box-shadow: inset 0 0 0 1px var(--red); }
+.chip .sep { color: var(--ink-3); }
+.chip .muted { color: var(--ink-2); }
+.chip:disabled { cursor: default; }
+
+/* On the sky the labels are cut from the darker tab stock, so twelve of them along the
+   edges stay dimmer than the pages and never outshine the stars */
+.bar .chip { background: var(--label); border-color: var(--label-edge); }
+.bar .chip:hover { background: var(--label-2); border-color: var(--ink-3); }
+.bar .chip[aria-expanded="true"] { color: var(--red-label); border-color: var(--red-label);
+  box-shadow: inset 0 0 0 1px var(--red-label); }
+.bar .chip .sep { color: var(--ink-2); }
+
+.chip-theme svg { opacity: 1; }
+.chip-theme svg rect { rx: 0; }
+
+/* "NU": red-ribbon caps with a square marker instead of a glowing dot */
+.live { color: var(--red-label); font-weight: 700; font-size: 11px; letter-spacing: 0.1em; gap: 5px; }
+.live::before { width: 7px; height: 7px; border-radius: 0; background: var(--red-label); box-shadow: none; }
+
+/* Count of marks: a number struck in red, like a tab number */
+.count { min-width: 20px; height: 20px; padding: 0 4px; box-sizing: border-box; border-radius: 0;
+  background: var(--red-label); color: #e6dec8; font-size: 12px; font-weight: 700; }
+
+/* ---- Focus: a paper ring on the sky, an ink ring on paper ---- */
+:focus-visible { outline: 2px solid #f1ead6; outline-offset: 3px; }
+.panel :focus-visible, .card :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.con-list :focus-visible { outline-offset: -2px; } /* the list scrolls, so the ring goes inside */
+
+/* ---- Bottom bar: each layer a checklist item, [ ] off and [X] on ---- */
+.toggles { gap: 6px; padding: 6px; margin: -4px 0 -4px -4px; } /* room for the focus ring */
+.toggle { min-height: 36px; padding: 0 11px 0 9px; gap: 8px; font-size: 12px; letter-spacing: 0.02em; color: var(--ink); }
+.bar .toggle[aria-pressed="true"] { color: var(--ink); background: var(--label); border-color: var(--label-edge);
+  box-shadow: none; }
+.bar .toggle[aria-pressed="true"]:hover, .bar .toggle:hover { background: var(--label-2); border-color: var(--ink-3); }
+.toggle::before { width: 12px; height: 12px; box-sizing: border-box; border-radius: 0;
+  border: 1.5px solid var(--ink); background: none; }
+.toggle[aria-pressed="true"]::before { border-color: var(--ink); background: var(--x-mark) center / 12px 12px no-repeat; }
+
+.zoom { gap: 6px; }
+.round { font-family: var(--font-type); font-size: 20px; font-weight: 700; text-transform: none; }
+
+/* ---- Panels: checklist pages. Two binder holes and a red margin rule down the left ---- */
+.panel { color-scheme: light; color: var(--ink); background-color: var(--paper);
+  border: 1px solid var(--sheet-edge); border-radius: var(--radius);
+  -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+  background-image:
+    radial-gradient(circle closest-side, var(--hole) 0 5.4px, var(--sheet-edge) 6px 6.4px, transparent 7.2px),
+    radial-gradient(circle closest-side, var(--hole) 0 5.4px, var(--sheet-edge) 6px 6.4px, transparent 7.2px),
+    linear-gradient(var(--red), var(--red));
+  background-size: 16px 16px, 16px 16px, 1px 100%;
+  background-position: calc(var(--margin) / 2 - 8px) 16px, calc(var(--margin) / 2 - 8px) calc(100% - 16px), var(--margin) 0;
+  background-repeat: no-repeat; }
+/* Section heading: red caps, underlined on the typewriter */
+.panel h2 { font: 700 13px/1.3 var(--font-type); letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--red); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+
+.panel-head { padding: 12px 10px 10px calc(var(--margin) + 14px); }
+.icon-btn { width: 34px; height: 34px; border-radius: 0; border: 1px solid transparent; background: transparent;
+  color: var(--ink); font: 400 24px/1 var(--font-type); display: grid; place-items: center; padding: 0; }
+.icon-btn:hover { background: var(--paper-2); border-color: var(--ink); color: var(--ink); }
+
+/* ---- Place and time: a typed form with blanks to fill in ---- */
+.panel-when { width: 302px; padding: 14px 16px 18px calc(var(--margin) + 14px); gap: 14px; } /* outer width as before */
+.field label, .field legend { font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.field output { font: 700 22px/1 var(--font-type); color: var(--ink); }
+select, input[type="date"], input[type="search"] { min-height: 38px; padding: 0 6px; border: 0;
+  border-bottom: 1.5px solid var(--ink); border-radius: 0; background-color: rgba(255, 252, 240, 0.28);
+  color: var(--ink); font-family: var(--font-type); font-size: 14px; }
+select { -webkit-appearance: none; appearance: none; padding-right: 26px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0h10L5 6z' fill='%231e1b16'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; background-size: 10px 6px; }
+select option { background: #e6dfcb; color: var(--ink); }
+input[type="search"]::placeholder { color: var(--ink-3); opacity: 1; }
+input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; width: 12px; height: 12px;
+  cursor: pointer; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 2l8 8M10 2l-8 8' stroke='%231e1b16' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") center / 12px 12px no-repeat; }
+
+/* The clock as a printed scale: hour ticks, longer every six hours, a red cursor */
+input[type="range"] { -webkit-appearance: none; appearance: none; height: 30px; margin: 0; background: transparent;
+  accent-color: var(--red); cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { height: 14px; box-sizing: border-box;
+  border-bottom: 1.5px solid var(--ink);
+  background-image: linear-gradient(90deg, var(--ink) 1px, transparent 1px), linear-gradient(90deg, var(--ink-2) 1px, transparent 1px);
+  background-size: calc((100% - 8px) * 0.250871) 12px, calc((100% - 8px) * 0.0418118) 6px;
+  background-position: 3.5px 100%, 3.5px 100%; background-repeat: repeat-x; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 8px; height: 22px;
+  margin-top: -5px; border: 0; border-radius: 0; background: var(--red); box-shadow: 0 0 0 2px var(--paper); }
+input[type="range"]::-moz-range-track { height: 14px; box-sizing: border-box; border-bottom: 1.5px solid var(--ink);
+  background-image: linear-gradient(90deg, var(--ink) 1px, transparent 1px), linear-gradient(90deg, var(--ink-2) 1px, transparent 1px);
+  background-size: calc((100% - 8px) * 0.250871) 12px, calc((100% - 8px) * 0.0418118) 6px;
+  background-position: 3.5px 100%, 3.5px 100%; background-repeat: repeat-x; }
+input[type="range"]::-moz-range-progress { background: transparent; }
+input[type="range"]::-moz-range-thumb { width: 8px; height: 22px; border: 0; border-radius: 0; background: var(--red);
+  box-shadow: 0 0 0 2px var(--paper); }
+
+/* Buttons inside a page: typed boxes ruled in ink */
+.panel .chip, .card .chip { background: transparent; border-color: var(--ink); }
+.panel .chip:hover, .card .chip:hover { background: var(--paper-2); border-color: var(--ink); }
+.panel .chip[aria-pressed="true"] { color: var(--red); border-color: var(--red);
+  box-shadow: inset 0 0 0 1px var(--red); }
+/* On the cue card red is kept for the one critical item (MARKERA): a pressed button is a heavier ink box */
+.card .chip[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--ink); }
+.btn-row { gap: 8px; }
+.btn-row .chip { min-height: 36px; padding: 0 12px; font-size: 12.5px; }
+.seg { gap: 6px; }
+.seg button { min-height: 34px; padding: 0 10px; font-size: 12px; }
+/* The four speeds as a two-by-two option table */
+#speed { display: grid; grid-template-columns: 1fr 1fr; }
+
+/* The primary step: boxed twice in red ink, as the critical items on a cue card */
+.chip.primary, .panel .chip.primary, .card .chip.primary { color: var(--red); font-weight: 700;
+  background: var(--paper); border: 1.5px solid var(--red);
+  box-shadow: inset 0 0 0 2px var(--paper), inset 0 0 0 3px var(--red); }
+.chip.primary:hover, .panel .chip.primary:hover, .card .chip.primary:hover { background: var(--paper-2);
+  box-shadow: inset 0 0 0 2px var(--paper-2), inset 0 0 0 3px var(--red); }
+
+/* ---- Constellation list: a ruled checklist with a box per line ---- */
+.panel-list .tools { gap: 10px; padding: 0 14px 12px calc(var(--margin) + 14px); }
+.list-note { font-size: 12.5px; color: var(--ink-2); }
+.con-list { padding: 0 8px 8px calc(var(--margin) + 6px); border-top: 1px solid var(--ink); }
+.con-list li { position: relative; gap: 2px; border-radius: 0; border-bottom: 1px solid var(--rule); }
+.con-list li.is-selected { background: var(--paper-2); }
+/* The current step: a red arrowhead pencilled in the margin */
+.con-list li.is-selected::before { content: ""; position: absolute; left: -22px; top: 50%; margin-top: -5px;
+  border-left: 8px solid var(--red); border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+.mark-box { width: 38px; }
+.mark-box span { width: 15px; height: 15px; box-sizing: border-box; border-radius: 0; border: 1.5px solid var(--ink); }
+.mark-box:hover span { background: var(--paper-2); }
+.mark-box[aria-pressed="true"] span { background: var(--mark, var(--red)); border-color: var(--ink); }
+.mark-box[aria-pressed="true"] span::after { border-color: var(--ink); }
+.con-name { border-radius: 0; padding: 7px 4px; }
+.con-name:hover strong { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.con-name strong { font-weight: 700; font-size: 14px; }
+.con-name em { font-family: var(--font-type); font-style: italic; font-size: 13px; color: var(--ink-2); }
+.state { font-size: 11px; letter-spacing: 0.06em; color: var(--ink-3); padding-right: 8px; }
+.state.up { color: var(--ink); font-weight: 700; }
+.con-list .empty { padding: 16px 6px; color: var(--ink-2); font-style: italic; border-bottom: 0; }
+.panel-foot { gap: 8px; padding: 10px 14px 14px calc(var(--margin) + 14px); border-top: 1px solid var(--ink); }
+.panel-foot .chip { min-height: 34px; padding: 0 10px; font-size: 12px; }
+
+/* ---- Design list: one ruled line per design, the chosen one crossed in red ---- */
+.theme-list { padding: 0 10px 6px calc(var(--margin) + 6px); gap: 0; }
+.theme-option { padding: 9px 8px; column-gap: 12px; border-radius: 0; border-bottom: 1px solid var(--rule); }
+.theme-option:last-child { border-bottom: 0; }
+.theme-option input { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; box-sizing: border-box;
+  border: 1.5px solid var(--ink); border-radius: 0; background: transparent; cursor: pointer; }
+.theme-option input:checked { background: var(--x-mark) center / 13px 13px no-repeat; }
+.theme-option:hover { background: var(--paper-2); }
+.theme-option:has(input:checked) { background: transparent; }
+.theme-option:has(input:checked):hover { background: var(--paper-2); }
+.theme-name { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.02em; }
+.theme-option:has(input:checked) .theme-name { color: var(--red); }
+.theme-note { font-size: 12.5px; color: var(--ink-2); }
+.theme-foot { padding: 10px 14px 14px calc(var(--margin) + 14px); font-size: 12px; color: var(--ink-2);
+  border-top: 1px solid var(--ink); }
+
+/* ---- Upptäck himlen: a progress log with the next steps as typed boxes ---- */
+.panel-discover { width: 324px; padding: 12px 14px 14px calc(var(--margin) + 12px); gap: 10px; }
+.discover-progress { font-size: 12.5px; color: var(--ink-2); }
+.discover-progress b { color: var(--ink); font-weight: 700; }
+/* The fold button's box ends above the progress line, and its focus ring stays inside it */
+.discover-head .icon-btn { width: 30px; height: 30px; margin: -8px -6px -2px 0; }
+.discover-head .icon-btn:focus-visible { outline-offset: -2px; }
+.discover-head .icon-btn::before { width: 7px; height: 7px; border-width: 0 2px 2px 0; }
+/* Progress as a printed bar gauge: ink frame, a tick every tenth, filled in red */
+.meter { height: 10px; box-sizing: border-box; border: 1px solid var(--ink); border-radius: 0;
+  background: linear-gradient(90deg, var(--rule) 1px, transparent 1px) -1px 0 / 10% 100% repeat-x; }
+.meter span { border-radius: 0; background: var(--red); }
+.discover-hint { font-size: 13.5px; color: var(--ink); }
+.discover-next { gap: 6px; padding: 4px; margin: -4px; }
+.discover-next .chip { min-height: 32px; padding: 0 8px; gap: 6px; font-size: 12px; text-transform: none; }
+.discover-next .state { font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); padding: 0; }
+/* Below the horizon: a dashed box, as an item not yet possible */
+.discover-next .chip.below { color: var(--ink-2); border-style: dashed; }
+.discover-foot { gap: 6px; }
+.discover-foot .chip { min-height: 32px; padding: 5px 10px; font-size: 11.5px; line-height: 1.25; color: var(--ink);
+  white-space: normal; text-align: left; text-wrap: balance; }
+.discover-foot .chip:disabled { opacity: 1; color: var(--ink-3); border-style: dotted; background: transparent; }
+.panel-discover.collapsed { padding-bottom: 12px;
+  background-position: calc(var(--margin) / 2 - 8px) 50%, -99px 0, var(--margin) 0; } /* one hole when folded */
+
+/* ---- Info card: a cue card with a printed frame inside the cut edge ---- */
+.card { color-scheme: light; color: var(--ink); background: var(--paper); border: 1px solid var(--sheet-edge);
+  border-radius: var(--radius);
+  -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+  outline: 1px solid var(--ink); outline-offset: -6px; padding: 16px 20px 18px; gap: 10px; }
+.card-head { gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--red); }
+/* The constellation's colour as a round printed dot, never a square that reads as a checkbox */
+.swatch { width: 11px; height: 11px; box-sizing: border-box; border-radius: 50%; margin-top: 6px;
+  border: 1px solid var(--ink); box-shadow: none !important; }
+.card h3 { font: 700 22px/1.15 var(--font-type); letter-spacing: 0.04em; text-transform: uppercase; }
+.card .latin { font-family: var(--font-type); font-style: italic; font-size: 14px; color: var(--ink-2); }
+.card .icon-btn { margin: -6px -8px 0 0; }
+.facts { gap: 4px; font-size: 13px; line-height: 1.4; color: var(--ink-2); }
+.facts b { color: var(--ink); font-weight: 700; }
+.card .btn-row .chip { min-height: 36px; }
+
+/* ---- Toast: a typed note slipped in, framed in red like a caution box ----
+   Typed flush-left, lines filled as a typist fills them, and kept to a short measure so it
+   stays clear of the open pages. The !important
+   beats the inline max-width the app writes; with the Upptäck page open on a wide screen, the
+   second rule keeps the note in the free space to its right, as the app intends. */
+.toast { background: var(--paper); color: var(--ink); border: 1px solid var(--sheet-edge); border-radius: 2px;
+  outline: 1px solid var(--red); outline-offset: -5px; padding: 12px 18px; font-size: 13px;
+  text-align: left; text-wrap: pretty; max-width: min(32em, calc(100vw - 32px)) !important; }
+@media (min-width: 641px) {
+  #panel-discover:not([hidden]) ~ .toast { max-width: min(32em, calc(100vw - 372px)) !important; }
+}
+
+/* ---- Phone ---- */
+@media (max-width: 640px) {
+  :root { --margin: 30px; }
+  .bar { gap: 6px; }
+  .chip { font-size: 12px; padding: 0 8px; gap: 6px; }
+  .chip-theme { width: 40px; padding: 0; }
+  .live { letter-spacing: 0.06em; }
+  .toggle { font-size: 12px; padding: 0 10px 0 8px; }
+  .round { width: 40px; padding: 0; font-size: 20px; }
+  .panel-list { border-radius: var(--radius) var(--radius) 0 0; }
+  .card { padding: 14px 18px 16px; }
+  .card h3 { font-size: 20px; }
+  .card .btn-row .chip { padding: 0 10px; font-size: 12px; }
+  .panel-when { width: auto; }
+  .panel-discover { width: auto; padding: 10px 12px 10px calc(var(--margin) + 10px); gap: 8px; }
+  .discover-hint { font-size: 13px; }
+  /* Tighter ruling, so the design page clears the cue card below it */
+  .theme-option { padding: 7px 6px; }
+  .theme-note { font-size: 12px; }
+}
+/* Narrow laptops: the typed labels need the whole bar, so the masthead keeps only its logo */
+@media (min-width: 641px) and (max-width: 800px) {
+  .brand span { display: none; }
+}
+/* Typewriter labels are wide: on the narrowest phones the logo gives way to the chips */
+@media (max-width: 429px) {
+  .brand { display: none; }
+  #btn-theme { margin-left: auto; }
+}
+@media (max-width: 380px) {
+  .bar-top .chip { font-size: 11px; padding: 0 6px; }
+  .bar-top .chip-theme { width: 38px; padding: 0; }
+}
