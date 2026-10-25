@@ -26,7 +26,21 @@ const problems = [];
 async function open(viewport, mobile) {
   const page = await browser.newPage({ viewport, hasTouch: mobile, isMobile: mobile });
   page.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
-  await page.clock.setFixedTime(new Date(Date.UTC(2026, 0, 15, 21, 0)));
+  // A fixed date (Playwright's clock is not used: it also holds back the frame timestamps
+  // that the camera's flights are timed by).
+  await page.addInitScript((ms) => {
+    const RealDate = Date;
+    window.Date = class extends RealDate {
+      constructor(...args) {
+        if (args.length) super(...args);
+        else super(ms);
+      }
+
+      static now() {
+        return ms;
+      }
+    };
+  }, Date.UTC(2026, 0, 15, 21, 0));
   await page.goto(url);
   await page.waitForFunction(() => window.stjarnhimlen);
   await page.evaluate(([themeId, sheet]) => {

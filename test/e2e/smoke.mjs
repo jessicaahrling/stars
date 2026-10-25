@@ -31,7 +31,7 @@ async function openPage(viewport, { discover = false } = {}) {
   // design is checked with its fallback fonts.
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.abort());
   // 15 January 2026, 22:00 in Stockholm, from the very start.
-  await page.clock.setFixedTime(new Date(Date.UTC(2026, 0, 15, 21, 0)));
+  await fixDate(page, Date.UTC(2026, 0, 15, 21, 0));
   await page.goto(url);
   await page.waitForFunction(() => window.stjarnhimlen);
   await page.evaluate((disc) => {
@@ -46,6 +46,31 @@ async function openPage(viewport, { discover = false } = {}) {
   }, discover);
   await settle(page);
   return page;
+}
+
+/**
+ * Fixes what Date says, for the sky's clock and the training cards; the test can move it
+ * with window.setTestNow(ms). Playwright's own clock is not used: it also holds back the
+ * frame timestamps that the camera's flights are timed by.
+ */
+function fixDate(page, start) {
+  return page.addInitScript((ms) => {
+    const RealDate = Date;
+    let now = ms;
+    window.Date = class extends RealDate {
+      constructor(...args) {
+        if (args.length) super(...args);
+        else super(now);
+      }
+
+      static now() {
+        return now;
+      }
+    };
+    window.setTestNow = (t) => {
+      now = t;
+    };
+  }, start);
 }
 
 /** Waits until the latest change has been drawn (picking uses the drawn frame). */
@@ -842,7 +867,7 @@ try {
   // Two more come in once the four in play are known. Cards move up only when due, so the
   // clock is moved on between answers.
   for (let k = 1; k <= 14 && (await quizState()).inPlay === 4; k++) {
-    await quiz.clock.setFixedTime(new Date(Date.UTC(2026, 0, 15, 21, 0) + k * 61_000));
+    await quiz.evaluate((ms) => window.setTestNow(ms), Date.UTC(2026, 0, 15, 21, 0) + k * 61_000);
     await quiz.evaluate(() => window.stjarnhimlen.answerTraining('good'));
   }
   let q = await quizState();
@@ -941,6 +966,29 @@ try {
     assert.equal(await page.isHidden('#panel-theme'), true);
     await page.click('#btn-list-close');
   }
+  // On the published page the host puts the base style sheet in <body>. The designs must
+  // still restyle what looks most generic in the base: the round buttons, their font and
+  // the dots on the toggles.
+  const hostedLooks = await phone.evaluate((ids) => {
+    document.body.prepend(document.querySelector('head style'));
+    const looks = {};
+    for (const id of ids) {
+      window.stjarnhimlen.setTheme(id);
+      const chip = document.querySelector('[data-layer="lines"]');
+      const dot = getComputedStyle(chip, '::before');
+      looks[id] = {
+        round: getComputedStyle(chip).borderRadius === '999px',
+        jost: getComputedStyle(chip).fontFamily.startsWith('Jost'),
+        dot: dot.content !== 'none' && dot.borderRadius === '50%',
+      };
+    }
+    return looks;
+  }, themeIds);
+  for (const id of themeIds) {
+    const base = id === 'glas';
+    assert.deepEqual(hostedLooks[id], { round: base, jost: base, dot: base }, `${id} restyles the buttons on the published page`);
+  }
+
   // The choice is remembered.
   await phone.evaluate(() => window.stjarnhimlen.setTheme('crt'));
   await phone.waitForFunction(() => JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').theme === 'crt');

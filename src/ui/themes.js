@@ -19,6 +19,9 @@ export const DEFAULT_THEME = 'glas';
 
 /**
  * Puts a design on the page: data-theme on <html> and its style sheet in <style id="theme-style">.
+ * The sheet goes last in <body>, after every other style sheet wherever the page keeps them
+ * (a host may put the base styles in <body>), so that its rules win over the base rules
+ * they restyle.
  * @returns {typeof THEMES[number]} the design applied (the default for an unknown id)
  */
 export function applyTheme(id, doc = document) {
@@ -28,8 +31,8 @@ export function applyTheme(id, doc = document) {
   if (!style) {
     style = doc.createElement('style');
     style.id = 'theme-style';
-    doc.head.append(style);
   }
+  if (style !== doc.body.lastElementChild) doc.body.append(style);
   if (style.textContent !== theme.css) style.textContent = theme.css;
   return theme;
 }
