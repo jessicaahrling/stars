@@ -110,10 +110,18 @@ export class App {
           this.training.cards.set(c.index, { level, dueTurn, dueAt, n: Number.isInteger(n) ? n : 1 });
         }
       } else {
-        // Saved by the first version (Leitner boxes in minutes and days): what was known
-        // stays known for now, and everything is due again.
-        const [box, , n] = rest;
-        if (Number.isInteger(box)) this.training.cards.set(c.index, { level: box >= 2 ? 1 : 0, dueTurn: 0, dueAt: null, n: Number.isInteger(n) ? n : 1 });
+        // Saved by the first version (Leitner boxes: 0 missed, then one box up for each
+        // right answer): one level known for now per box, as far as the last. A card that
+        // was still resting keeps its time and rests a level's worth of cards too, so that
+        // old cards do not all come back at once.
+        const [box, due, n] = rest;
+        if (Number.isInteger(box) && box >= 0) {
+          const level = Math.min(box, NOW_AFTER.length);
+          const resting = level > 0 && Number.isFinite(due) && due > Date.now();
+          this.training.cards.set(c.index, {
+            level, dueTurn: resting ? NOW_AFTER[level - 1] : 0, dueAt: resting ? due : null, n: Number.isInteger(n) ? n : 1,
+          });
+        }
       }
     }
     this.trainOrder = introductionOrder(this.catalog.constellations, this.catalog.stars.mag);

@@ -894,11 +894,16 @@ try {
   assert.ok(flight.to && Math.abs(flight.az - flight.to.az) < 1e-6 && Math.abs(flight.alt - flight.to.alt) < 1e-6, 'the flight landed');
   assert.deepEqual([flight.step, flight.anim], [1, null], 'and the touch did not count as a tap');
   assert.equal((await quizState()).card, 'Cyg');
-  await quiz.evaluate(() => window.stjarnhimlen.answerTraining('now'));
+  const levelOf = (cid) => quiz.evaluate((c) => window.stjarnhimlen.training.cards.get(window.stjarnhimlen.catalog.byId.get(c).index).level, cid);
+  await quiz.click('#train-actions button:has-text("Visa svaret")');
+  await quiz.click('#train-actions button:has-text("Kan för tillfället")');
+  assert.equal(await levelOf('Cyg'), 1, '"Kan för tillfället" counts it as known for now');
   assert.equal((await quizState()).card, 'Cas', 'the missed card comes back after two others');
 
-  // Two more come in as soon as the four in play are known and none is due.
-  await quiz.evaluate(() => window.stjarnhimlen.answerTraining('now'));
+  // Two more come in as soon as none is due.
+  await quiz.click('#train-actions button:has-text("Visa svaret")');
+  await quiz.keyboard.press('3');
+  assert.equal(await levelOf('Cas'), 9, 'key 3 is "Kan permanent"');
   let q = await quizState();
   assert.deepEqual([q.inPlay, q.card], [6, 'Leo']);
   assert.match(await quiz.textContent('#train-count'), /^4 av 57$/);
@@ -906,7 +911,7 @@ try {
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   await quiz.click('#train-actions button:has-text("Kan permanent")');
   assert.match(await quiz.textContent('#train-count'), /^5 av 57$/);
-  assert.match(await quiz.textContent('#train-of'), /^kan du · 1 permanent · 6 i spel$/);
+  assert.match(await quiz.textContent('#train-of'), /^kan du · 2 permanent · 6 i spel$/);
   q = await quizState();
 
   // "Upptäck" takes over and keeps its own progress; "Träna" comes back to the same card.
@@ -935,15 +940,17 @@ try {
   assert.equal(await learnt(), learntBefore);
   assert.equal(await quiz.evaluate(() => window.stjarnhimlen.training.showStory), true, 'the story stays open');
 
-  // Progress saved by the first version still loads: what was known stays known for now.
+  // Progress saved by the first version still loads: what was known stays known for now,
+  // one level per box, and a card that was still resting keeps resting.
   await quiz.evaluate(() => {
     clearTimeout(window.stjarnhimlen.saveTimer);
-    localStorage.setItem('stjarnhimlen:v1', JSON.stringify({ training: { on: true, cards: [['UMa', 3, 0, 4], ['Cas', 1, 0, 2]] } }));
+    const later = Date.now() + 5 * 86_400_000;
+    localStorage.setItem('stjarnhimlen:v1', JSON.stringify({ training: { on: true, cards: [['UMa', 3, 0, 4], ['Cas', 0, 0, 2], ['Ori', 6, later, 7]] } }));
   });
   await quiz.reload();
   await quiz.waitForFunction(() => window.stjarnhimlen);
-  assert.deepEqual(await quiz.evaluate(() => [...window.stjarnhimlen.training.cards].map(([i, c]) => [window.stjarnhimlen.catalog.constellations[i].id, c.level])), [['UMa', 1], ['Cas', 0]]);
-  assert.equal((await quizState()).card, 'Cas', 'the one not known yet comes first');
+  assert.deepEqual(await quiz.evaluate(() => [...window.stjarnhimlen.training.cards].map(([i, c]) => [window.stjarnhimlen.catalog.constellations[i].id, c.level, c.dueTurn, c.dueAt !== null])), [['UMa', 3, 0, false], ['Cas', 0, 0, false], ['Ori', 4, 80, true]]);
+  assert.equal((await quizState()).card, 'Cas', 'the missed one comes first');
 
   // A card below the horizon is shown through see-through ground, without changing the
   // setting, and stays in view when the time changes. Leaving training lifts the view

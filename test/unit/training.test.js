@@ -90,17 +90,48 @@ test('a card known for good stays away while play goes on with others', () => {
   assert.ok(back.includes('UMa'), 'but it does come back now and then');
 });
 
-test('a miss comes back after two others, and nothing new comes in until it is known', () => {
+test('a miss comes back after two others', () => {
   const cards = new Map();
   const shown = play(cards, 8, (c, card) => (c === 'Cas' && card.n === 0 ? 'again' : 'now'));
-  // UMa, Cas (missed), Ori, Cyg, Cas again; only then the next two.
+  // UMa, Cas (missed), Ori, Cyg, Cas again; then the next two.
   assert.deepEqual(shown.slice(0, 6), ['UMa', 'Cas', 'Ori', 'Cyg', 'Cas', 'Leo']);
+});
+
+test('while a miss rests, new ones come in, not known ones early', () => {
+  const cards = new Map();
+  const shown = play(cards, 6, (c, card) => (c === 'Cyg' && card.n === 0 ? 'again' : 'now'));
+  assert.deepEqual(shown, ['UMa', 'Cas', 'Ori', 'Cyg', 'Leo', 'UMi'], 'the miss rests while two new ones come in');
+  assert.equal(play(cards, 1, () => 'now', { turn: 6 })[0], 'Cyg', 'and then it comes back');
+
+  // A card missed again and again, among cards known for good: it never comes back
+  // before two others, and the ones known for good stay away.
+  const hard = new Map();
+  const seen = play(hard, 60, (c) => (c === 'Cas' ? 'again' : 'permanent'));
+  const at = seen.flatMap((c, k) => (c === 'Cas' ? [k] : []));
+  assert.ok(at.length > 10 && at.every((k, j) => j === 0 || k - at[j - 1] > AGAIN_AFTER), at.join(' '));
+  const rest = seen.filter((c) => c !== 'Cas');
+  assert.equal(new Set(rest).size, rest.length, 'no card known for good is shown twice in 60 cards');
 });
 
 test('the same card is never shown twice in a row while another is in play', () => {
   const cards = new Map();
-  const shown = play(cards, 300, (c) => (c.length % 3 === 0 ? 'again' : 'now'));
-  assert.ok(shown.every((s, k) => k === 0 || s !== shown[k - 1]));
+  let k = 0;
+  const shown = play(cards, 300, () => (k++ % 3 === 0 ? 'again' : 'now'));
+  assert.ok(shown.every((s, j) => j === 0 || s !== shown[j - 1]));
+  assert.ok(cards.size > START_CARDS + MORE_CARDS, `new ones come in between misses (${cards.size})`);
+});
+
+test('old cards come back after days, however little has been played', () => {
+  const cards = new Map();
+  play(cards, 4, (c) => (c === 'UMa' ? 'permanent' : 'now'));
+  const at = (now) => id(nextCard(new Map(cards), order, stockholm, 4, now, -1));
+  assert.equal(at(0), 'Leo', 'the same session: nothing is due, so new ones come in');
+  assert.equal(at(NOW_DAYS[0] * DAY), 'Cas', 'a day later the ones known for now are due, cards or not');
+  const perm = new Map();
+  play(perm, 4, () => 'permanent');
+  const atPerm = (now) => id(nextCard(new Map(perm), order, stockholm, 4, now, -1));
+  assert.equal(atPerm((PERMANENT_DAYS - 1) * DAY), 'Leo', 'known for good: still resting');
+  assert.equal(atPerm(PERMANENT_DAYS * DAY), 'UMa', 'and back after weeks');
 });
 
 test('known for now, every constellation is learnt with few showings each', () => {

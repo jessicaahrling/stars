@@ -34,9 +34,9 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   nästa kort. Under namnet står en kort berättelse om stjärnbilden, som kan fällas ihop
   (på en mobil börjar den hopfälld så att himlen syns). Sedan svarar man **Fel**, **Kan
   för tillfället** eller **Kan permanent** (eller tangenterna 1, 2 och 3; mellanslag visar
-  nästa steg). Man börjar med fyra, Stora
-  björnen, Cassiopeja, Orion och Svanen, och två nya kommer in så fort alla som är i spel
-  är kända och ingen väntar på repetition, tills man kan alla som syns från vald ort.
+  nästa steg). Man börjar med fyra, Stora björnen, Cassiopeja, Orion och Svanen, och två
+  nya kommer in så fort inget kort väntar på repetition (ett fel som vilar räknas inte),
+  tills man kan alla som syns från vald ort.
   Vilan räknas i antal visade kort: ett fel kommer tillbaka efter två andra, "kan för
   tillfället" efter 6, sedan 15, 35 och 80 kort, och "kan permanent" först efter 120 kort.
   Mellan sessionerna kommer korten också tillbaka efter 1, 3, 7 eller 21 dagar (45 dagar

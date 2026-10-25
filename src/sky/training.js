@@ -4,9 +4,9 @@
 //   'now'        Kan för tillfället  known; back after more and more cards each time
 //   'permanent'  Kan permanent       known; back only now and then
 // Play starts with a few striking constellations, and more come in whenever nothing is
-// due and every card in play is known. Rests are counted in cards shown, so that play
-// moves on at the learner's pace, and in days too, so that old cards come back between
-// sessions.
+// due: every card in play is known, or a missed one is still resting. Rests are counted
+// in cards shown, so that play moves on at the learner's pace, and in days too, so that
+// old cards come back between sessions.
 
 /** The first constellations to learn, in this order. After them the rest follow by prominence. */
 export const FIRST = ['UMa', 'Cas', 'Ori', 'Cyg', 'Leo', 'UMi', 'Lyr', 'Tau', 'Gem', 'Aur', 'Boo', 'Peg', 'Sco', 'Aql', 'Per', 'And', 'CMa', 'Dra', 'Her', 'Vir'];
@@ -82,11 +82,12 @@ export function isDue(card, turn, now) {
 
 /**
  * Picks the card to show next, and brings new constellations into play: START_CARDS at
- * first, then MORE_CARDS at a time whenever nothing is due and every card in play is
- * known. A missed card that is due goes first, then the card that has been due longest.
- * When nothing is due and nothing new can come in (a card is still missed, or every
- * constellation is in play), the card due soonest is shown, so practice never stops. The
- * card just shown waits a turn if another will do.
+ * first, then MORE_CARDS at a time whenever nothing is due. A missed card that is due goes
+ * first, then the card that has been due longest. While a missed card rests, new ones come
+ * in rather than known ones early, so that it still comes back after AGAIN_AFTER others
+ * and a card known for good stays away. Once every constellation is in play and nothing
+ * is due, the card due soonest is shown, so practice never stops. The card just shown
+ * waits a turn if another will do.
  * @param {Map<number, Card>} cards  constellations in play; new ones are added to it
  * @param {number[]} order  see introductionOrder
  * @param {(index: number) => boolean} inGoal  constellations to learn (seen from here)
@@ -113,7 +114,7 @@ export function nextCard(cards, order, inGoal, turn, now, last = -1) {
   };
   if (!inPlay().length) bringIn(START_CARDS);
   let list = due();
-  if (!list.length && waiting.length && inPlay().every((i) => cards.get(i).level >= 1)) {
+  if (!list.length && waiting.length) {
     bringIn(MORE_CARDS);
     list = due();
   }
