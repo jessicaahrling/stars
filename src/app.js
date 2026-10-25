@@ -93,6 +93,9 @@ export class App {
      */
     const tr = saved.training && typeof saved.training === 'object' ? saved.training : {};
     this.training = { on: tr.on === true, cards: new Map(), turn: 0, card: -1, step: 1, stars: null, below: false };
+    /** Once a card is named, its lines and drawing can be turned on and off to learn the shape. */
+    this.training.showLines = tr.lines !== false;
+    this.training.showArt = tr.art !== false;
     if (tr.v === 2 && Number.isInteger(tr.turn) && tr.turn >= 0) this.training.turn = tr.turn;
     for (const entry of Array.isArray(tr.cards) ? tr.cards : []) {
       const [cid, ...rest] = Array.isArray(entry) ? entry : [];
@@ -521,6 +524,17 @@ export class App {
     this.nextTrainingCard();
   }
 
+  /** Turns the named card's lines ('lines') or drawing ('art') on or off; the choice stays for later cards. */
+  toggleTrainingView(part) {
+    const t = this.training;
+    if (part === 'lines') t.showLines = !t.showLines;
+    else if (part === 'art') t.showArt = !t.showArt;
+    else return;
+    this.invalidate();
+    this.trainPanel.render();
+    this.saveSoon();
+  }
+
   restartTraining() {
     this.training.cards.clear();
     this.training.turn = 0;
@@ -775,6 +789,13 @@ export class App {
         this.answerTraining(answer);
         return;
       }
+      // L and B turn the named card's lines and drawing (bild) on and off.
+      const part = { l: 'lines', b: 'art' }[e.key.toLowerCase()];
+      if (part && tr.step === 3) {
+        e.preventDefault();
+        this.toggleTrainingView(part);
+        return;
+      }
     }
     const step = e.shiftKey ? 15 : 4;
     const v = this.view;
@@ -928,6 +949,8 @@ export class App {
           v: 2,
           on: this.training.on,
           turn: this.training.turn,
+          lines: this.training.showLines,
+          art: this.training.showArt,
           cards: [...this.training.cards].map(([i, c]) => [this.catalog.constellations[i].id, c.level, c.dueTurn, c.dueAt, c.n]),
         },
       });
@@ -994,7 +1017,14 @@ export class App {
     v.update();
     // While training, the sky shows the card and nothing else: no marks, tints or hover.
     const t = this.training;
-    const quiz = t.on && t.card >= 0 ? { target: t.card, step: t.step, stars: t.stars } : null;
+    const quiz = t.on && t.card >= 0 ? {
+      target: t.card,
+      step: t.step,
+      stars: t.stars,
+      // Lines from the second step; once named, lines and drawing as the learner has them.
+      lines: t.step === 2 || (t.step === 3 && t.showLines),
+      art: t.step === 3 && t.showArt,
+    } : null;
     if (this.maskDirty) {
       this.maskDirty = false;
       const tints = new Map();
@@ -1007,9 +1037,8 @@ export class App {
       selected: -1,
       hover: -1,
       groundOpaque: !this.seeThroughNow(),
-      // The illustration comes with the name.
-      artShown: (i) => quiz.step === 3 && i === quiz.target,
-      anyArt: quiz.step === 3,
+      artShown: (i) => quiz.art && i === quiz.target,
+      anyArt: quiz.art,
       reveal: null,
       recent: -1,
       avoid: this.labelObstacles(),

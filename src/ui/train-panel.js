@@ -20,6 +20,11 @@ export class TrainPanel {
     this.name = $('train-name');
     this.latin = $('train-latin');
     this.actions = $('train-actions');
+    this.view = $('train-view');
+    this.linesButton = $('btn-train-lines');
+    this.artButton = $('btn-train-art');
+    this.linesButton.addEventListener('click', () => app.toggleTrainingView('lines'));
+    this.artButton.addEventListener('click', () => app.toggleTrainingView('art'));
     this.restart = $('btn-train-restart');
     this.actionsKey = '';
     this.confirming = false;
@@ -95,6 +100,9 @@ export class TrainPanel {
       this.prompt.replaceChildren(...(said ? [name] : []), prompt);
     }
     this.answer.hidden = !c || t.step < 3;
+    this.view.hidden = !c || t.step < 3;
+    this.linesButton.setAttribute('aria-pressed', String(t.showLines));
+    this.artButton.setAttribute('aria-pressed', String(t.showArt));
     if (c) {
       this.name.textContent = c.sv;
       this.latin.textContent = c.la;

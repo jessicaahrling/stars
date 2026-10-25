@@ -788,6 +788,7 @@ try {
   const unnamed = async (parts) => {
     assert.ok(parts.texts.every((text) => CARDINALS.test(text)), `nothing named on the sky: ${parts.texts}`);
     assert.equal(await quiz.isHidden('#train-answer'), true, 'the answer waits');
+    assert.equal(await quiz.isHidden('#train-view'), true, 'and so do the switches for lines and drawing');
     assert.doesNotMatch(await quiz.textContent('#train-prompt'), /Stora björnen|Ursa/);
   };
   const umaCard = () => quiz.evaluate(() => JSON.stringify(window.stjarnhimlen.training.cards.get(window.stjarnhimlen.catalog.byId.get('UMa').index)));
@@ -838,6 +839,17 @@ try {
   // Space never answers for the learner.
   await quiz.keyboard.press(' ');
   assert.deepEqual([(await quizState()).card, (await quizState()).step], ['UMa', 3]);
+  // Once named, its lines and drawing can be turned off and on to learn the shape (L, B).
+  await quiz.click('#btn-train-lines');
+  seenNow = await quizParts();
+  assert.deepEqual([seenNow.segments, seenNow.art, seenNow.names], [[], ['UMa'], ['UMa']], 'lines off; drawing and name stay');
+  await quiz.keyboard.press('b');
+  seenNow = await quizParts();
+  assert.deepEqual([seenNow.segments, seenNow.art, seenNow.names], [[], [], ['UMa']], 'drawing off too: the bare stars, named');
+  await quiz.keyboard.press('l');
+  seenNow = await quizParts();
+  assert.deepEqual([seenNow.segments, seenNow.art], [['UMa'], []]);
+  assert.deepEqual(await quiz.$$eval('#train-view button', (els) => els.map((e) => `${e.textContent}:${e.getAttribute('aria-pressed')}`)), ['Linjer:true', 'Bild:false']);
 
   // Answers: 2 is "Kan för tillfället", and the next card comes; "Visa svaret" goes
   // straight to the name. A miss ("Fel") comes back after two other cards.
@@ -847,6 +859,10 @@ try {
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   assert.equal((await quizState()).step, 3);
   assert.deepEqual(await quiz.$$eval('#train-actions button', (els) => els.map((e) => e.textContent)), ['Fel', 'Kan för tillfället', 'Kan permanent']);
+  assert.equal(await quiz.getAttribute('#btn-train-art', 'aria-pressed'), 'false', 'the choice of drawing stays for the next card');
+  assert.deepEqual((await quizParts()).art, []);
+  await quiz.click('#btn-train-art');
+  assert.deepEqual((await quizParts()).art, ['Cas']);
   await quiz.click('#train-actions button:has-text("Fel")');
   assert.equal((await quizState()).card, 'Ori');
   // A touch during the flight to the next card lands it rather than stopping halfway.

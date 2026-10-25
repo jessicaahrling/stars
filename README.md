@@ -29,7 +29,9 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   "Börja om" tar två tryck.
 - **Träna:** flashcards med spaced repetition. En stjärnbild visas först med bara sina
   stjärnor (de runtomkring dämpas), ett tryck visar linjerna och nästa namnet och
-  illustrationen. Sedan svarar man **Fel**, **Kan för tillfället** eller **Kan permanent**
+  illustrationen. När namnet visas kan man slå av och på linjerna och bilden (knapparna
+  Linjer och Bild, eller tangenterna L och B) för att lära sig formen; valet gäller även
+  nästa kort. Sedan svarar man **Fel**, **Kan för tillfället** eller **Kan permanent**
   (eller tangenterna 1, 2 och 3; mellanslag visar nästa steg). Man börjar med fyra, Stora
   björnen, Cassiopeja, Orion och Svanen, och två nya kommer in så fort alla som är i spel
   är kända och ingen väntar på repetition, tills man kan alla som syns från vald ort.

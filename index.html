@@ -175,6 +175,7 @@
     .train-name { font-size: 24px; font-weight: 500; letter-spacing: 0.02em; line-height: 1.15; }
     .train-answer .latin { font-family: var(--font-latin); font-style: italic; font-size: 17px; color: var(--ink-2); }
     .train-actions .chip { min-height: 38px; padding: 0 14px; font-size: 14px; }
+    .train-view { display: flex; flex-wrap: wrap; gap: 6px; }
 
     .card { position: fixed; z-index: 4; left: 50%; transform: translateX(-50%);
       bottom: calc(var(--bottom) + 60px); width: min(430px, calc(100vw - 32px)); box-sizing: border-box;
@@ -342,6 +343,10 @@
     <div class="discover-body">
       <p id="train-prompt" class="discover-hint" aria-live="polite"></p>
       <p id="train-answer" class="train-answer" tabindex="-1" hidden><span id="train-name" class="train-name"></span> <span id="train-latin" class="latin"></span></p>
+      <div id="train-view" class="train-view" role="group" aria-label="Visa på himlen" hidden>
+        <button id="btn-train-lines" type="button" class="chip toggle" aria-pressed="true" title="Tangent L">Linjer</button>
+        <button id="btn-train-art" type="button" class="chip toggle" aria-pressed="true" title="Tangent B">Bild</button>
+      </div>
       <div id="train-actions" class="discover-next train-actions" role="group" aria-label="Nästa steg"></div>
       <div class="discover-foot">
         <button id="btn-train-restart" type="button" class="chip">Börja om</button>

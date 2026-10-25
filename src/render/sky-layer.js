@@ -68,7 +68,7 @@ export class SkyLayer {
    *   next, 0 hidden), stars: Uint8Array per star (1 shown)}, otherwise null; recent (the
    *   constellation found last) and avoid (screen boxes names keep clear of) are for the HUD;
    *   quiz while training: {target, step (1 stars, 2 lines, 3 name), stars: Uint8Array per
-   *   star (1 for the target's)}, otherwise null
+   *   star (1 for the target's), lines and art: whether to draw them}, otherwise null
    */
   render(view, st) {
     const { ctx, catalog } = this;
@@ -128,9 +128,9 @@ export class SkyLayer {
     ctx.globalAlpha = 1;
     ctx.setLineDash([]);
 
-    // Stick figures (while training, only the target's, from the second step)
+    // Stick figures (while training, only the target's, when the card shows them)
     ctx.lineCap = 'round';
-    if (st.quiz && st.quiz.step >= 2) {
+    if (st.quiz && st.quiz.lines) {
       ctx.lineWidth = 2;
       ctx.strokeStyle = SELECT_COLOR.hex;
       ctx.shadowColor = SELECT_COLOR.hex;
