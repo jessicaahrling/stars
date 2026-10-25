@@ -96,6 +96,8 @@ export class App {
     /** Once a card is named, its lines and drawing can be turned on and off to learn the shape. */
     this.training.showLines = tr.lines !== false;
     this.training.showArt = tr.art !== false;
+    /** Whether the story under a named card is open: at first only where it leaves room for the sky. */
+    this.training.showStory = typeof tr.story === 'boolean' ? tr.story : window.innerWidth > 640;
     if (tr.v === 2 && Number.isInteger(tr.turn) && tr.turn >= 0) this.training.turn = tr.turn;
     for (const entry of Array.isArray(tr.cards) ? tr.cards : []) {
       const [cid, ...rest] = Array.isArray(entry) ? entry : [];
@@ -535,6 +537,13 @@ export class App {
     this.saveSoon();
   }
 
+  setTrainingStory(open) {
+    if (this.training.showStory === open) return;
+    this.training.showStory = open;
+    this.layoutChanged();
+    this.saveSoon();
+  }
+
   restartTraining() {
     this.training.cards.clear();
     this.training.turn = 0;
@@ -951,6 +960,7 @@ export class App {
           turn: this.training.turn,
           lines: this.training.showLines,
           art: this.training.showArt,
+          story: this.training.showStory,
           cards: [...this.training.cards].map(([i, c]) => [this.catalog.constellations[i].id, c.level, c.dueTurn, c.dueAt, c.n]),
         },
       });

@@ -176,6 +176,15 @@
     .train-answer .latin { font-family: var(--font-latin); font-style: italic; font-size: 17px; color: var(--ink-2); }
     .train-actions .chip { min-height: 38px; padding: 0 14px; font-size: 14px; }
     .train-view { display: flex; flex-wrap: wrap; gap: 6px; }
+    /* The story: in the card laid out like the facts, in the training panel like its hints. */
+    .story { display: grid; gap: 6px; }
+    .story p { margin: 0; }
+    .story-origin { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .story-origin b { font-weight: 600; }
+    .train-story { min-height: 0; overflow-y: auto; flex: 0 1 auto; }
+    .train-story summary { cursor: pointer; font-weight: 500; }
+    .train-story .story { margin-top: 8px; }
+    .card { max-height: calc(100% - var(--top) - var(--bottom) - 130px); overflow-y: auto; }
 
     .card { position: fixed; z-index: 4; left: 50%; transform: translateX(-50%);
       bottom: calc(var(--bottom) + 60px); width: min(430px, calc(100vw - 32px)); box-sizing: border-box;
@@ -348,6 +357,14 @@
         <button id="btn-train-art" type="button" class="chip toggle" aria-pressed="true" title="Tangent B">Bild</button>
       </div>
       <div id="train-actions" class="discover-next train-actions" role="group" aria-label="Nästa steg"></div>
+      <details id="train-story" class="train-story" hidden>
+        <summary id="train-story-title" class="discover-hint"></summary>
+        <div class="story">
+          <p id="train-story-origin" class="discover-hint story-origin"></p>
+          <p id="train-story-text" class="discover-hint"></p>
+          <p class="discover-hint"><b>Speciellt:</b> <span id="train-story-special"></span></p>
+        </div>
+      </details>
       <div class="discover-foot">
         <button id="btn-train-restart" type="button" class="chip">Börja om</button>
         <button id="btn-train-exit" type="button" class="chip">Sluta träna</button>

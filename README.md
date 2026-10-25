@@ -31,8 +31,10 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   stjärnor (de runtomkring dämpas), ett tryck visar linjerna och nästa namnet och
   illustrationen. När namnet visas kan man slå av och på linjerna och bilden (knapparna
   Linjer och Bild, eller tangenterna L och B) för att lära sig formen; valet gäller även
-  nästa kort. Sedan svarar man **Fel**, **Kan för tillfället** eller **Kan permanent**
-  (eller tangenterna 1, 2 och 3; mellanslag visar nästa steg). Man börjar med fyra, Stora
+  nästa kort. Under namnet står en kort berättelse om stjärnbilden, som kan fällas ihop
+  (på en mobil börjar den hopfälld så att himlen syns). Sedan svarar man **Fel**, **Kan
+  för tillfället** eller **Kan permanent** (eller tangenterna 1, 2 och 3; mellanslag visar
+  nästa steg). Man börjar med fyra, Stora
   björnen, Cassiopeja, Orion och Svanen, och två nya kommer in så fort alla som är i spel
   är kända och ingen väntar på repetition, tills man kan alla som syns från vald ort.
   Vilan räknas i antal visade kort: ett fel kommer tillbaka efter två andra, "kan för
@@ -65,6 +67,11 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
 - **Infokort:** välj en stjärnbild i listan så vänder sig vyn dit och ett kort visar var
   den står nu, när den går upp, står högst och går ner, om den är cirkumpolär, vilken
   månad den står högst på kvällen och dess ljusstarkaste stjärna.
+- **Berättelser:** en kort text om var och en av de 88 stjärnbilderna: vilken mytologi
+  eller vilken astronom den kommer från, vem eller vad den föreställer och vad som är
+  speciellt med den, som klara stjärnor, galaxer och stjärnhopar. Den står på infokortet
+  och under namnet när man tränar. Texterna är skrivna för appen och faktagranskade, och
+  stjärnnamnen är desamma som på himlen i appen (`src/data/stories-sv.js`).
 
 Inställningar och markeringar sparas i webbläsaren.
 
@@ -76,7 +83,7 @@ src/sky/        stjärnkatalog, stjärnbildsgränser och grannar, kamera och pro
 src/render/     WebGL (himmel, Vintergatan, mark) och 2D-canvas (stjärnor, linjer, namn)
 src/ui/         listan, infokortet, plats/tid-panelen, upptäck-panelen, designlistan, gester
 src/themes/     designerna, en stilmall per design
-src/data/       svenska namn, orter och genererad stjärn- och bilddata
+src/data/       svenska namn, berättelser, orter och genererad stjärn- och bilddata
 art/            illustrationerna, en SVG per stjärnbild (se art/STYLE.md)
 scripts/        bygge, datagenerering och verktyg för illustrationerna och designerna
 test/           enhetstester (node --test) och ett webbläsartest (Playwright)

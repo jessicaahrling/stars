@@ -1,5 +1,6 @@
 // "Träna": the card being practised, the buttons for each step and the progress. The
 // panel uses the Upptäck panel's classes, so that every design styles both alike.
+import { STORIES } from '../data/stories-sv.js';
 
 export class TrainPanel {
   /**
@@ -21,6 +22,14 @@ export class TrainPanel {
     this.latin = $('train-latin');
     this.actions = $('train-actions');
     this.view = $('train-view');
+    this.story = $('train-story');
+    this.storyTitle = $('train-story-title');
+    this.storyOrigin = $('train-story-origin');
+    this.storyText = $('train-story-text');
+    this.storySpecial = $('train-story-special');
+    // Open or folded up, as the learner left it.
+    this.story.open = app.training.showStory;
+    this.story.addEventListener('toggle', () => app.setTrainingStory(this.story.open));
     this.linesButton = $('btn-train-lines');
     this.artButton = $('btn-train-art');
     this.linesButton.addEventListener('click', () => app.toggleTrainingView('lines'));
@@ -101,6 +110,14 @@ export class TrainPanel {
     }
     this.answer.hidden = !c || t.step < 3;
     this.view.hidden = !c || t.step < 3;
+    const story = c && STORIES[c.id];
+    this.story.hidden = !story || t.step < 3;
+    if (story) {
+      this.storyTitle.textContent = `Om ${c.sv}`;
+      this.storyOrigin.textContent = story.origin;
+      this.storyText.textContent = story.story;
+      this.storySpecial.textContent = story.special;
+    }
     this.linesButton.setAttribute('aria-pressed', String(t.showLines));
     this.artButton.setAttribute('aria-pressed', String(t.showArt));
     if (c) {

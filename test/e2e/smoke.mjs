@@ -254,6 +254,8 @@ try {
   await page.click('#con-list li:not([hidden]) .con-name');
   await page.waitForFunction(() => document.querySelector('#card h3')?.textContent === 'Lejonet');
   assert.match(await page.textContent('#card .facts'), /Uppe nu/);
+  // Under the facts, a short story: where it comes from, who it is, what stands out.
+  assert.match(await page.textContent('#card .story'), /^Grekisk mytologi.*nemeiska lejonet.*Speciellt: .*Regulus/);
 
   await page.fill('#search', '');
   const before = await page.textContent('#filter-count');
@@ -789,6 +791,7 @@ try {
     assert.ok(parts.texts.every((text) => CARDINALS.test(text)), `nothing named on the sky: ${parts.texts}`);
     assert.equal(await quiz.isHidden('#train-answer'), true, 'the answer waits');
     assert.equal(await quiz.isHidden('#train-view'), true, 'and so do the switches for lines and drawing');
+    assert.equal(await quiz.isHidden('#train-story'), true, 'and its story');
     assert.doesNotMatch(await quiz.textContent('#train-prompt'), /Stora björnen|Ursa/);
   };
   const umaCard = () => quiz.evaluate(() => JSON.stringify(window.stjarnhimlen.training.cards.get(window.stjarnhimlen.catalog.byId.get('UMa').index)));
@@ -850,6 +853,13 @@ try {
   seenNow = await quizParts();
   assert.deepEqual([seenNow.segments, seenNow.art], [['UMa'], []]);
   assert.deepEqual(await quiz.$$eval('#train-view button', (els) => els.map((e) => `${e.textContent}:${e.getAttribute('aria-pressed')}`)), ['Linjer:true', 'Bild:false']);
+  // Its story is open below, and can be folded away.
+  assert.deepEqual(await quiz.evaluate(() => [document.querySelector('#train-story').open, document.querySelector('#train-story-title').textContent]), [true, 'Om Stora björnen']);
+  assert.match(await quiz.textContent('#train-story-origin'), /^Grekisk mytologi$/);
+  assert.match(await quiz.textContent('#train-story-text'), /Kallisto/);
+  assert.match(await quiz.textContent('#train-story-special'), /Karlavagnen/);
+  await quiz.click('#train-story summary');
+  await quiz.waitForFunction(() => window.stjarnhimlen.training.showStory === false);
 
   // Answers: 2 is "Kan för tillfället", and the next card comes; "Visa svaret" goes
   // straight to the name. A miss ("Fel") comes back after two other cards.
@@ -860,6 +870,9 @@ try {
   assert.equal((await quizState()).step, 3);
   assert.deepEqual(await quiz.$$eval('#train-actions button', (els) => els.map((e) => e.textContent)), ['Fel', 'Kan för tillfället', 'Kan permanent']);
   assert.equal(await quiz.getAttribute('#btn-train-art', 'aria-pressed'), 'false', 'the choice of drawing stays for the next card');
+  assert.deepEqual(await quiz.evaluate(() => [document.querySelector('#train-story').open, document.querySelector('#train-story-title').textContent]), [false, 'Om Cassiopeja'], 'and so does the folded story');
+  assert.match(await quiz.textContent('#train-story-text'), /Andromeda/);
+  await quiz.click('#train-story summary');
   assert.deepEqual((await quizParts()).art, []);
   await quiz.click('#btn-train-art');
   assert.deepEqual((await quizParts()).art, ['Cas']);
@@ -920,6 +933,7 @@ try {
   q = await quizState();
   assert.deepEqual([q.on, q.inPlay, q.panel, q.step], [true, 6, true, 1]);
   assert.equal(await learnt(), learntBefore);
+  assert.equal(await quiz.evaluate(() => window.stjarnhimlen.training.showStory), true, 'the story stays open');
 
   // Progress saved by the first version still loads: what was known stays known for now.
   await quiz.evaluate(() => {
@@ -966,6 +980,10 @@ try {
   await phoneQuiz.mouse.click(195, 600);
   assert.equal(await phoneQuiz.evaluate(() => window.stjarnhimlen.training.step), 2);
   await phoneQuiz.screenshot({ path: path.join(shots, 'phone-training.png') });
+  // Named, its story waits folded, so that the panel leaves the sky in view.
+  await phoneQuiz.mouse.click(195, 600);
+  await settle(phoneQuiz);
+  assert.deepEqual(await phoneQuiz.evaluate(() => [window.stjarnhimlen.training.step, document.querySelector('#train-story').hidden, document.querySelector('#train-story').open]), [3, false, false]);
 
   // "Design": a list of interface designs. Each one is put on the page when chosen, keeps
   // the layout in one piece on a desktop and a phone, and is remembered.

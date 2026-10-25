@@ -1,6 +1,7 @@
 // Card about the selected constellation: where it is now and when to look for it.
 import { compassName } from '../astro/frames.js';
 import { MARK_COLORS, SELECT_COLOR } from '../render/palette.js';
+import { STORIES } from '../data/stories-sv.js';
 import { constellationFacts } from '../sky/facts.js';
 import { formatClock, formatNumber, MONTHS } from './format.js';
 
@@ -13,6 +14,16 @@ function el(tag, attrs = {}, ...children) {
   }
   e.append(...children);
   return e;
+}
+
+/** Where a constellation comes from, who it is and what stands out, laid out like the facts. */
+export function storyOf(c) {
+  const s = STORIES[c.id];
+  if (!s) return [];
+  return [el('div', { class: 'facts story' },
+    el('div', { class: 'story-origin' }, el('b', {}, s.origin)),
+    el('div', {}, s.story),
+    el('div', {}, el('b', {}, 'Speciellt: '), s.special))];
 }
 
 export class InfoCard {
@@ -117,6 +128,7 @@ export class InfoCard {
         el('div', { class: 'titles' }, el('h3', {}, c.sv), el('div', { class: 'latin' }, c.la)),
         el('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Stäng', onclick: () => app.select(-1) }, '×')),
       facts,
+      ...storyOf(c),
       buttons);
     if (card.innerHTML !== this.html) {
       this.html = card.innerHTML;
