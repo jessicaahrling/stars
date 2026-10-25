@@ -12,7 +12,7 @@ import { buildCatalog } from './sky/catalog.js';
 import { discoveryState, START_ID } from './sky/discovery.js';
 import { figureState } from './sky/facts.js';
 import { findNeighbours } from './sky/neighbours.js';
-import { grade, INTERVALS, introductionOrder, nextCard, trainingProgress } from './sky/training.js';
+import { grade, introductionOrder, nextCard, NOW_AFTER, PERMANENT, trainingProgress } from './sky/training.js';
 import { MAX_FOV, MIN_FOV, SkyView } from './sky/view.js';
 import { DiscoverPanel } from './ui/discover-panel.js';
 import { ThemePanel } from './ui/theme-panel.js';
@@ -86,17 +86,29 @@ export class App {
     this.discovery.found.add(this.catalog.byId.get(START_ID).index);
     this.neighbours = findNeighbours(this.catalog.constellations);
     /**
-     * "Träna": flashcards with spaced repetition. cards maps the constellations in play to
-     * their Leitner box, when they are due (ms) and how often they have been answered;
-     * card is the one shown and step how far it is revealed (1 stars, 2 lines, 3 name).
+     * "Träna": flashcards with spaced repetition (see sky/training.js). cards maps the
+     * constellations in play to their level, when they are due and how often they have been
+     * answered; turn counts the answers; card is the one shown and step how far it is
+     * revealed (1 stars, 2 lines, 3 name).
      */
     const tr = saved.training && typeof saved.training === 'object' ? saved.training : {};
-    this.training = { on: tr.on === true, cards: new Map(), card: -1, step: 1, stars: null, below: false };
+    this.training = { on: tr.on === true, cards: new Map(), turn: 0, card: -1, step: 1, stars: null, below: false };
+    if (tr.v === 2 && Number.isInteger(tr.turn) && tr.turn >= 0) this.training.turn = tr.turn;
     for (const entry of Array.isArray(tr.cards) ? tr.cards : []) {
-      const [cid, box, due, n] = Array.isArray(entry) ? entry : [];
+      const [cid, ...rest] = Array.isArray(entry) ? entry : [];
       const c = this.catalog.byId.get(cid);
-      if (c && Number.isInteger(box) && box >= 0 && box < INTERVALS.length && Number.isFinite(due)) {
-        this.training.cards.set(c.index, { box, due, n: Number.isInteger(n) ? n : 1 });
+      if (!c) continue;
+      if (tr.v === 2) {
+        const [level, dueTurn, dueAt, n] = rest;
+        const levelOk = level === PERMANENT || (Number.isInteger(level) && level >= 0 && level <= NOW_AFTER.length);
+        if (levelOk && Number.isInteger(dueTurn) && (dueAt === null || Number.isFinite(dueAt))) {
+          this.training.cards.set(c.index, { level, dueTurn, dueAt, n: Number.isInteger(n) ? n : 1 });
+        }
+      } else {
+        // Saved by the first version (Leitner boxes in minutes and days): what was known
+        // stays known for now, and everything is due again.
+        const [box, , n] = rest;
+        if (Number.isInteger(box)) this.training.cards.set(c.index, { level: box >= 2 ? 1 : 0, dueTurn: 0, dueAt: null, n: Number.isInteger(n) ? n : 1 });
       }
     }
     this.trainOrder = introductionOrder(this.catalog.constellations, this.catalog.stars.mag);
@@ -477,7 +489,7 @@ export class App {
     const t = this.training;
     t.card = again >= 0 && this.trainInGoal(again)
       ? again
-      : nextCard(t.cards, this.trainOrder, (i) => this.trainInGoal(i), Date.now(), t.card);
+      : nextCard(t.cards, this.trainOrder, (i) => this.trainInGoal(i), t.turn, Date.now(), t.card);
     t.step = 1;
     this.trainingChanged();
     if (t.card >= 0) this.flyTo(t.card, { instant });
@@ -500,16 +512,18 @@ export class App {
     this.trainingChanged();
   }
 
-  /** Records how the card went ('again', 'good' or 'easy') and goes on to the next one. */
+  /** Records how the card went ('again', 'now' or 'permanent') and goes on to the next one. */
   answerTraining(answer) {
     const t = this.training;
     if (!t.on || t.card < 0) return;
-    t.cards.set(t.card, grade(t.cards.get(t.card), answer, Date.now()));
+    t.cards.set(t.card, grade(t.cards.get(t.card), answer, t.turn, Date.now()));
+    t.turn++;
     this.nextTrainingCard();
   }
 
   restartTraining() {
     this.training.cards.clear();
+    this.training.turn = 0;
     this.training.card = -1;
     this.nextTrainingCard();
   }
@@ -747,10 +761,10 @@ export class App {
       t.blur();
       if (t.type !== 'radio') return;
     }
-    // Training: Space shows the next step, 1 2 3 answer wrong, right and easy.
+    // Training: Space shows the next step; 1, 2 and 3 answer Fel, Kan för tillfället and Kan permanent.
     const tr = this.training;
     if (tr.on && tr.card >= 0 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      const answer = { 1: 'again', 2: 'good', 3: 'easy' }[e.key];
+      const answer = { 1: 'again', 2: 'now', 3: 'permanent' }[e.key];
       if (e.key === ' ' && tr.step < 3 && !(t && t.closest && t.closest('button'))) {
         e.preventDefault();
         this.advanceTraining();
@@ -911,8 +925,10 @@ export class App {
         onlyVisible: this.list.onlyVisible,
         theme: this.theme,
         training: {
+          v: 2,
           on: this.training.on,
-          cards: [...this.training.cards].map(([i, c]) => [this.catalog.constellations[i].id, c.box, c.due, c.n]),
+          turn: this.training.turn,
+          cards: [...this.training.cards].map(([i, c]) => [this.catalog.constellations[i].id, c.level, c.dueTurn, c.dueAt, c.n]),
         },
       });
     }, 400);

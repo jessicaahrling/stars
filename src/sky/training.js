@@ -1,6 +1,12 @@
 // "Träna": flashcards with spaced repetition. A constellation is shown with its stars
-// only, then with its stick figure, then named, and the learner says how it went. Play
-// starts with a few striking constellations; more come in once those are known.
+// only, then with its stick figure, then named, and the learner says how it went:
+//   'again'      Fel                 back after AGAIN_AFTER other cards
+//   'now'        Kan för tillfället  known; back after more and more cards each time
+//   'permanent'  Kan permanent       known; back only now and then
+// Play starts with a few striking constellations, and more come in whenever nothing is
+// due and every card in play is known. Rests are counted in cards shown, so that play
+// moves on at the learner's pace, and in days too, so that old cards come back between
+// sessions.
 
 /** The first constellations to learn, in this order. After them the rest follow by prominence. */
 export const FIRST = ['UMa', 'Cas', 'Ori', 'Cyg', 'Leo', 'UMi', 'Lyr', 'Tau', 'Gem', 'Aur', 'Boo', 'Peg', 'Sco', 'Aql', 'Per', 'And', 'CMa', 'Dra', 'Her', 'Vir'];
@@ -9,13 +15,26 @@ export const FIRST = ['UMa', 'Cas', 'Ori', 'Cyg', 'Leo', 'UMi', 'Lyr', 'Tau', 'G
 export const START_CARDS = 4;
 export const MORE_CARDS = 2;
 
-/** A card in this box or higher counts as known: answered right at least twice in a row. */
-export const KNOWN_BOX = 2;
+/** Cards shown before a missed card comes back. */
+export const AGAIN_AFTER = 2;
+/** Cards shown before a card known for now comes back, by how many times in a row it has been known. */
+export const NOW_AFTER = [6, 15, 35, 80];
+/** Days after which a card known for now comes back however little has been played. */
+export const NOW_DAYS = [1, 3, 7, 21];
+/** Level of a card known for good, and how long it rests: in cards shown and in days. */
+export const PERMANENT = 9;
+export const PERMANENT_AFTER = 120;
+export const PERMANENT_DAYS = 45;
 
-const MINUTE = 60_000;
 const DAY = 86_400_000;
-/** How long a card rests after an answer, by the box it lands in (Leitner boxes). */
-export const INTERVALS = [0, MINUTE, 10 * MINUTE, DAY, 3 * DAY, 7 * DAY, 21 * DAY, 60 * DAY];
+
+/**
+ * @typedef {object} Card
+ * @property {number} level   0 not known (new or missed), 1-4 known for now, PERMANENT known for good
+ * @property {number} dueTurn the turn (cards shown so far) from which it is due
+ * @property {number | null} dueAt  the time (ms) from which it is due anyway, or null
+ * @property {number} n       how many times it has been answered
+ */
 
 /**
  * Order in which constellations come into play: FIRST, then by the label rank of the
@@ -36,65 +55,89 @@ export function introductionOrder(constellations, mag) {
 }
 
 /**
- * A card after an answer: 'again' sends it back to the first box, 'good' moves it one box
- * up and 'easy' two. A right answer before the card is due changes nothing but the count:
- * it keeps its box and its rest, so that a long session cannot push cards months ahead.
- * @param {{box: number, due: number, n: number} | undefined} card
- * @param {'again' | 'good' | 'easy'} answer
- * @param {number} now  ms
+ * A card after an answer.
+ * @param {Card | undefined} card
+ * @param {'again' | 'now' | 'permanent'} answer
+ * @param {number} turn  cards answered so far, this one not counted
+ * @param {number} now   ms
+ * @returns {Card}
  */
-export function grade(card, answer, now) {
+export function grade(card, answer, turn, now) {
   const n = (card ? card.n : 0) + 1;
-  if (answer !== 'again' && card && card.n > 0 && now < card.due) return { box: card.box, due: card.due, n };
-  const box = answer === 'again' ? 0 : Math.min(INTERVALS.length - 1, (card ? card.box : 0) + (answer === 'easy' ? 2 : 1));
-  return { box, due: now + INTERVALS[box], n };
+  if (answer === 'again') return { level: 0, dueTurn: turn + 1 + AGAIN_AFTER, dueAt: null, n };
+  if (answer === 'permanent') {
+    return { level: PERMANENT, dueTurn: turn + 1 + PERMANENT_AFTER, dueAt: now + PERMANENT_DAYS * DAY, n };
+  }
+  // Known for now: one level up each time, as far as the last; a card known for good that
+  // is only known for now again drops to the last level.
+  const from = card ? card.level : 0;
+  const level = from >= 1 ? Math.min(from + 1, NOW_AFTER.length) : 1;
+  return { level, dueTurn: turn + 1 + NOW_AFTER[level - 1], dueAt: now + NOW_DAYS[level - 1] * DAY, n };
+}
+
+/** Whether a card is due: enough cards have been shown since, or enough days have passed. */
+export function isDue(card, turn, now) {
+  return turn >= card.dueTurn || (card.dueAt !== null && now >= card.dueAt);
 }
 
 /**
- * Picks the card to show next. Constellations come into play START_CARDS at first and
- * MORE_CARDS at a time once every card in play is known; new cards are added to `cards`.
- * A card that was just missed comes back first, as soon as one other has been shown;
- * otherwise the card that has waited longest goes first, or, when none is due yet, the one
- * due soonest, so practice never has to stop. The card just shown waits a turn if it can.
- * @param {Map<number, {box: number, due: number, n: number}>} cards  constellations in play
+ * Picks the card to show next, and brings new constellations into play: START_CARDS at
+ * first, then MORE_CARDS at a time whenever nothing is due and every card in play is
+ * known. A missed card that is due goes first, then the card that has been due longest.
+ * When nothing is due and nothing new can come in (a card is still missed, or every
+ * constellation is in play), the card due soonest is shown, so practice never stops. The
+ * card just shown waits a turn if another will do.
+ * @param {Map<number, Card>} cards  constellations in play; new ones are added to it
  * @param {number[]} order  see introductionOrder
  * @param {(index: number) => boolean} inGoal  constellations to learn (seen from here)
- * @param {number} now  ms
+ * @param {number} turn  cards answered so far
+ * @param {number} now   ms
  * @param {number} last  the card just shown, or -1
  * @returns {number} a constellation index, or -1 when there is nothing to learn
  */
-export function nextCard(cards, order, inGoal, now, last = -1) {
+export function nextCard(cards, order, inGoal, turn, now, last = -1) {
   const inPlay = () => [...cards.keys()].filter(inGoal);
   const waiting = order.filter((i) => inGoal(i) && !cards.has(i));
-  const bringIn = (n) => {
-    for (const i of waiting.slice(0, n)) cards.set(i, { box: 0, due: now, n: 0 });
+  const bringIn = (count) => {
+    for (const i of waiting.splice(0, count)) cards.set(i, { level: 0, dueTurn: turn, dueAt: null, n: 0 });
+  };
+  const pool = () => {
+    const play = inPlay();
+    return play.length > 1 ? play.filter((i) => i !== last) : play;
+  };
+  const earliest = (list) => list.reduce((a, b) => (cards.get(b).dueTurn < cards.get(a).dueTurn ? b : a));
+  const due = () => {
+    const list = pool().filter((i) => isDue(cards.get(i), turn, now));
+    const missed = list.filter((i) => cards.get(i).level === 0 && cards.get(i).n > 0);
+    return missed.length ? missed : list;
   };
   if (!inPlay().length) bringIn(START_CARDS);
-  else if (waiting.length && inPlay().every((i) => cards.get(i).box >= KNOWN_BOX)) bringIn(MORE_CARDS);
-  const play = inPlay();
-  if (!play.length) return -1;
-  const pool = play.length > 1 ? play.filter((i) => i !== last) : play;
-  const missed = pool.filter((i) => {
-    const c = cards.get(i);
-    return c.box === 0 && c.n > 0 && c.due <= now;
-  });
-  return (missed.length ? missed : pool).reduce((a, b) => (cards.get(b).due < cards.get(a).due ? b : a));
+  let list = due();
+  if (!list.length && waiting.length && inPlay().every((i) => cards.get(i).level >= 1)) {
+    bringIn(MORE_CARDS);
+    list = due();
+  }
+  if (list.length) return earliest(list);
+  const rest = pool();
+  return rest.length ? earliest(rest) : -1;
 }
 
 /**
- * @returns {{goal: number, inPlay: number, known: number, done: boolean}}
+ * @returns {{goal: number, inPlay: number, known: number, permanent: number, done: boolean}}
  */
 export function trainingProgress(cards, inGoal, count) {
   let goal = 0;
   let inPlay = 0;
   let known = 0;
+  let permanent = 0;
   for (let i = 0; i < count; i++) {
     if (!inGoal(i)) continue;
     goal++;
     const card = cards.get(i);
     if (!card) continue;
     inPlay++;
-    if (card.box >= KNOWN_BOX) known++;
+    if (card.level >= 1) known++;
+    if (card.level === PERMANENT) permanent++;
   }
-  return { goal, inPlay, known, done: goal > 0 && known === goal };
+  return { goal, inPlay, known, permanent, done: goal > 0 && known === goal };
 }

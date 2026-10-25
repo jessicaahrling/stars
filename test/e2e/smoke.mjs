@@ -834,23 +834,25 @@ try {
   assert.deepEqual([seenNow.segments, seenNow.names, seenNow.art], [['UMa'], ['UMa'], ['UMa']], 'a tap shows the name and the drawing');
   assert.equal(await quiz.textContent('#train-name'), 'Stora björnen');
   assert.equal(await quiz.isVisible('#train-answer'), true);
-  assert.match(await quiz.textContent('#train-prompt'), /^Det var Stora björnen \(Ursa Major\)\. Hade du rätt\?$/);
+  assert.match(await quiz.textContent('#train-prompt'), /^Det var Stora björnen \(Ursa Major\)\. Kunde du den\?$/);
   // Space never answers for the learner.
   await quiz.keyboard.press(' ');
   assert.deepEqual([(await quizState()).card, (await quizState()).step], ['UMa', 3]);
 
-  // Answers: 2 is right, and the next card comes; "Visa svaret" goes straight to the name.
+  // Answers: 2 is "Kan för tillfället", and the next card comes; "Visa svaret" goes
+  // straight to the name. A miss ("Fel") comes back after two other cards.
   await quiz.keyboard.press('2');
   await settle(quiz);
   assert.deepEqual(await quizState(), { on: true, card: 'Cas', step: 1, inPlay: 4, panel: true, discovering: false });
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   assert.equal((await quizState()).step, 3);
+  assert.deepEqual(await quiz.$$eval('#train-actions button', (els) => els.map((e) => e.textContent)), ['Fel', 'Kan för tillfället', 'Kan permanent']);
   await quiz.click('#train-actions button:has-text("Fel")');
   assert.equal((await quizState()).card, 'Ori');
   // A touch during the flight to the next card lands it rather than stopping halfway.
   const flight = await quiz.evaluate(() => {
     const a = window.stjarnhimlen;
-    a.answerTraining('good');
+    a.answerTraining('now');
     const to = a.anim && { ...a.anim.to };
     const el = a.hudCanvas;
     el.setPointerCapture = () => {};
@@ -860,19 +862,23 @@ try {
     send('pointerup');
     return { to, az: a.view.az, alt: a.view.alt, step: a.training.step, anim: a.anim };
   });
-  assert.ok(flight.to && Math.abs(flight.az - flight.to.az) < 1e-6 && Math.abs(flight.alt - flight.to.alt) < 1e-6, 'the flight flight');
+  assert.ok(flight.to && Math.abs(flight.az - flight.to.az) < 1e-6 && Math.abs(flight.alt - flight.to.alt) < 1e-6, 'the flight landed');
   assert.deepEqual([flight.step, flight.anim], [1, null], 'and the touch did not count as a tap');
-  assert.equal((await quizState()).card, 'Cas', 'a missed card comes back after one other');
+  assert.equal((await quizState()).card, 'Cyg');
+  await quiz.evaluate(() => window.stjarnhimlen.answerTraining('now'));
+  assert.equal((await quizState()).card, 'Cas', 'the missed card comes back after two others');
 
-  // Two more come in once the four in play are known. Cards move up only when due, so the
-  // clock is moved on between answers.
-  for (let k = 1; k <= 14 && (await quizState()).inPlay === 4; k++) {
-    await quiz.evaluate((ms) => window.setTestNow(ms), Date.UTC(2026, 0, 15, 21, 0) + k * 61_000);
-    await quiz.evaluate(() => window.stjarnhimlen.answerTraining('good'));
-  }
+  // Two more come in as soon as the four in play are known and none is due.
+  await quiz.evaluate(() => window.stjarnhimlen.answerTraining('now'));
   let q = await quizState();
-  assert.equal(q.inPlay, 6);
+  assert.deepEqual([q.inPlay, q.card], [6, 'Leo']);
   assert.match(await quiz.textContent('#train-count'), /^4 av 57$/);
+  // "Kan permanent" counts it as known for good.
+  await quiz.click('#train-actions button:has-text("Visa svaret")');
+  await quiz.click('#train-actions button:has-text("Kan permanent")');
+  assert.match(await quiz.textContent('#train-count'), /^5 av 57$/);
+  assert.match(await quiz.textContent('#train-of'), /^kan du · 1 permanent · 6 i spel$/);
+  q = await quizState();
 
   // "Upptäck" takes over and keeps its own progress; "Träna" comes back to the same card.
   const cardBefore = q.card;
@@ -886,17 +892,28 @@ try {
   q = await quizState();
   assert.deepEqual([q.on, q.card, q.step], [true, cardBefore, 1]);
 
-  // What is learnt is remembered, boxes and all.
+  // What is learnt is remembered, levels, rests and all.
   await quiz.waitForFunction(() => {
     const saved = JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').training;
-    return saved?.on === true && saved.cards.length === 6;
+    return saved?.v === 2 && saved.on === true && saved.cards.length === 6 && saved.turn === window.stjarnhimlen.training.turn;
   });
-  const cardsBefore = await quiz.evaluate(() => JSON.stringify([...window.stjarnhimlen.training.cards]));
+  const learnt = () => quiz.evaluate(() => JSON.stringify([window.stjarnhimlen.training.turn, ...window.stjarnhimlen.training.cards]));
+  const learntBefore = await learnt();
   await quiz.reload();
   await quiz.waitForFunction(() => window.stjarnhimlen);
   q = await quizState();
   assert.deepEqual([q.on, q.inPlay, q.panel, q.step], [true, 6, true, 1]);
-  assert.equal(await quiz.evaluate(() => JSON.stringify([...window.stjarnhimlen.training.cards])), cardsBefore);
+  assert.equal(await learnt(), learntBefore);
+
+  // Progress saved by the first version still loads: what was known stays known for now.
+  await quiz.evaluate(() => {
+    clearTimeout(window.stjarnhimlen.saveTimer);
+    localStorage.setItem('stjarnhimlen:v1', JSON.stringify({ training: { on: true, cards: [['UMa', 3, 0, 4], ['Cas', 1, 0, 2]] } }));
+  });
+  await quiz.reload();
+  await quiz.waitForFunction(() => window.stjarnhimlen);
+  assert.deepEqual(await quiz.evaluate(() => [...window.stjarnhimlen.training.cards].map(([i, c]) => [window.stjarnhimlen.catalog.constellations[i].id, c.level])), [['UMa', 1], ['Cas', 0]]);
+  assert.equal((await quizState()).card, 'Cas', 'the one not known yet comes first');
 
   // A card below the horizon is shown through see-through ground, without changing the
   // setting, and stays in view when the time changes. Leaving training lifts the view

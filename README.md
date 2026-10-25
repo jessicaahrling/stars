@@ -29,15 +29,16 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   "Börja om" tar två tryck.
 - **Träna:** flashcards med spaced repetition. En stjärnbild visas först med bara sina
   stjärnor (de runtomkring dämpas), ett tryck visar linjerna och nästa namnet och
-  illustrationen. Sedan svarar man Fel, Rätt eller Lätt (eller tangenterna 1, 2 och 3;
-  mellanslag visar nästa steg). Man börjar med fyra, Stora björnen, Cassiopeja, Orion och
-  Svanen, och får två nya när man kan alla som är i spel, tills man kan alla som syns från
-  vald ort. Ett rätt svar flyttar stjärnbilden till en låda med längre vila (1 minut,
-  10 minuter, 1 dag, 3 dagar och så vidare), ett fel svar tar tillbaka den snart. Den som
-  vill öva mer får repetera kort som vilar, men de flyttas bara upp när de är i tur. Står
-  stjärnbilden lågt eller under horisonten blir marken genomskinlig. Listan och lagren
-  Linjer, Namn, Gränser och Illustrationer vilar medan man tränar, eftersom de skulle
-  avslöja svaret. Framstegen sparas.
+  illustrationen. Sedan svarar man **Fel**, **Kan för tillfället** eller **Kan permanent**
+  (eller tangenterna 1, 2 och 3; mellanslag visar nästa steg). Man börjar med fyra, Stora
+  björnen, Cassiopeja, Orion och Svanen, och två nya kommer in så fort alla som är i spel
+  är kända och ingen väntar på repetition, tills man kan alla som syns från vald ort.
+  Vilan räknas i antal visade kort: ett fel kommer tillbaka efter två andra, "kan för
+  tillfället" efter 6, sedan 15, 35 och 80 kort, och "kan permanent" först efter 120 kort.
+  Mellan sessionerna kommer korten också tillbaka efter 1, 3, 7 eller 21 dagar (45 dagar
+  för permanenta). Står stjärnbilden lågt eller under horisonten blir marken genomskinlig.
+  Listan och lagren Linjer, Namn, Gränser och Illustrationer vilar medan man tränar,
+  eftersom de skulle avslöja svaret. Framstegen sparas.
 - **Titta runt:** dra för att vrida blicken, scrolla eller nyp för att zooma (piltangenter
   och `+`/`−` fungerar också). Projektionen är stereografisk, som i ett planetarium, och
   horisonten hålls vågrät.

@@ -63,11 +63,11 @@ export class TrainPanel {
     const p = app.trainingProgress();
     const place = app.place.name;
     this.count.textContent = `${p.known} av ${p.goal}`;
-    this.of.textContent = `kan du · ${p.inPlay} i spel`;
+    this.of.textContent = `kan du · ${p.permanent} permanent · ${p.inPlay} i spel`;
     this.bar.style.width = `${p.goal ? (100 * p.known) / p.goal : 0}%`;
     this.meter.setAttribute('aria-valuenow', String(p.known));
     this.meter.setAttribute('aria-valuemax', String(p.goal));
-    this.meter.setAttribute('aria-valuetext', `Du kan ${p.known} av ${p.goal} som syns från ${place}`);
+    this.meter.setAttribute('aria-valuetext', `Du kan ${p.known} av ${p.goal} som syns från ${place}, ${p.permanent} av dem permanent`);
     this.restart.textContent = this.confirming ? 'Säker? Tryck igen' : 'Börja om';
     this.restart.disabled = t.cards.size === 0;
 
@@ -83,7 +83,7 @@ export class TrainPanel {
     } else if (t.step === 2) {
       prompt = 'Här är linjerna. Vilken stjärnbild är det?';
     } else {
-      prompt = 'Hade du rätt?';
+      prompt = 'Kunde du den?';
     }
     // The prompt is a live region, so it is only written when it says something new. The
     // name is spoken with it; on screen it stands in large type below.
@@ -120,9 +120,12 @@ export class TrainPanel {
       ]
         : t.step === 2 ? [button('Visa svaret', () => app.advanceTraining(), { primary: true, title: 'Mellanslag, eller tryck på himlen' })]
           : [
-            button('Fel', () => app.answerTraining('again'), { title: 'Tangent 1: visas snart igen' }),
-            button('Rätt', () => app.answerTraining('good'), { primary: true, title: 'Tangent 2' }),
-            button('Lätt', () => app.answerTraining('easy'), { title: 'Tangent 3: dröjer längre till nästa gång' }),
+            button('Fel', () => app.answerTraining('again'), { title: 'Tangent 1: kommer tillbaka efter två andra' }),
+            button('Kan för tillfället', () => app.answerTraining('now'), {
+              primary: true,
+              title: 'Tangent 2: räknas som kunnad och kommer tillbaka efter en stund, sedan allt mer sällan',
+            }),
+            button('Kan permanent', () => app.answerTraining('permanent'), { title: 'Tangent 3: kommer bara tillbaka då och då' }),
           ];
     this.actions.replaceChildren(...buttons);
     // Focus follows the steps, but never rests on an answer: Space must not answer for the learner.

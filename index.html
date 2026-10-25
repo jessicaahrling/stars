@@ -202,6 +202,8 @@
     @media (max-width: 640px) {
       .brand span { display: none; }
       .chip-theme { width: 40px; padding: 0; justify-content: center; }
+      /* Live time shows as the dot alone, so the top bar fits. */
+      #when-live { font-size: 0; gap: 0; }
       .chip-theme .label { display: none; }
       .panel-theme { left: var(--gutter-l); right: var(--gutter-r); width: auto; }
       .chip-when .where { display: none; }
@@ -219,6 +221,7 @@
       .discover-hint { font-size: 13px; }
       .discover-next { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; flex: none; scrollbar-width: none; }
       .train-name { font-size: 21px; }
+      .discover-next.train-actions { flex-wrap: wrap; overflow: visible; }
       .discover-next::-webkit-scrollbar { display: none; }
     }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

@@ -20,6 +20,8 @@ export class InfoCard {
     this.app = app;
     this.root = $('card');
     this.index = -1;
+    /** What the card shows now, to tell whether a new render changes anything. */
+    this.html = '';
   }
 
   show(index) {
@@ -31,9 +33,14 @@ export class InfoCard {
     this.index = -1;
     this.root.hidden = true;
     this.root.replaceChildren();
+    this.html = '';
   }
 
-  /** Rebuilds the card (cheap; called when time, place or marks change). */
+  /**
+   * Builds the card afresh (cheap; called when time, place or marks change, and every
+   * second). It only replaces what is on the page when something has changed, so that a
+   * click is never lost on a button swapped out between press and release.
+   */
   render() {
     const { app } = this;
     if (this.index < 0) return this.hide();
@@ -104,14 +111,17 @@ export class InfoCard {
       }, 'Se genom marken'));
     }
 
-    this.root.replaceChildren(
+    const card = el('div', {},
       el('div', { class: 'card-head' },
         el('span', { class: 'swatch', style: `background:${color};box-shadow:0 0 10px ${color}` }),
         el('div', { class: 'titles' }, el('h3', {}, c.sv), el('div', { class: 'latin' }, c.la)),
         el('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Stäng', onclick: () => app.select(-1) }, '×')),
       facts,
-      buttons,
-    );
+      buttons);
+    if (card.innerHTML !== this.html) {
+      this.html = card.innerHTML;
+      this.root.replaceChildren(...card.childNodes);
+    }
     this.root.hidden = false;
   }
 }
