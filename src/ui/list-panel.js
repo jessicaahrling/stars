@@ -1,12 +1,11 @@
-// The constellation list: search, "visible from here" filter, mark boxes.
+// The constellation list: search, filters (seen from here, on winter evenings, all), mark boxes.
 import { MARK_COLORS } from '../render/palette.js';
-import { visibilityClass } from '../astro/visibility.js';
 
 const STATE_TEXT = { up: 'uppe', rising: 'delvis uppe', down: 'nere' };
 
 export class ListPanel {
   /**
-   * @param {object} app  see App: catalog, marks, selected, view, discovery, isFound, toggleMark, select, figureStateOf
+   * @param {object} app  see App: catalog, marks, selected, view, discovery, isFound, inScope, toggleMark, select, figureStateOf
    * @param {(id: string) => HTMLElement} $
    */
   constructor(app, $) {
@@ -15,12 +14,13 @@ export class ListPanel {
     this.button = $('btn-list');
     this.list = $('con-list');
     this.search = $('search');
-    this.filterVisible = $('filter-visible');
-    this.filterAll = $('filter-all');
+    this.filters = { year: $('filter-visible'), winter: $('filter-winter'), all: $('filter-all') };
     this.filterPlace = $('filter-place');
     this.filterCount = $('filter-count');
+    this.filterWinterCount = $('filter-winter-count');
     this.note = $('list-note');
-    this.onlyVisible = true;
+    /** Which constellations the list holds: 'year' those seen from here, 'winter' on winter evenings, or 'all'. */
+    this.scope = 'year';
     this.rows = new Map();
 
     const sorted = [...app.catalog.constellations].sort((a, b) => a.sv.localeCompare(b.sv, 'sv'));
@@ -54,8 +54,7 @@ export class ListPanel {
     this.list.append(this.empty);
 
     this.search.addEventListener('input', () => this.applyFilter());
-    this.filterVisible.addEventListener('click', () => this.setOnlyVisible(true));
-    this.filterAll.addEventListener('click', () => this.setOnlyVisible(false));
+    for (const [scope, b] of Object.entries(this.filters)) b.addEventListener('click', () => this.setScope(scope));
     this.button.addEventListener('click', () => this.toggle());
     $('btn-list-close').addEventListener('click', () => this.toggle(false));
     $('btn-mark-up').addEventListener('click', () => app.markAllUp());
@@ -78,27 +77,23 @@ export class ListPanel {
     this.app.layoutChanged();
   }
 
-  setOnlyVisible(on) {
-    this.onlyVisible = on;
-    this.filterVisible.setAttribute('aria-pressed', String(on));
-    this.filterAll.setAttribute('aria-pressed', String(!on));
+  setScope(scope) {
+    if (!(scope in this.filters)) return;
+    this.scope = scope;
+    for (const [s, b] of Object.entries(this.filters)) b.setAttribute('aria-pressed', String(s === scope));
     this.applyFilter();
     this.app.saveSoon();
   }
 
-  /** Re-evaluates which rows show for the search text and the visibility filter. */
+  /** Re-evaluates which rows show for the search text and the filter. */
   applyFilter() {
     const q = this.search.value.trim().toLowerCase();
-    const lat = this.app.view.lat;
     let shown = 0;
-    let visibleCount = 0;
     let undiscovered = null;
     for (const c of this.app.catalog.constellations) {
       const row = this.rows.get(c.index);
-      const visible = visibilityClass(c.figureDecs, lat) !== 'never';
-      if (visible) visibleCount++;
       // While discovering the sky, the list holds only the constellations found so far.
-      const match = (!this.onlyVisible || visible) && (!q || row.search.includes(q));
+      const match = this.app.inScope(c.index, this.scope) && (!q || row.search.includes(q));
       const show = match && this.app.isFound(c.index);
       if (match && !show && q) undiscovered = undiscovered ? 'many' : c;
       row.li.hidden = !show;
@@ -109,7 +104,8 @@ export class ListPanel {
       : undiscovered === 'many' ? 'Du har inte upptäckt någon av dem än.' : `${undiscovered.sv} har du inte upptäckt än.`;
     this.note.hidden = !this.app.discovering;
     this.filterPlace.textContent = this.app.place.name;
-    this.filterCount.textContent = String(visibleCount);
+    this.filterCount.textContent = String(this.app.scopeCount('year'));
+    this.filterWinterCount.textContent = String(this.app.scopeCount('winter'));
   }
 
   /** Mark boxes, selection and up/down labels. */

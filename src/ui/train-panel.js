@@ -4,8 +4,8 @@ import { STORIES } from '../data/stories-sv.js';
 
 export class TrainPanel {
   /**
-   * @param {object} app  see App: catalog, place, training, trainingProgress, setTraining,
-   *   advanceTraining, revealTraining, answerTraining, restartTraining
+   * @param {object} app  see App: catalog, place, training, trainingProgress, scopeCount, setTraining,
+   *   setTrainingGoal, advanceTraining, revealTraining, answerTraining, restartTraining
    * @param {(id: string) => HTMLElement} $
    */
   constructor(app, $) {
@@ -16,6 +16,9 @@ export class TrainPanel {
     this.of = $('train-of');
     this.meter = $('train-meter');
     this.bar = $('train-bar');
+    this.goals = { year: $('train-goal-year'), winter: $('train-goal-winter') };
+    this.goalCounts = { year: $('train-goal-year-count'), winter: $('train-goal-winter-count') };
+    for (const [goal, b] of Object.entries(this.goals)) b.addEventListener('click', () => app.setTrainingGoal(goal));
     this.prompt = $('train-prompt');
     this.answer = $('train-answer');
     this.name = $('train-name');
@@ -76,12 +79,17 @@ export class TrainPanel {
     const active = document.activeElement;
     const p = app.trainingProgress();
     const place = app.place.name;
+    const where = t.goal === 'winter' ? `från ${place} på vinterkvällar` : `från ${place}`;
+    for (const [goal, b] of Object.entries(this.goals)) {
+      b.setAttribute('aria-pressed', String(goal === t.goal));
+      this.goalCounts[goal].textContent = String(app.scopeCount(goal));
+    }
     this.count.textContent = `${p.known} av ${p.goal}`;
     this.of.textContent = `kan du · ${p.permanent} permanent · ${p.inPlay} i spel`;
     this.bar.style.width = `${p.goal ? (100 * p.known) / p.goal : 0}%`;
     this.meter.setAttribute('aria-valuenow', String(p.known));
     this.meter.setAttribute('aria-valuemax', String(p.goal));
-    this.meter.setAttribute('aria-valuetext', `Du kan ${p.known} av ${p.goal} som syns från ${place}, ${p.permanent} av dem permanent`);
+    this.meter.setAttribute('aria-valuetext', `Du kan ${p.known} av ${p.goal} som syns ${where}, ${p.permanent} av dem permanent`);
     this.restart.textContent = this.confirming ? 'Säker? Tryck igen' : 'Börja om';
     this.restart.disabled = t.cards.size === 0;
 
@@ -89,10 +97,10 @@ export class TrainPanel {
     const card = t.cards.get(t.card);
     const isNew = !card || card.n === 0;
     let prompt;
-    if (!c) prompt = `Det finns inga stjärnbilder att träna på från ${place}.`;
+    if (!c) prompt = `Det finns inga stjärnbilder att träna på ${where}.`;
     else if (t.step === 1) {
       prompt = isNew ? 'En ny stjärnbild! Titta på stjärnorna. Vet du vilken det är?' : 'Vilken stjärnbild är det här?';
-      if (p.done) prompt = `Du kan alla ${p.goal} som syns från ${place}! Fortsätt att repetera. ${prompt}`;
+      if (p.done) prompt = `Du kan alla ${p.goal} som syns ${where}! Fortsätt att repetera. ${prompt}`;
       if (t.below) prompt += ' Den är under horisonten just nu, så marken är genomskinlig.';
     } else if (t.step === 2) {
       prompt = 'Här är linjerna. Vilken stjärnbild är det?';

@@ -12,6 +12,7 @@ import { buildCatalog } from './sky/catalog.js';
 import { discoveryState, START_ID } from './sky/discovery.js';
 import { figureState } from './sky/facts.js';
 import { findNeighbours } from './sky/neighbours.js';
+import { winterEvenings, winterOf } from './sky/winter.js';
 import { grade, introductionOrder, nextCard, NOW_AFTER, PERMANENT, trainingProgress } from './sky/training.js';
 import { MAX_FOV, MIN_FOV, SkyView } from './sky/view.js';
 import { DiscoverPanel } from './ui/discover-panel.js';
@@ -98,6 +99,8 @@ export class App {
     this.training.showArt = tr.art !== false;
     /** Whether the story under a named card is open: at first only where it leaves room for the sky. */
     this.training.showStory = typeof tr.story === 'boolean' ? tr.story : window.innerWidth > 640;
+    /** What to learn: 'year' every constellation seen from the chosen place, 'winter' those seen on its winter evenings. */
+    this.training.goal = tr.goal === 'winter' ? 'winter' : 'year';
     if (tr.v === 2 && Number.isInteger(tr.turn) && tr.turn >= 0) this.training.turn = tr.turn;
     for (const entry of Array.isArray(tr.cards) ? tr.cards : []) {
       const [cid, ...rest] = Array.isArray(entry) ? entry : [];
@@ -165,7 +168,9 @@ export class App {
     this.toast = $('toast');
     this.brand = doc.querySelector('.brand');
     this.markCount = $('mark-count');
-    if (saved.onlyVisible === false) this.list.setOnlyVisible(false);
+    // Saved before "Vinterkvällar" was a choice, the list was either filtered or not.
+    const listScope = saved.listScope ?? (saved.onlyVisible === false ? 'all' : 'year');
+    if (listScope !== 'year') this.list.setScope(listScope);
 
     this.toggleButtons = [...$('toggles').querySelectorAll('[data-layer]')];
     for (const b of this.toggleButtons) {
@@ -367,6 +372,30 @@ export class App {
     return figureState(c, this.view, this.catalog.starVec);
   }
 
+  /**
+   * Whether a constellation is one of a choice: 'year' those whose figures rise from the
+   * chosen place, 'winter' those seen there on winter evenings (see sky/winter.js), 'all'.
+   */
+  inScope(index, scope) {
+    if (scope === 'all') return true;
+    if (scope === 'winter') return this.winterSet().has(index);
+    return visibilityClass(this.catalog.constellations[index].figureDecs, this.view.lat) !== 'never';
+  }
+
+  scopeCount(scope) {
+    return this.catalog.constellations.filter((c) => this.inScope(c.index, scope)).length;
+  }
+
+  /** The constellations seen on winter evenings from the chosen place, worked out once per place. */
+  winterSet() {
+    const key = `${this.view.lat},${this.view.lon}`;
+    if (this.winterKey !== key) {
+      this.winterKey = key;
+      this.winterSeen = winterEvenings(this.catalog, this.view.lat, this.view.lon, winterOf(this.view.timeMs));
+    }
+    return this.winterSeen;
+  }
+
   // ------------------------------------------------------------------ discovering the sky
 
   /** Whether a constellation is drawn: always, unless it is still to be discovered. */
@@ -485,9 +514,19 @@ export class App {
     this.flyTo(t.card, { instant: true });
   }
 
-  /** Constellations to learn: those whose figures rise from the chosen place. */
+  /** Constellations to learn: those whose figures rise from the chosen place, or those seen on its winter evenings. */
   trainInGoal(index) {
-    return visibilityClass(this.catalog.constellations[index].figureDecs, this.view.lat) !== 'never';
+    return this.inScope(index, this.training.goal);
+  }
+
+  /** Chooses what to learn ('year' or 'winter'). A card that is not among them gives way to one that is. */
+  setTrainingGoal(goal) {
+    const t = this.training;
+    if (t.goal === goal || (goal !== 'year' && goal !== 'winter')) return;
+    t.goal = goal;
+    if (t.on && (t.card < 0 || !this.trainInGoal(t.card))) this.nextTrainingCard();
+    else this.trainPanel.render();
+    this.saveSoon();
   }
 
   trainingProgress() {
@@ -960,7 +999,7 @@ export class App {
           found: [...this.discovery.found].map((i) => this.catalog.constellations[i].id),
         },
         view: { az: Math.round(v.az * 10) / 10, alt: Math.round(v.alt * 10) / 10, fov: Math.round(v.fov * 10) / 10 },
-        onlyVisible: this.list.onlyVisible,
+        listScope: this.list.scope,
         theme: this.theme,
         training: {
           v: 2,
@@ -969,6 +1008,7 @@ export class App {
           lines: this.training.showLines,
           art: this.training.showArt,
           story: this.training.showStory,
+          goal: this.training.goal,
           cards: [...this.training.cards].map(([i, c]) => [this.catalog.constellations[i].id, c.level, c.dueTurn, c.dueAt, c.n]),
         },
       });

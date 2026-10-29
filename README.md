@@ -36,7 +36,9 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   för tillfället** eller **Kan permanent** (eller tangenterna 1, 2 och 3; mellanslag visar
   nästa steg). Man börjar med fyra, Stora björnen, Cassiopeja, Orion och Svanen, och två
   nya kommer in så fort inget kort väntar på repetition (ett fel som vilar räknas inte),
-  tills man kan alla som syns från vald ort.
+  tills man kan alla som syns från vald ort. Överst i panelen väljer man om det är alla
+  som syns någon gång under året (**Hela året**) eller bara de som syns på vinterkvällar
+  (**Vinterkvällar**, se nedan).
   Vilan räknas i antal visade kort: ett fel kommer tillbaka efter två andra, "kan för
   tillfället" efter 6, sedan 15, 35 och 80 kort, och "kan permanent" först efter 120 kort.
   Mellan sessionerna kommer korten också tillbaka efter 1, 3, 7 eller 21 dagar (45 dagar
@@ -59,8 +61,15 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   "Illustrationer" visar alla, eller döljer alla om någon teckning syns. Markerade stjärnbilder får teckningen i sin
   egen färg.
 - **Markera stjärnbilder:** i listan, med rutan framför namnet eller med knappen på
-  infokortet. Markerade stjärnbilder får en egen färg på figur, gräns och yta. Listan kan filtreras på de stjärnbilder som syns
-  från vald ort och visar vilka som är uppe just nu.
+  infokortet. Markerade stjärnbilder får en egen färg på figur, gräns och yta. Listan kan
+  filtreras på de stjärnbilder som syns från vald ort, på dem som syns på vinterkvällar
+  eller visa alla 88, och den visar vilka som är uppe just nu.
+- **Vinterkvällar:** de stjärnbilder där minst halva figuren står 5° eller högre över
+  horisonten någon gång mellan kl. 18 och midnatt under december–februari, räknat för vald
+  ort. Från Stockholm är det 48 av de 57 som syns någon gång under året. De som fattas är
+  sommarens Skorpionen, Skytten, Ormbäraren och Vågen och de som bara når strax över
+  horisonten i söder: Södra fisken, Ugnen, Bildhuggaren, Akterskeppet och Kompassen.
+  "Syns från vald ort" (Hela året) räknar alla vars figur över huvud taget går upp där.
 - **Design:** knappen "Design" i övre raden byter utseende på knappar och paneler.
   Förutom det nuvarande finns fem designer i stil med äldre NASA-gränssnitt: Mission
   Control 1969, Apollo DSKY, Bärnstensskärm, NASA 1975 och Checklista. Valet sparas.
