@@ -65,11 +65,15 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   filtreras på de stjärnbilder som syns från vald ort, på dem som syns på vinterkvällar
   eller visa alla 88, och den visar vilka som är uppe just nu.
 - **Vinterkvällar:** de stjärnbilder där minst halva figuren står 5° eller högre över
-  horisonten någon gång mellan kl. 18 och midnatt under december–februari, räknat för vald
-  ort. Från Stockholm är det 48 av de 57 som syns någon gång under året. De som fattas är
-  sommarens Skorpionen, Skytten, Ormbäraren och Vågen och de som bara når strax över
-  horisonten i söder: Södra fisken, Ugnen, Bildhuggaren, Akterskeppet och Kompassen.
-  "Syns från vald ort" (Hela året) räknar alla vars figur över huvud taget går upp där.
+  horisonten i minst en timme i sträck någon kväll mellan kl. 18 och midnatt under
+  december–februari, räknat för vald ort. Från Stockholm är det 45 av de 57 som syns någon
+  gång under året. De som fattas är sommarens Skorpionen, Skytten, Ormbäraren och Vågen,
+  de som bara når strax över horisonten i söder (Södra fisken, Ugnen, Bildhuggaren,
+  Akterskeppet och Kompassen) och tre som bara skymtar i kanten av kvällarna: Skölden
+  några minuter kl. 18 i början av december, Korpen och Ormen strax före midnatt i slutet
+  av februari. Längre norrut, från Sundsvall och uppåt, faller också Stora hunden och
+  Floden Eridanus bort, eftersom mindre än halva figuren når 5° där. "Syns från vald ort"
+  (Hela året) räknar alla vars figur över huvud taget går upp där.
 - **Design:** knappen "Design" i övre raden byter utseende på knappar och paneler.
   Förutom det nuvarande finns fem designer i stil med äldre NASA-gränssnitt: Mission
   Control 1969, Apollo DSKY, Bärnstensskärm, NASA 1975 och Checklista. Valet sparas.

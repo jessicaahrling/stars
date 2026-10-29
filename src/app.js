@@ -386,12 +386,16 @@ export class App {
     return this.catalog.constellations.filter((c) => this.inScope(c.index, scope)).length;
   }
 
-  /** The constellations seen on winter evenings from the chosen place, worked out once per place. */
+  /**
+   * The constellations seen on winter evenings from the chosen place, worked out once per
+   * place for the winter under way or coming (not the one the sky is set to), so that the
+   * choice stays the same whatever time is looked at.
+   */
   winterSet() {
     const key = `${this.view.lat},${this.view.lon}`;
     if (this.winterKey !== key) {
       this.winterKey = key;
-      this.winterSeen = winterEvenings(this.catalog, this.view.lat, this.view.lon, winterOf(this.view.timeMs));
+      this.winterSeen = winterEvenings(this.catalog, this.view.lat, this.view.lon, winterOf(Date.now()));
     }
     return this.winterSeen;
   }

@@ -258,16 +258,20 @@ try {
   assert.match(await page.textContent('#card .story'), /^Grekisk mytologi.*nemeiska lejonet.*Speciellt: .*Regulus/);
 
   await page.fill('#search', '');
-  // "Vinterkvällar" keeps those seen on winter evenings: 48 of the 57 seen from Stockholm.
+  // "Vinterkvällar" keeps those seen on winter evenings: 45 of the 57 seen from Stockholm.
   const listNames = () => page.$$eval('#con-list li:not([hidden]) strong', (els) => els.map((e) => e.textContent));
-  assert.deepEqual([await page.textContent('#filter-count'), await page.textContent('#filter-winter-count')], ['57', '48']);
+  const listChips = () => page.$$eval('#filter-visible, #filter-winter, #filter-all', (els) => els.map((e) => e.getAttribute('aria-pressed')));
+  assert.deepEqual([await page.textContent('#filter-count'), await page.textContent('#filter-winter-count')], ['57', '45']);
   assert.equal((await listNames()).length, 57);
   await page.click('#filter-winter');
+  assert.deepEqual(await listChips(), ['false', 'true', 'false']);
+  assert.deepEqual([await page.textContent('#filter-count'), await page.textContent('#filter-winter-count')], ['57', '45']);
   const winterNames = await listNames();
-  assert.equal(winterNames.length, 48);
+  assert.equal(winterNames.length, 45);
   assert.ok(winterNames.includes('Orion') && winterNames.includes('Stora björnen') && !winterNames.includes('Skorpionen'));
   await page.click('#filter-all');
   assert.equal((await listNames()).length, 88);
+  assert.deepEqual(await listChips(), ['false', 'false', 'true']);
   await page.click('#filter-visible');
   const before = await page.textContent('#filter-count');
   await page.click('#btn-list-close');
@@ -320,7 +324,7 @@ try {
   await page.selectOption('#place', 'kiruna');
   assert.equal(await page.textContent('#when-place'), 'Kiruna');
   assert.notEqual(await page.textContent('#filter-count'), before, 'fewer constellations rise in Kiruna');
-  assert.equal(await page.textContent('#filter-winter-count'), '42');
+  assert.equal(await page.textContent('#filter-winter-count'), '41');
   await page.click('#btn-when');
 
   // Clicking the ground closes the card and toggles no illustration.
@@ -996,20 +1000,23 @@ try {
   // "Vinterkvällar": only those seen on winter evenings are asked and counted, and the
   // choice is remembered.
   const goalChips = () => quiz.$$eval('#train-goal button', (els) => els.map((e) => `${e.textContent.replace(/\s+/g, ' ').trim()}:${e.getAttribute('aria-pressed')}`));
-  assert.deepEqual(await goalChips(), ['Hela året 57:true', 'Vinterkvällar 48:false']);
+  assert.deepEqual(await goalChips(), ['Hela året 57:true', 'Vinterkvällar 45:false']);
   await quiz.evaluate(() => window.stjarnhimlen.nextTrainingCard({ again: window.stjarnhimlen.catalog.byId.get('Sco').index, instant: true }));
   assert.equal((await quizState()).card, 'Sco');
   await quiz.click('#train-goal-winter');
-  assert.deepEqual(await goalChips(), ['Hela året 57:false', 'Vinterkvällar 48:true']);
-  assert.match(await quiz.textContent('#train-count'), /^0 av 48$/);
+  assert.deepEqual(await goalChips(), ['Hela året 57:false', 'Vinterkvällar 45:true']);
+  assert.match(await quiz.textContent('#train-count'), /^0 av 45$/);
   assert.match(await quiz.getAttribute('#train-meter', 'aria-valuetext'), /som syns från Stockholm på vinterkvällar/);
   q = await quizState();
   assert.ok(q.card !== 'Sco' && await quiz.evaluate(() => window.stjarnhimlen.winterSet().has(window.stjarnhimlen.training.card)), `Skorpionen gives way to one seen in winter (${q.card})`);
+  // Space then shows the next step, not the chip again.
+  await quiz.keyboard.press(' ');
+  assert.equal((await quizState()).step, 2);
   await quiz.waitForFunction(() => JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').training?.goal === 'winter');
   await quiz.reload();
   await quiz.waitForFunction(() => window.stjarnhimlen);
   assert.equal(await quiz.getAttribute('#train-goal-winter', 'aria-pressed'), 'true');
-  assert.match(await quiz.textContent('#train-count'), /^0 av 48$/);
+  assert.match(await quiz.textContent('#train-count'), /^0 av 45$/);
   await quiz.click('#train-goal-year');
   assert.match(await quiz.textContent('#train-count'), /^0 av 57$/);
   await quiz.click('#btn-train-exit');

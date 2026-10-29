@@ -18,7 +18,14 @@ export class TrainPanel {
     this.bar = $('train-bar');
     this.goals = { year: $('train-goal-year'), winter: $('train-goal-winter') };
     this.goalCounts = { year: $('train-goal-year-count'), winter: $('train-goal-winter-count') };
-    for (const [goal, b] of Object.entries(this.goals)) b.addEventListener('click', () => app.setTrainingGoal(goal));
+    for (const [goal, b] of Object.entries(this.goals)) {
+      b.addEventListener('click', () => {
+        app.setTrainingGoal(goal);
+        // Space then shows the next step rather than pressing the chip again; once the
+        // name is shown, focus stays put so that Space never answers.
+        if (app.training.step < 3) this.actions.querySelector('.primary')?.focus();
+      });
+    }
     this.prompt = $('train-prompt');
     this.answer = $('train-answer');
     this.name = $('train-name');
