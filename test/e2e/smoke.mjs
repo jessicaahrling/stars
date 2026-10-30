@@ -1108,9 +1108,9 @@ try {
   const touched = (await cardOf(touchQuiz)).card;
   await touchQuiz.touchscreen.tap(fel.x, fel.y);
   await settle(touchQuiz);
-  const underFinger = await touchQuiz.evaluate(([x, y]) => document.elementFromPoint(x, y)?.textContent, [fel.x, fel.y]);
-  assert.equal(underFinger, 'Fel', 'Fel came up under the finger');
   assert.deepEqual(await cardOf(touchQuiz), { card: touched, step: 3, levels: ['UMa:1'] }, 'the tap showed the name and pressed nothing');
+  const underFinger = await touchQuiz.evaluate(([x, y]) => document.elementFromPoint(x, y)?.textContent, [fel.x, fel.y]);
+  assert.equal(underFinger, 'Fel', 'though Fel came up under the finger');
 
   // "Design": a list of interface designs. Each one is put on the page when chosen, keeps
   // the layout in one piece on a desktop and a phone, and is remembered.
