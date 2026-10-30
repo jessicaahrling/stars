@@ -21,9 +21,9 @@ export class TrainPanel {
     for (const [goal, b] of Object.entries(this.goals)) {
       b.addEventListener('click', () => {
         app.setTrainingGoal(goal);
-        // Space then shows the next step rather than pressing the chip again; once the
-        // name is shown, focus stays put so that Space never answers.
+        // Space then goes on as a tap on the sky does, rather than pressing the chip again.
         if (app.training.step < 3) this.actions.querySelector('.primary')?.focus();
+        else this.answer.focus();
       });
     }
     this.prompt = $('train-prompt');
@@ -112,7 +112,7 @@ export class TrainPanel {
     } else if (t.step === 2) {
       prompt = 'Här är linjerna. Vilken stjärnbild är det?';
     } else {
-      prompt = 'Kunde du den?';
+      prompt = 'Kunde du den? Tryck på himlen igen om du kan den för tillfället.';
     }
     // The prompt is a live region, so it is only written when it says something new. The
     // name is spoken with it; on screen it stands in large type below.
@@ -163,12 +163,13 @@ export class TrainPanel {
             button('Fel', () => app.answerTraining('again'), { title: 'Tangent 1: kommer tillbaka efter två andra' }),
             button('Kan för tillfället', () => app.answerTraining('now'), {
               primary: true,
-              title: 'Tangent 2: räknas som kunnad och kommer tillbaka efter en stund, sedan allt mer sällan',
+              title: 'Tangent 2, mellanslag eller tryck på himlen: räknas som kunnad och kommer tillbaka efter en stund, sedan allt mer sällan',
             }),
             button('Kan permanent', () => app.answerTraining('permanent'), { title: 'Tangent 3: kommer bara tillbaka då och då' }),
           ];
     this.actions.replaceChildren(...buttons);
-    // Focus follows the steps, but never rests on an answer: Space must not answer for the learner.
+    // Focus follows the steps. Once named it rests on the name, never on an answer button,
+    // so that Space means "Kan för tillfället" as a tap on the sky does, never another answer.
     if (focused && buttons.length) {
       if (t.step === 3) this.answer.focus();
       else buttons.find((b) => b.classList.contains('primary'))?.focus();

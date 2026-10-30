@@ -36,6 +36,11 @@ const DEFAULT_LAYERS = {
   seeThrough: false,
 };
 const FLY_MS = 900;
+/**
+ * Once a card is named, a tap on the sky or Space means "Kan för tillfället", but not this
+ * soon (ms) after the tap that named it, so that a double click cannot skip past the name.
+ */
+const SECOND_TAP_MS = 400;
 /** Layers that "Träna" sets itself, step by step. */
 const TRAINING_LAYERS = new Set(['lines', 'names', 'bounds', 'art']);
 
@@ -90,10 +95,10 @@ export class App {
      * "Träna": flashcards with spaced repetition (see sky/training.js). cards maps the
      * constellations in play to their level, when they are due and how often they have been
      * answered; turn counts the answers; card is the one shown and step how far it is
-     * revealed (1 stars, 2 lines, 3 name).
+     * revealed (1 stars, 2 lines, 3 name), and namedAt when it was named (performance.now()).
      */
     const tr = saved.training && typeof saved.training === 'object' ? saved.training : {};
-    this.training = { on: tr.on === true, cards: new Map(), turn: 0, card: -1, step: 1, stars: null, below: false };
+    this.training = { on: tr.on === true, cards: new Map(), turn: 0, card: -1, step: 1, namedAt: 0, stars: null, below: false };
     /** Once a card is named, its lines and drawing can be turned on and off to learn the shape. */
     this.training.showLines = tr.lines !== false;
     this.training.showArt = tr.art !== false;
@@ -200,9 +205,10 @@ export class App {
       tap: (x, y) => {
         this.hudCanvas.classList.remove('dragging');
         if (this.stoppedMotion) return;
-        // While training, a tap shows the next step: the lines, then the name.
+        // While training, a tap shows the next step: the lines, then the name, and then
+        // says the card is known for now.
         if (this.training.on) {
-          if (this.training.step < 3) this.advanceTraining();
+          this.continueTraining();
           return;
         }
         // A tap only shows or hides the illustration. It never opens the info card (that
@@ -557,15 +563,25 @@ export class App {
     const t = this.training;
     if (!t.on || t.card < 0 || t.step >= 3) return;
     t.step++;
+    if (t.step === 3) t.namedAt = performance.now();
     this.trainingChanged();
   }
 
   /** Shows the name straight away. */
   revealTraining() {
     const t = this.training;
-    if (!t.on || t.card < 0) return;
+    if (!t.on || t.card < 0 || t.step === 3) return;
     t.step = 3;
+    t.namedAt = performance.now();
     this.trainingChanged();
+  }
+
+  /** A tap on the sky, or Space: the next step, and once the card is named, "Kan för tillfället". */
+  continueTraining() {
+    const t = this.training;
+    if (!t.on || t.card < 0) return;
+    if (t.step < 3) this.advanceTraining();
+    else if (performance.now() - t.namedAt >= SECOND_TAP_MS) this.answerTraining('now');
   }
 
   /** Records how the card went ('again', 'now' or 'permanent') and goes on to the next one. */
@@ -835,13 +851,15 @@ export class App {
       t.blur();
       if (t.type !== 'radio') return;
     }
-    // Training: Space shows the next step; 1, 2 and 3 answer Fel, Kan för tillfället and Kan permanent.
+    // Training: Space does what a tap on the sky does (the next step, and once the card is
+    // named, Kan för tillfället, though not while held down); 1, 2 and 3 answer Fel, Kan
+    // för tillfället and Kan permanent. Space on a button or the story's heading is theirs.
     const tr = this.training;
     if (tr.on && tr.card >= 0 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const answer = { 1: 'again', 2: 'now', 3: 'permanent' }[e.key];
-      if (e.key === ' ' && tr.step < 3 && !(t && t.closest && t.closest('button'))) {
+      if (e.key === ' ' && !(t && t.closest && t.closest('button, summary'))) {
         e.preventDefault();
-        this.advanceTraining();
+        if (!e.repeat || tr.step < 3) this.continueTraining();
         return;
       }
       if (answer && tr.step === 3) {

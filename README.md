@@ -28,17 +28,18 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   ihop. "Visa hela himlen" visar allt igen och knappen "Upptäck" går tillbaka dit man var.
   "Börja om" tar två tryck.
 - **Träna:** flashcards med spaced repetition. En stjärnbild visas först med bara sina
-  stjärnor (de runtomkring dämpas), ett tryck visar linjerna och nästa namnet och
-  illustrationen. När namnet visas kan man slå av och på linjerna och bilden (knapparna
-  Linjer och Bild, eller tangenterna L och B) för att lära sig formen; valet gäller även
-  nästa kort. Under namnet står en kort berättelse om stjärnbilden, som kan fällas ihop
-  (på en mobil börjar den hopfälld så att himlen syns). Sedan svarar man **Fel**, **Kan
-  för tillfället** eller **Kan permanent** (eller tangenterna 1, 2 och 3; mellanslag visar
-  nästa steg). Man börjar med fyra, Stora björnen, Cassiopeja, Orion och Svanen, och två
-  nya kommer in så fort inget kort väntar på repetition (ett fel som vilar räknas inte),
-  tills man kan alla som syns från vald ort. Överst i panelen väljer man om det är alla
-  som syns någon gång under året (**Hela året**) eller bara de som syns på vinterkvällar
-  (**Vinterkvällar**, se nedan).
+  stjärnor (de runtomkring dämpas), ett tryck på himlen visar linjerna, nästa namnet och
+  illustrationen, och ett tredje betyder **Kan för tillfället** (men inte ett dubbelklick,
+  så att man hinner se namnet). När namnet visas kan man slå av och på linjerna och
+  bilden (knapparna Linjer och Bild, eller tangenterna L och B) för att lära sig formen;
+  valet gäller även nästa kort. Under namnet står en kort berättelse om stjärnbilden, som
+  kan fällas ihop (på en mobil börjar den hopfälld så att himlen syns). Sedan svarar man
+  **Fel**, **Kan för tillfället** eller **Kan permanent** (eller tangenterna 1, 2 och 3;
+  mellanslag gör som ett tryck på himlen). Man börjar med fyra, Stora björnen,
+  Cassiopeja, Orion och Svanen, och två nya kommer in så fort inget kort väntar på
+  repetition (ett fel som vilar räknas inte), tills man kan alla som syns från vald ort.
+  Överst i panelen väljer man om det är alla som syns någon gång under året (**Hela
+  året**) eller bara de som syns på vinterkvällar (**Vinterkvällar**, se nedan).
   Vilan räknas i antal visade kort: ett fel kommer tillbaka efter två andra, "kan för
   tillfället" efter 6, sedan 15, 35 och 80 kort, och "kan permanent" först efter 120 kort.
   Mellan sessionerna kommer korten också tillbaka efter 1, 3, 7 eller 21 dagar (45 dagar

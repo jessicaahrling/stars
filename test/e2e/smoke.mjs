@@ -858,10 +858,22 @@ try {
   assert.deepEqual([seenNow.segments, seenNow.names, seenNow.art], [['UMa'], ['UMa'], ['UMa']], 'a tap shows the name and the drawing');
   assert.equal(await quiz.textContent('#train-name'), 'Stora björnen');
   assert.equal(await quiz.isVisible('#train-answer'), true);
-  assert.match(await quiz.textContent('#train-prompt'), /^Det var Stora björnen \(Ursa Major\)\. Kunde du den\?$/);
-  // Space never answers for the learner.
-  await quiz.keyboard.press(' ');
-  assert.deepEqual([(await quizState()).card, (await quizState()).step], ['UMa', 3]);
+  assert.match(await quiz.textContent('#train-prompt'), /^Det var Stora björnen \(Ursa Major\)\. Kunde du den\? Tryck på himlen igen om du kan den för tillfället\.$/);
+  // A tap or Space right on the heels of the tap that showed the name does not answer
+  // yet, so that a double click cannot skip past the name.
+  const onHeels = await quiz.evaluate(() => {
+    const a = window.stjarnhimlen;
+    a.training.namedAt = performance.now();
+    const el = a.hudCanvas;
+    el.setPointerCapture = () => {};
+    const r = el.getBoundingClientRect();
+    const send = (type) => el.dispatchEvent(new PointerEvent(type, { pointerId: 7, pointerType: 'mouse', isPrimary: true, button: 0, bubbles: true, clientX: r.left + 700, clientY: r.top + 400 }));
+    send('pointerdown');
+    send('pointerup');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    return [a.catalog.constellations[a.training.card].id, a.training.step];
+  });
+  assert.deepEqual(onHeels, ['UMa', 3]);
   // Once named, its lines and drawing can be turned off and on to learn the shape (L, B).
   await quiz.click('#btn-train-lines');
   seenNow = await quizParts();
@@ -880,12 +892,20 @@ try {
   assert.match(await quiz.textContent('#train-story-special'), /Karlavagnen/);
   await quiz.click('#train-story summary');
   await quiz.waitForFunction(() => window.stjarnhimlen.training.showStory === false);
+  // Space on the story's heading opens and folds it; it does not answer.
+  await quiz.focus('#train-story summary');
+  await quiz.keyboard.press(' ');
+  await quiz.waitForFunction(() => window.stjarnhimlen.training.showStory === true);
+  await quiz.keyboard.press(' ');
+  await quiz.waitForFunction(() => window.stjarnhimlen.training.showStory === false);
+  assert.deepEqual([(await quizState()).card, (await quizState()).step], ['UMa', 3]);
 
-  // Answers: 2 is "Kan för tillfället", and the next card comes; "Visa svaret" goes
-  // straight to the name. A miss ("Fel") comes back after two other cards.
-  await quiz.keyboard.press('2');
+  // Answers: a third tap on the sky is "Kan för tillfället", and the next card comes;
+  // "Visa svaret" goes straight to the name. A miss ("Fel") comes back after two other cards.
+  await quiz.mouse.click(700, 400);
   await settle(quiz);
   assert.deepEqual(await quizState(), { on: true, card: 'Cas', step: 1, inPlay: 4, panel: true, discovering: false });
+  assert.equal(await quiz.evaluate(() => window.stjarnhimlen.training.cards.get(window.stjarnhimlen.catalog.byId.get('UMa').index).level), 1);
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   assert.equal((await quizState()).step, 3);
   assert.deepEqual(await quiz.$$eval('#train-actions button', (els) => els.map((e) => e.textContent)), ['Fel', 'Kan för tillfället', 'Kan permanent']);
@@ -1034,6 +1054,35 @@ try {
   await phoneQuiz.mouse.click(195, 600);
   await settle(phoneQuiz);
   assert.deepEqual(await phoneQuiz.evaluate(() => [window.stjarnhimlen.training.step, document.querySelector('#train-story').hidden, document.querySelector('#train-story').open]), [3, false, false]);
+  // One more tap means "Kan för tillfället"; Space does the same, though not held down;
+  // and 2 too.
+  const phoneCard = () => phoneQuiz.evaluate(() => {
+    const a = window.stjarnhimlen;
+    return { card: a.catalog.constellations[a.training.card].id, step: a.training.step, levels: [...a.training.cards].filter(([, c]) => c.n > 0).map(([i, c]) => `${a.catalog.constellations[i].id}:${c.level}`) };
+  });
+  const firstCard = (await phoneCard()).card;
+  await phoneQuiz.evaluate(() => {
+    window.stjarnhimlen.training.namedAt -= 1000;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', repeat: true, bubbles: true }));
+  });
+  assert.deepEqual(await phoneCard(), { card: firstCard, step: 3, levels: [] }, 'Space held down does not answer');
+  await phoneQuiz.mouse.click(195, 600);
+  await settle(phoneQuiz);
+  let answered = await phoneCard();
+  assert.deepEqual([answered.step, answered.levels], [1, [`${firstCard}:1`]]);
+  const secondCard = answered.card;
+  await phoneQuiz.keyboard.press(' ');
+  await phoneQuiz.keyboard.press(' ');
+  assert.equal((await phoneCard()).step, 3);
+  await phoneQuiz.evaluate(() => { window.stjarnhimlen.training.namedAt -= 1000; });
+  await phoneQuiz.keyboard.press(' ');
+  await settle(phoneQuiz);
+  answered = await phoneCard();
+  assert.deepEqual([answered.step, answered.levels], [1, [`${firstCard}:1`, `${secondCard}:1`]]);
+  const thirdCard = answered.card;
+  await phoneQuiz.click('#train-actions button:has-text("Visa svaret")');
+  await phoneQuiz.keyboard.press('2');
+  assert.deepEqual((await phoneCard()).levels, [`${firstCard}:1`, `${secondCard}:1`, `${thirdCard}:1`]);
 
   // "Design": a list of interface designs. Each one is put on the page when chosen, keeps
   // the layout in one piece on a desktop and a phone, and is remembered.
