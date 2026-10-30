@@ -9,7 +9,7 @@ const TAP_MS = 500;
  * @param {object} h
  * @param {(dx: number, dy: number) => void} h.pan        drag by CSS px
  * @param {(factor: number, x: number, y: number) => void} h.zoom  fov *= factor around a point
- * @param {(x: number, y: number) => void} h.tap
+ * @param {(x: number, y: number, again: boolean) => void} h.tap  again: the second click of a double click
  * @param {(x: number, y: number) => void} h.hover       mouse moved without buttons
  * @param {() => void} h.leave
  * @param {(vx: number, vy: number) => void} h.fling     release velocity in px/ms
@@ -22,6 +22,9 @@ export function attachSkyInput(el, h) {
   let pinchDist = 0;
   let mid = null;
   let samples = [];
+  // Clicks in a row as the system counts them (the mouse's own double-click time).
+  let clicks = 0;
+  let touchTapped = false;
 
   const center = () => {
     const ps = [...pointers.values()];
@@ -43,6 +46,8 @@ export function attachSkyInput(el, h) {
     if (e.button !== undefined && e.button > 0) return;
     el.setPointerCapture?.(e.pointerId);
     pointers.set(e.pointerId, local(e));
+    clicks = 0;
+    touchTapped = false;
     h.grab();
     samples = [];
     if (pointers.size === 1) {
@@ -84,8 +89,10 @@ export function attachSkyInput(el, h) {
     const p = local(e);
     pointers.delete(e.pointerId);
     if (pointers.size === 0) {
-      if (!dragging && start && performance.now() - start.t < TAP_MS) h.tap(p.x, p.y);
-      else if (dragging && samples.length > 1) {
+      if (!dragging && start && performance.now() - start.t < TAP_MS) {
+        touchTapped = e.pointerType === 'touch';
+        h.tap(p.x, p.y, clicks > 1);
+      } else if (dragging && samples.length > 1) {
         const span = samples[samples.length - 1].t - samples[0].t || 16;
         const vx = samples.reduce((s, q) => s + q.dx, 0) / span;
         const vy = samples.reduce((s, q) => s + q.dy, 0) / span;
@@ -100,6 +107,19 @@ export function attachSkyInput(el, h) {
   };
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', end);
+  el.addEventListener('mousedown', (e) => {
+    clicks = e.detail;
+  });
+  // A touch tap ends with a click the browser makes up and sends to whatever is under the
+  // finger by then. When the tap has changed the page (the training panel growing under
+  // it), that would press a button never touched, so the made-up click is dropped; focus
+  // leaves where it was, as the click would have made it.
+  el.addEventListener('touchend', (e) => {
+    if (!touchTapped || !e.cancelable) return;
+    touchTapped = false;
+    e.preventDefault();
+    el.ownerDocument.activeElement?.blur?.();
+  }, { passive: false });
   el.addEventListener('pointerleave', (e) => {
     if (e.pointerType === 'mouse' && !pointers.size) h.leave();
   });

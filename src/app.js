@@ -38,7 +38,8 @@ const DEFAULT_LAYERS = {
 const FLY_MS = 900;
 /**
  * Once a card is named, a tap on the sky or Space means "Kan för tillfället", but not this
- * soon (ms) after the tap that named it, so that a double click cannot skip past the name.
+ * soon (ms) after the tap that named it, nor as the second click of a double click, so
+ * that a double click cannot skip past the name.
  */
 const SECOND_TAP_MS = 400;
 /**
@@ -207,13 +208,13 @@ export class App {
       },
       pan: (dx, dy) => this.pan(dx, dy),
       zoom: (f, x, y) => this.zoomAt(f, x, y),
-      tap: (x, y) => {
+      tap: (x, y, again) => {
         this.hudCanvas.classList.remove('dragging');
         if (this.stoppedMotion) return;
         // While training, a tap shows the next step: the lines, then the name, and then
         // says the card is known for now.
         if (this.training.on) {
-          this.continueTraining();
+          this.continueTraining(again);
           return;
         }
         // A tap only shows or hides the illustration. It never opens the info card (that
@@ -581,12 +582,15 @@ export class App {
     this.trainingChanged();
   }
 
-  /** A tap on the sky, or Space: the next step, and once the card is named, "Kan för tillfället". */
-  continueTraining() {
+  /**
+   * A tap on the sky, or Space: the next step, and once the card is named, "Kan för
+   * tillfället". `again` is true for the second click of a double click.
+   */
+  continueTraining(again = false) {
     const t = this.training;
     if (!t.on || t.card < 0) return;
     if (t.step < 3) this.advanceTraining();
-    else if (performance.now() - t.namedAt >= SECOND_TAP_MS) this.answerTraining('now');
+    else if (!again && performance.now() - t.namedAt >= SECOND_TAP_MS) this.answerTraining('now');
   }
 
   /** Records how the card went ('again', 'now' or 'permanent') and goes on to the next one. */
@@ -858,14 +862,15 @@ export class App {
       if (t.type !== 'radio') return;
     }
     // Training: Space does what a tap on the sky does (the next step, and once the card is
-    // named, Kan för tillfället, though not while held down); 1, 2 and 3 answer Fel, Kan
-    // för tillfället and Kan permanent. Space on a button or the story's heading is theirs.
+    // named, Kan för tillfället), once per press: held down it goes no further. 1, 2 and 3
+    // answer Fel, Kan för tillfället and Kan permanent. Space on a button or the story's
+    // heading is theirs.
     const tr = this.training;
     if (tr.on && tr.card >= 0 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const answer = { 1: 'again', 2: 'now', 3: 'permanent' }[e.key];
       if (e.key === ' ' && !(t && t.closest && t.closest('button, summary'))) {
         e.preventDefault();
-        if (!e.repeat || tr.step < 3) this.continueTraining();
+        if (!e.repeat) this.continueTraining();
         return;
       }
       if (answer && tr.step === 3) {

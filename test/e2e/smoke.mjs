@@ -20,8 +20,8 @@ const errors = [];
 
 /** A page at a fixed time. Most checks need the whole sky facing south, so "Upptäck" is
  * turned off unless `discover` is set; then the page keeps the view it opened with. */
-async function openPage(viewport, { discover = false } = {}) {
-  const page = await browser.newPage({ viewport });
+async function openPage(viewport, { discover = false, touch = false } = {}) {
+  const page = await browser.newPage({ viewport, ...(touch ? { hasTouch: true, isMobile: true } : {}) });
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
     // Web fonts are optional and blocked here (see below).
@@ -901,6 +901,12 @@ try {
   await quiz.waitForFunction(() => window.stjarnhimlen.training.showStory === false);
   assert.deepEqual([(await quizState()).card, (await quizState()).step], ['UMa', 3]);
 
+  // The second click of a double click, as the system counts it, does not answer either.
+  await quiz.mouse.move(700, 400);
+  await quiz.mouse.down({ clickCount: 2 });
+  await quiz.mouse.up({ clickCount: 2 });
+  assert.deepEqual([(await quizState()).card, (await quizState()).step], ['UMa', 3]);
+
   // Answers: a third tap on the sky is "Kan för tillfället", and the next card comes;
   // "Visa svaret" goes straight to the name. A miss ("Fel") comes back after two other cards.
   await quiz.mouse.click(700, 400);
@@ -1058,18 +1064,15 @@ try {
   await phoneQuiz.mouse.click(195, 600);
   await settle(phoneQuiz);
   assert.deepEqual(await phoneQuiz.evaluate(() => [window.stjarnhimlen.training.step, document.querySelector('#train-story').hidden, document.querySelector('#train-story').open]), [3, false, false]);
-  // One more tap means "Kan för tillfället"; Space does the same, though not held down;
-  // and 2 too.
-  const phoneCard = () => phoneQuiz.evaluate(() => {
+  // One more tap means "Kan för tillfället"; so does Space, once per press: held down it
+  // does not go on into the next card. And 2 too.
+  const cardOf = (page) => page.evaluate(() => {
     const a = window.stjarnhimlen;
     return { card: a.catalog.constellations[a.training.card].id, step: a.training.step, levels: [...a.training.cards].filter(([, c]) => c.n > 0).map(([i, c]) => `${a.catalog.constellations[i].id}:${c.level}`) };
   });
+  const phoneCard = () => cardOf(phoneQuiz);
   const firstCard = (await phoneCard()).card;
-  await phoneQuiz.evaluate(() => {
-    window.stjarnhimlen.training.namedAt -= 1000;
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', repeat: true, bubbles: true }));
-  });
-  assert.deepEqual(await phoneCard(), { card: firstCard, step: 3, levels: [] }, 'Space held down does not answer');
+  await phoneQuiz.evaluate(() => { window.stjarnhimlen.training.namedAt -= 1000; });
   await phoneQuiz.mouse.click(195, 600);
   await settle(phoneQuiz);
   let answered = await phoneCard();
@@ -1079,14 +1082,35 @@ try {
   await phoneQuiz.keyboard.press(' ');
   assert.equal((await phoneCard()).step, 3);
   await phoneQuiz.evaluate(() => { window.stjarnhimlen.training.namedAt -= 1000; });
-  await phoneQuiz.keyboard.press(' ');
+  for (let k = 0; k < 6; k++) await phoneQuiz.keyboard.down(' ');
+  await phoneQuiz.keyboard.up(' ');
   await settle(phoneQuiz);
   answered = await phoneCard();
-  assert.deepEqual([answered.step, answered.levels], [1, [`${firstCard}:1`, `${secondCard}:1`]]);
+  assert.deepEqual([answered.step, answered.levels], [1, [`${firstCard}:1`, `${secondCard}:1`]], 'Space held down answers once and goes no further');
   const thirdCard = answered.card;
   await phoneQuiz.click('#train-actions button:has-text("Visa svaret")');
   await phoneQuiz.keyboard.press('2');
   assert.deepEqual((await phoneCard()).levels, [`${firstCard}:1`, `${secondCard}:1`, `${thirdCard}:1`]);
+
+  // On a touch screen, the tap that shows the name makes the panel grow under the finger;
+  // the click the browser makes up from that tap must not press the answer now there.
+  const touchQuiz = await openPage({ width: 390, height: 844 }, { discover: true, touch: true });
+  await touchQuiz.evaluate(() => window.stjarnhimlen.setTraining(true));
+  await settle(touchQuiz);
+  await touchQuiz.evaluate(() => window.stjarnhimlen.revealTraining());
+  const fel = await touchQuiz.$eval('#train-actions button', (b) => { const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, text: b.textContent }; });
+  assert.equal(fel.text, 'Fel');
+  await touchQuiz.evaluate(() => window.stjarnhimlen.answerTraining('now'));
+  await settle(touchQuiz);
+  await touchQuiz.evaluate(() => window.stjarnhimlen.advanceTraining());
+  const panelBottom = await touchQuiz.$eval('#panel-train', (p) => p.getBoundingClientRect().bottom);
+  assert.ok(panelBottom < fel.y, 'at step 2 the sky shows where Fel will be');
+  const touched = (await cardOf(touchQuiz)).card;
+  await touchQuiz.touchscreen.tap(fel.x, fel.y);
+  await settle(touchQuiz);
+  const underFinger = await touchQuiz.evaluate(([x, y]) => document.elementFromPoint(x, y)?.textContent, [fel.x, fel.y]);
+  assert.equal(underFinger, 'Fel', 'Fel came up under the finger');
+  assert.deepEqual(await cardOf(touchQuiz), { card: touched, step: 3, levels: ['UMa:1'] }, 'the tap showed the name and pressed nothing');
 
   // "Design": a list of interface designs. Each one is put on the page when chosen, keeps
   // the layout in one piece on a desktop and a phone, and is remembered.
