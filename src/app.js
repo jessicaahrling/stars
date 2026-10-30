@@ -14,7 +14,7 @@ import { figureState } from './sky/facts.js';
 import { findNeighbours } from './sky/neighbours.js';
 import { winterEvenings, winterOf } from './sky/winter.js';
 import { grade, introductionOrder, nextCard, NOW_AFTER, PERMANENT, trainingProgress } from './sky/training.js';
-import { MAX_FOV, MIN_FOV, SkyView } from './sky/view.js';
+import { DEFAULT_FOV, MAX_FOV, MIN_FOV, SkyView } from './sky/view.js';
 import { DiscoverPanel } from './ui/discover-panel.js';
 import { ThemePanel } from './ui/theme-panel.js';
 import { TrainPanel } from './ui/train-panel.js';
@@ -41,6 +41,11 @@ const FLY_MS = 900;
  * soon (ms) after the tap that named it, so that a double click cannot skip past the name.
  */
 const SECOND_TAP_MS = 400;
+/**
+ * Field of view for every training card: the one the sky opens with, the same each time,
+ * so that no card is zoomed in on and each is seen at its true size among its neighbours.
+ */
+const TRAIN_FOV = DEFAULT_FOV;
 /** Layers that "Träna" sets itself, step by step. */
 const TRAINING_LAYERS = new Set(['lines', 'names', 'bounds', 'art']);
 
@@ -521,7 +526,7 @@ export class App {
     }
     this.anim = null;
     this.trainingChanged();
-    this.flyTo(t.card, { instant: true });
+    this.flyTo(t.card, { instant: true, fov: TRAIN_FOV });
   }
 
   /** Constellations to learn: those whose figures rise from the chosen place, or those seen on its winter evenings. */
@@ -554,7 +559,7 @@ export class App {
       : nextCard(t.cards, this.trainOrder, (i) => this.trainInGoal(i), t.turn, Date.now(), t.card);
     t.step = 1;
     this.trainingChanged();
-    if (t.card >= 0) this.flyTo(t.card, { instant });
+    if (t.card >= 0) this.flyTo(t.card, { instant, fov: TRAIN_FOV });
     this.saveSoon();
   }
 
@@ -783,7 +788,8 @@ export class App {
     this.invalidate();
   }
 
-  flyTo(index, { instant = false } = {}) {
+  /** Turns the view to a constellation, framed to fit it unless a field of view is given. */
+  flyTo(index, { instant = false, fov: fixedFov = null } = {}) {
     const c = this.catalog.constellations[index];
     const v = this.view;
     v.timeMs = this.now();
@@ -793,7 +799,7 @@ export class App {
     const aspect = Math.max(v.width, v.height) / Math.min(v.width, v.height);
     // Frame the name as well as the figure (Cassiopeja's sits well outside its W).
     const reach = Math.max(c.radius, Math.min(...c.labelVecs.map((l) => angleBetween(c.centerVec, l))) + 2);
-    const fov = clamp(reach * 2.5 * Math.min(aspect, 2.2), 28, MAX_FOV - 10);
+    const fov = fixedFov ?? clamp(reach * 2.5 * Math.min(aspect, 2.2), 28, MAX_FOV - 10);
     let targetAlt = this.seeThroughNow() ? alt : Math.max(alt, Math.min(fov * 0.22, 20));
     // Centre the figure in the sky left free by the panel and the info card.
     const free = this.freeArea();

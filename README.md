@@ -28,9 +28,10 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   ihop. "Visa hela himlen" visar allt igen och knappen "Upptäck" går tillbaka dit man var.
   "Börja om" tar två tryck.
 - **Träna:** flashcards med spaced repetition. En stjärnbild visas först med bara sina
-  stjärnor (de runtomkring dämpas), ett tryck på himlen visar linjerna, nästa namnet och
-  illustrationen, och ett tredje betyder **Kan för tillfället** (men inte ett dubbelklick,
-  så att man hinner se namnet). När namnet visas kan man slå av och på linjerna och
+  stjärnor (de runtomkring dämpas), alltid lika utzoomad som himlen öppnar, så att den
+  syns i sin rätta storlek bland grannarna. Ett tryck på himlen visar linjerna, nästa
+  namnet och illustrationen, och ett tredje betyder **Kan för tillfället** (men inte ett
+  dubbelklick, så att man hinner se namnet). När namnet visas kan man slå av och på linjerna och
   bilden (knapparna Linjer och Bild, eller tangenterna L och B) för att lära sig formen;
   valet gäller även nästa kort. Under namnet står en kort berättelse om stjärnbilden, som
   kan fällas ihop (på en mobil börjar den hopfälld så att himlen syns). Sedan svarar man

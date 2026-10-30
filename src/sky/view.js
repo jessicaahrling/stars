@@ -7,6 +7,8 @@ import { julianDate, lstDeg } from '../astro/time.js';
 
 export const MIN_FOV = 12;
 export const MAX_FOV = 160;
+/** The field of view the sky opens with. */
+export const DEFAULT_FOV = 100;
 
 /** Camera matrix (horizontal -> camera: rows right, up, forward). */
 export function cameraMatrix(azDeg, altDeg) {
@@ -27,7 +29,7 @@ export class SkyView {
   constructor() {
     this.az = 180;
     this.alt = 25;
-    this.fov = 100;
+    this.fov = DEFAULT_FOV;
     this.lat = 59.33;
     this.lon = 18.07;
     this.timeMs = Date.now();

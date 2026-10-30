@@ -818,6 +818,7 @@ try {
   await quiz.click('#btn-train');
   await settle(quiz);
   assert.deepEqual(await quizState(), { on: true, card: 'UMa', step: 1, inPlay: 4, panel: true, discovering: false });
+  assert.equal(await quiz.evaluate(() => Math.round(window.stjarnhimlen.view.fov * 1000) / 1000), 100, 'the field of view the sky opens with');
   assert.equal(await quiz.getAttribute('#btn-train', 'aria-pressed'), 'true');
   assert.equal(await quiz.getAttribute('#btn-discover', 'aria-pressed'), 'false');
   // The list would give the answers away, and the cards decide on lines, names and drawings.
@@ -919,8 +920,10 @@ try {
   await quiz.click('#train-actions button:has-text("Fel")');
   assert.equal((await quizState()).card, 'Ori');
   // A touch during the flight to the next card lands it rather than stopping halfway.
+  // Every card is shown at the field of view the sky opens with, even after zooming in.
   const flight = await quiz.evaluate(() => {
     const a = window.stjarnhimlen;
+    a.zoomAt(0.4, 640, 400);
     a.answerTraining('now');
     const to = a.anim && { ...a.anim.to };
     const el = a.hudCanvas;
@@ -929,9 +932,10 @@ try {
     const send = (type) => el.dispatchEvent(new PointerEvent(type, { pointerId: 9, pointerType: 'touch', isPrimary: true, button: 0, bubbles: true, clientX: r.left + 700, clientY: r.top + 400 }));
     send('pointerdown');
     send('pointerup');
-    return { to, az: a.view.az, alt: a.view.alt, step: a.training.step, anim: a.anim };
+    return { to, az: a.view.az, alt: a.view.alt, fov: Math.round(a.view.fov * 1000) / 1000, step: a.training.step, anim: a.anim };
   });
   assert.ok(flight.to && Math.abs(flight.az - flight.to.az) < 1e-6 && Math.abs(flight.alt - flight.to.alt) < 1e-6, 'the flight landed');
+  assert.deepEqual([flight.to.fov, flight.fov], [100, 100], 'zoomed out again');
   assert.deepEqual([flight.step, flight.anim], [1, null], 'and the touch did not count as a tap');
   assert.equal((await quizState()).card, 'Cyg');
   const levelOf = (cid) => quiz.evaluate((c) => window.stjarnhimlen.training.cards.get(window.stjarnhimlen.catalog.byId.get(c).index).level, cid);
