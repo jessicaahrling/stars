@@ -209,7 +209,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px #000
 .con-list li.is-selected { background-color: var(--amber-2); text-shadow: none; }
 .con-list li.is-selected:not(.empty):hover { background-color: var(--amber); }
 .con-list li.is-selected .con-name strong, .con-list li.is-selected .con-name em,
-.con-list li.is-selected .state { color: #000; }
+.con-list li.is-selected .state, .con-list li.is-selected .group-members { color: #000; }
 .con-list li.is-selected .mark-box span { border-color: #000; }
 .empty { padding: 16px 10px; color: var(--amber-2); }
 .panel-foot { gap: 6px; padding: 10px 12px 12px; border-top: 1px solid var(--amber-line); }

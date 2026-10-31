@@ -72,8 +72,8 @@ export function groupDone(cards, group, seen) {
 }
 
 /**
- * The group to learn: the one taken up (`current`) until it is learnt, then the first
- * within the goal not learnt yet.
+ * The group to learn: the one taken up (`current`) until it is learnt, then the next one
+ * after it within the goal not learnt yet, and when there is none after it, the first.
  * @param {Map<number, Card>} cards
  * @param {number[][]} groups  in learning order
  * @param {(k: number) => boolean} groupInGoal
@@ -83,7 +83,9 @@ export function groupDone(cards, group, seen) {
  */
 export function groupToLearn(cards, groups, groupInGoal, current, seen) {
   if (current >= 0 && !groupDone(cards, groups[current], seen)) return current;
-  return groups.findIndex((g, k) => groupInGoal(k) && !groupDone(cards, g));
+  const open = (k) => groupInGoal(k) && !groupDone(cards, groups[k]);
+  const after = groups.findIndex((g, k) => k > current && open(k));
+  return after >= 0 ? after : groups.findIndex((g, k) => open(k));
 }
 
 /**
@@ -112,7 +114,8 @@ export function nextCard(cards, group, seen, inGoal, turn, now, last = -1) {
   const soonest = (list) => list.reduce((a, b) => (cards.get(b).dueTurn < cards.get(a).dueTurn ? b : a));
   const notLast = (list) => (list.length > 1 ? list.filter((i) => i !== last) : list);
   const inGroup = new Set(group);
-  const others = notLast([...cards.keys()].filter((i) => !inGroup.has(i) && inGoal(i)));
+  // Reviews are of cards answered before; one put in play but never shown waits for its group.
+  const others = notLast([...cards.keys()].filter((i) => !inGroup.has(i) && inGoal(i) && cards.get(i).n > 0));
   const due = others.filter((i) => isDue(cards.get(i), turn, now));
   const review = () => {
     const miss = due.filter((i) => missed(cards.get(i)));
@@ -122,7 +125,7 @@ export function nextCard(cards, group, seen, inGoal, turn, now, last = -1) {
   const mine = group.filter((i) => i !== last);
   const missedDue = mine.filter((i) => missed(cards.get(i)) && isDue(cards.get(i), turn, now));
   if (missedDue.length) return soonest(missedDue);
-  const unseen = mine.filter((i) => !seen.has(i));
+  const unseen = mine.filter((i) => !seen.has(i) && !(missed(cards.get(i)) && !isDue(cards.get(i), turn, now)));
   if (unseen.length) return unseen[0];
   if (due.length) return review();
   const known = mine.filter((i) => cards.get(i).level >= 1);

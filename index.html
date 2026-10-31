@@ -163,7 +163,7 @@
     .discover-next { display: flex; flex-wrap: wrap; gap: 6px; overflow-y: auto; min-height: 0; padding: 2px; }
     .discover-next .chip { min-height: 34px; padding: 0 12px; font-size: 13px; gap: 6px; }
     .discover-next .state { font-size: 11px; color: var(--ink-3); }
-    .discover-next .state:empty { display: none; }
+    .discover-next .state:empty, .panel-groups .state:empty { display: none; }
     .discover-next .chip.below { color: var(--ink-2); border-style: dashed; }
     .discover-foot { display: flex; flex-wrap: wrap; gap: 6px; }
     .discover-foot .chip { min-height: 32px; padding: 0 11px; font-size: 12px; color: var(--ink-2); }
@@ -180,6 +180,11 @@
     .group-stage { padding: 12px 10px 4px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
       color: var(--ink-3); }
     .group-members { font-size: 13px; color: var(--ink-3); }
+    /* On a low screen the overview scrolls as a whole, so the groups are never squeezed out. */
+    @media (max-height: 480px) {
+      .panel-groups { overflow-y: auto; }
+      .panel-groups .con-list { flex: none; overflow: visible; }
+    }
     .train-group b { font-weight: 500; color: var(--ink); }
     /* The story: in the card laid out like the facts, in the training panel like its hints. */
     .story { display: grid; gap: 6px; }
@@ -393,7 +398,7 @@
       <button id="btn-groups-close" class="icon-btn" type="button" aria-label="Stäng grupperna">×</button>
     </div>
     <div class="tools">
-      <p class="list-note">Du lär dig en grupp i taget, tills du kan alla i den, och sedan nästa. Välj en grupp för att träna på den nu.</p>
+      <p class="list-note">Du lär dig en grupp i taget, tills du kan alla i den, och sedan nästa. Välj en grupp för att träna på den nu; är en grupp svår kan du ta en annan och komma tillbaka senare.</p>
       <p class="list-note">Hur långt du vill gå:</p>
       <div id="train-goal" class="seg train-goal" role="group" aria-label="Hur långt du tränar: först vinterhimlen, sedan resten av Sverige, sist hela himlen">
         <button id="train-goal-winter" type="button" class="chip" aria-pressed="false" title="De som syns kl. 22 i december–februari från både Stockholm och Göteborg: minst halva figuren 5° över horisonten under minst en månad">Vinter <span class="muted" id="train-goal-winter-count"></span></button>

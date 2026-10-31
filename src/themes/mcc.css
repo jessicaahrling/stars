@@ -204,6 +204,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 26px; box-sizing: b
 .con-name strong { font-weight: 500; color: var(--legend); }
 .con-name em { font-family: var(--font-mono); font-style: normal; font-size: 12px; color: var(--legend-2); }
 .state { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; color: var(--legend-2); }
+.group-members, .group-stage { color: var(--legend-2); }
 .state.up { color: var(--up); }
 .empty { color: var(--legend-2); }
 .panel-foot { background: var(--bezel); border-top: 1px solid var(--seam); margin: 0 1px 1px; gap: 6px; }

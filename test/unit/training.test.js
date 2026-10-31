@@ -136,7 +136,7 @@ test('the same card is never shown twice in a row, and a miss rests at least two
     const back = shown.indexOf(shown[k], k + 1);
     assert.ok(back < 0 || back - k > AGAIN_AFTER, `${id(shown[k])} missed at ${k}, back at ${back}`);
   }
-  assert.ok(shown.learning.at(-1) > 5, `groups are learnt in spite of misses (${shown.learning.at(-1)})`);
+  assert.ok(shown.learning.at(-1) > 5 || shown.learning.at(-1) === -1, `groups are learnt in spite of misses (${shown.learning.at(-1)})`);
 });
 
 test('known for now, the whole sky is learnt with few showings each', () => {
@@ -173,6 +173,24 @@ test('a goal short of the whole sky: groups and reviews beyond it wait, and are 
   assert.equal(shown.learning.at(-1), -1, 'and once it is learnt, play goes on with its reviews');
   const p = trainingProgress(cards, winter, 88);
   assert.deepEqual([p.goal, p.known], [34, 34]);
+});
+
+test('after a group, the next one not learnt follows, not an earlier one with a slip', () => {
+  const gs = made(3, 3, 3, 3);
+  const cards = new Map();
+  play(cards, 6, () => 'now', { gs });
+  cards.set(1, grade(cards.get(1), 'again', 6, 0));
+  const shown = play(cards, 6, () => 'now', { gs, turn: 7, from: { group: 2, seen: new Set() } });
+  assert.ok(shown.learning.includes(3), `group 3 follows group 2 (${shown.learning})`);
+  assert.ok(shown.learning.every((k) => k >= 2), 'not group 0, though its card 1 is missed: that one comes as a review');
+  assert.ok(shown.includes(1), shown.join(' '));
+});
+
+test('cards of a group left before they were shown are not asked as reviews', () => {
+  const gs = made(3, 3);
+  const cards = new Map([[0, { level: 0, dueTurn: 0, dueAt: null, n: 0 }], [1, { level: 0, dueTurn: 0, dueAt: null, n: 0 }]]);
+  const shown = [0, 1, 2].map((k) => nextCard(cards, gs[1], new Set(), all, k, 0, -1));
+  assert.ok(shown.every((i) => gs[1].includes(i)), shown.join(' '));
 });
 
 test('a group chosen again is gone through once more, then play goes back to the first not learnt', () => {

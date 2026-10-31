@@ -1052,6 +1052,15 @@ try {
   assert.equal(await quiz.textContent('#train-group'), 'Grupp 4 av 28: Jägaren Orion · 0 av 4 kan du');
   await quiz.click('#btn-train-groups');
   assert.equal(await quiz.textContent('#group-list li.is-selected .state'), 'tränas nu');
+  // Choosing the group being learnt goes on where it was.
+  await quiz.click('#group-list li.is-selected button');
+  assert.deepEqual([(await quizState()).card, await quiz.isHidden('#panel-groups')], ['Ori', true]);
+  // Opened and closed with its own button, the overview gives focus back to the card.
+  await quiz.click('#btn-train-groups');
+  await quiz.click('#btn-train-groups');
+  await quiz.keyboard.press(' ');
+  assert.equal((await quizState()).step, 2);
+  await quiz.click('#btn-train-groups');
 
   // How far to go, chosen in the overview: the winter sky only, all of Sweden's or the whole
   // sky. Cards beyond the choice are neither asked nor counted, and the choice is remembered.

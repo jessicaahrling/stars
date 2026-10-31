@@ -53,8 +53,9 @@ export class GroupsPanel {
 
   toggle(force) {
     const open = force ?? this.panel.hidden;
-    // Closed from within, focus goes back to the card, so that Space goes on with it.
-    const within = !open && this.panel.contains(document.activeElement);
+    // Closed from within or with its own button, focus goes back to the card, so that
+    // Space goes on with it.
+    const within = !open && (this.panel.contains(document.activeElement) || document.activeElement === this.button);
     this.panel.hidden = !open;
     this.button.setAttribute('aria-expanded', String(open));
     if (open) {

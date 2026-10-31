@@ -548,7 +548,11 @@ export class App {
     const t = this.training;
     if (t.goal === goal || !STAGES.some((s) => s.id === goal)) return;
     t.goal = goal;
+    const before = t.group;
     if (t.group >= 0 && !this.groupInGoal(t.group)) t.group = -1;
+    // A wider goal can bring a group to learn, a narrower one take it away; a word about
+    // the next group would no longer hold.
+    if (this.trainingGroup() !== before) t.notice = null;
     if (t.on && (t.card < 0 || !this.trainInGoal(t.card))) this.nextTrainingCard();
     else this.trainPanel.render();
     this.groupsPanel.render();
@@ -579,6 +583,11 @@ export class App {
   chooseTrainingGroup(k) {
     const t = this.training;
     if (!this.chunks[k]) return;
+    // The group being learnt goes on where it was.
+    if (k === t.group) {
+      this.groupsPanel.toggle(false);
+      return;
+    }
     t.group = k;
     t.groupSeen = new Set();
     this.groupsPanel.toggle(false);
@@ -1020,7 +1029,10 @@ export class App {
     this.card.root.style.visibility = narrow && this.list.open ? 'hidden' : '';
     // Below laptop widths the list and the Upptäck panel would leave little sky between them.
     const crowded = this.list.open && window.innerWidth <= 1100;
-    const covered = crowded || (narrow && (this.when.open || this.themePanel.open || this.groupsPanel.open));
+    // The groups overview stands over the training panel where the two do not fit side by side.
+    const overlaps = this.groupsPanel.open
+      && this.groupsPanel.panel.getBoundingClientRect().left < this.trainPanel.root.getBoundingClientRect().right;
+    const covered = crowded || overlaps || (narrow && (this.when.open || this.themePanel.open || this.groupsPanel.open));
     for (const p of [this.discoverPanel.root, this.trainPanel.root]) p.style.visibility = covered ? 'hidden' : '';
     this.placeToast();
     // Names keep clear of the panel, so they are drawn again when it comes or goes.
