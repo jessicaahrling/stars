@@ -14,11 +14,12 @@ import { figureState } from './sky/facts.js';
 import { findNeighbours } from './sky/neighbours.js';
 import { winterOf } from './sky/winter.js';
 import { chunksOf, STAGES, stagesOf } from './sky/curriculum.js';
-import { grade, nextCard, NOW_AFTER, PERMANENT, trainingProgress } from './sky/training.js';
+import { grade, groupToLearn, nextCard, NOW_AFTER, PERMANENT, trainingProgress } from './sky/training.js';
 import { DEFAULT_FOV, MAX_FOV, MIN_FOV, SkyView } from './sky/view.js';
 import { DiscoverPanel } from './ui/discover-panel.js';
 import { ThemePanel } from './ui/theme-panel.js';
 import { TrainPanel } from './ui/train-panel.js';
+import { GroupsPanel } from './ui/groups-panel.js';
 import { applyTheme, DEFAULT_THEME, THEMES } from './ui/themes.js';
 import { InfoCard } from './ui/info-card.js';
 import { attachSkyInput } from './ui/input.js';
@@ -147,6 +148,16 @@ export class App {
     this.stages = stagesOf(this.catalog, winterOf(Date.now()));
     this.chunks = chunksOf(this.catalog);
     this.chunkOf = new Map(this.chunks.flatMap((ch) => ch.members.map((i) => [i, ch])));
+    /**
+     * The group being learnt (an index into chunks, or -1 for the first not learnt yet),
+     * its members answered since it was taken up, and, for the card after a group has been
+     * learnt, a word about it.
+     */
+    const group = this.chunks.findIndex((ch) => ch.name === tr.group);
+    this.training.group = group;
+    const seen = group >= 0 && Array.isArray(tr.seen) ? tr.seen.map((id) => this.catalog.byId.get(id)?.index) : [];
+    this.training.groupSeen = new Set(seen.filter((i) => group >= 0 && this.chunks[group].members.includes(i)));
+    this.training.notice = null;
     this.reveal = null;
     this.discoveryInfo = null;
     /** The constellation found last, named in the panel and on the sky until the next find. */
@@ -184,6 +195,7 @@ export class App {
     this.discoverPanel = new DiscoverPanel(this, $);
     this.themePanel = new ThemePanel(this, $);
     this.trainPanel = new TrainPanel(this, $);
+    this.groupsPanel = new GroupsPanel(this, $);
     this.toast = $('toast');
     this.brand = doc.querySelector('.brand');
     this.markCount = $('mark-count');
@@ -494,6 +506,7 @@ export class App {
     this.select(-1);
     this.setHover(-1);
     this.closeList();
+    this.closeGroups();
     if (on) {
       this.nextTrainingCard({ again: t.card });
     } else {
@@ -516,7 +529,7 @@ export class App {
   trainingResync() {
     const t = this.training;
     if (!t.on || t.card < 0) return;
-    if (!this.trainInGoal(t.card)) {
+    if (!this.trainInGoal(t.card) && !this.chunks[t.group]?.members.includes(t.card)) {
       this.nextTrainingCard({ instant: true });
       return;
     }
@@ -530,14 +543,46 @@ export class App {
     return this.inScope(index, this.training.goal);
   }
 
-  /** Chooses how far to learn ('winter', 'sweden' or 'all'). A card beyond it gives way to one within. */
+  /** Chooses how far to learn ('winter', 'sweden' or 'all'). A group or card beyond it gives way to one within. */
   setTrainingGoal(goal) {
     const t = this.training;
     if (t.goal === goal || !STAGES.some((s) => s.id === goal)) return;
     t.goal = goal;
+    if (t.group >= 0 && !this.groupInGoal(t.group)) t.group = -1;
     if (t.on && (t.card < 0 || !this.trainInGoal(t.card))) this.nextTrainingCard();
     else this.trainPanel.render();
+    this.groupsPanel.render();
     this.saveSoon();
+  }
+
+  /** Whether a group is within the goal: its step no further than the goal's. */
+  groupInGoal(k) {
+    return this.chunks[k].stage <= STAGES.find((s) => s.id === this.training.goal).upTo;
+  }
+
+  /**
+   * The group being learnt: the one taken up, until each of its members has been answered
+   * and is known; then the first within the goal not learnt yet, which is taken up in turn.
+   * @returns {number} an index into chunks, or -1 when every group within the goal is learnt
+   */
+  trainingGroup() {
+    const t = this.training;
+    const next = groupToLearn(t.cards, this.chunks.map((ch) => ch.members), (k) => this.groupInGoal(k), t.group, t.groupSeen);
+    if (next !== t.group) {
+      t.group = next;
+      t.groupSeen = new Set();
+    }
+    return next;
+  }
+
+  /** Takes up a group chosen in the overview, from its first member; it is gone through once more if already learnt. */
+  chooseTrainingGroup(k) {
+    const t = this.training;
+    if (!this.chunks[k]) return;
+    t.group = k;
+    t.groupSeen = new Set();
+    this.groupsPanel.toggle(false);
+    this.nextTrainingCard({ again: this.chunks[k].members[0] });
   }
 
   trainingProgress() {
@@ -567,9 +612,14 @@ export class App {
    */
   nextTrainingCard({ instant = false, again = -1 } = {}) {
     const t = this.training;
-    t.card = again >= 0 && this.trainInGoal(again)
+    const before = t.group;
+    const k = this.trainingGroup();
+    // The card after a group has been learnt says so, and names the next.
+    t.notice = before >= 0 && k !== before ? { done: this.chunks[before].name, next: this.chunks[k]?.name ?? null } : null;
+    const group = k >= 0 ? this.chunks[k].members : [];
+    t.card = again >= 0 && (this.trainInGoal(again) || group.includes(again))
       ? again
-      : nextCard(t.cards, this.chunks.map((ch) => ch.members), (i) => this.trainInGoal(i), t.turn, Date.now(), t.card);
+      : nextCard(t.cards, group, t.groupSeen, (i) => this.trainInGoal(i), t.turn, Date.now(), t.card);
     t.step = 1;
     this.trainingChanged();
     if (t.card >= 0) this.flyTo(t.card, { instant, fov: TRAIN_FOV });
@@ -611,6 +661,7 @@ export class App {
     if (!t.on || t.card < 0) return;
     t.cards.set(t.card, grade(t.cards.get(t.card), answer, t.turn, Date.now()));
     t.turn++;
+    if (this.chunks[t.group]?.members.includes(t.card)) t.groupSeen.add(t.card);
     this.nextTrainingCard();
   }
 
@@ -636,6 +687,8 @@ export class App {
     this.training.cards.clear();
     this.training.turn = 0;
     this.training.card = -1;
+    this.training.group = -1;
+    this.training.groupSeen = new Set();
     this.nextTrainingCard();
   }
 
@@ -660,6 +713,7 @@ export class App {
     this.invalidate();
     this.syncControls();
     this.trainPanel.render();
+    this.groupsPanel.render();
     this.layoutChanged();
   }
 
@@ -724,7 +778,7 @@ export class App {
     }
     if (!narrow) {
       // The list and the time panel stand along the right edge while open.
-      for (const p of [this.list.panel, this.when.panel, this.themePanel.panel]) {
+      for (const p of [this.list.panel, this.when.panel, this.themePanel.panel, this.groupsPanel.panel]) {
         if (!p.hidden) a.right = Math.max(a.left + 200, Math.min(a.right, p.getBoundingClientRect().left));
       }
     }
@@ -909,7 +963,8 @@ export class App {
       '=': () => this.zoomAt(1 / 1.2, v.width / 2, v.height / 2),
       '-': () => this.zoomAt(1.2, v.width / 2, v.height / 2),
       Escape: () => {
-        if (this.themePanel.open) this.themePanel.toggle(false);
+        if (this.groupsPanel.open) this.groupsPanel.toggle(false);
+        else if (this.themePanel.open) this.themePanel.toggle(false);
         else if (this.list.open) this.list.toggle(false);
         else if (this.when.open) this.when.toggle(false);
         else this.select(-1);
@@ -931,6 +986,10 @@ export class App {
 
   closeTheme() {
     if (this.themePanel.open) this.themePanel.toggle(false);
+  }
+
+  closeGroups() {
+    if (this.groupsPanel.open) this.groupsPanel.toggle(false);
   }
 
   /** Switches the interface design (the sky itself stays the same). */
@@ -961,7 +1020,7 @@ export class App {
     this.card.root.style.visibility = narrow && this.list.open ? 'hidden' : '';
     // Below laptop widths the list and the Upptäck panel would leave little sky between them.
     const crowded = this.list.open && window.innerWidth <= 1100;
-    const covered = crowded || (narrow && (this.when.open || this.themePanel.open));
+    const covered = crowded || (narrow && (this.when.open || this.themePanel.open || this.groupsPanel.open));
     for (const p of [this.discoverPanel.root, this.trainPanel.root]) p.style.visibility = covered ? 'hidden' : '';
     this.placeToast();
     // Names keep clear of the panel, so they are drawn again when it comes or goes.
@@ -1054,6 +1113,8 @@ export class App {
           art: this.training.showArt,
           story: this.training.showStory,
           goal: this.training.goal,
+          group: this.chunks[this.training.group]?.name ?? null,
+          seen: [...this.training.groupSeen].map((i) => this.catalog.constellations[i].id),
           cards: [...this.training.cards].map(([i, c]) => [this.catalog.constellations[i].id, c.level, c.dueTurn, c.dueAt, c.n]),
         },
       });

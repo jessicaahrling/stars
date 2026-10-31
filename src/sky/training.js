@@ -3,10 +3,10 @@
 //   'again'      Fel                 back after AGAIN_AFTER other cards
 //   'now'        Kan för tillfället  known; back after more and more cards each time
 //   'permanent'  Kan permanent       known; back only now and then
-// Constellations come into play a group at a time (see sky/curriculum.js), the next group
-// as soon as every card in play is known, or nothing is due because a missed one is still
-// resting. Rests are counted in cards shown, so that play moves on at the learner's pace,
-// and in days too, so that old cards come back between sessions.
+// Constellations are learnt a group at a time (see sky/curriculum.js): a group until every
+// one in it is known, and then the next, with a review of an older card now and then.
+// Rests are counted in cards shown, so that play moves on at the learner's pace, and in
+// days too, so that old cards come back between sessions.
 
 /** Cards shown before a missed card comes back. */
 export const AGAIN_AFTER = 2;
@@ -55,51 +55,81 @@ export function isDue(card, turn, now) {
   return turn >= card.dueTurn || (card.dueAt !== null && now >= card.dueAt);
 }
 
+/** Every REVIEW_EVERY-th card is a review of a card outside the group, when one is due. */
+export const REVIEW_EVERY = 3;
+
+const missed = (card) => card.level === 0 && card.n > 0;
+
 /**
- * Picks the card to show next, and brings new constellations into play a group at a
- * time (see sky/curriculum.js): the first group at first, then the next as soon as every
- * card in play is known. A missed card that is due goes first, then the card that has been
- * due longest (one due after days away counts as due from the turn it is first found so),
- * so the reviews that are due come before a new group's cards. A new group still comes in
- * however many there are to review: rests counted in cards would otherwise stop play at
- * about as many cards as the longest rest, short of the whole sky. While a missed card rests and nothing else is due, the next group comes
- * in too, rather than known cards early, so that the miss comes back after AGAIN_AFTER
- * others and a card known for good stays away. Once every group is in play and nothing is
- * due, the card due soonest is shown, so practice never stops. The card just shown waits a
- * turn if another will do.
- * @param {Map<number, Card>} cards  constellations in play; new ones are added to it
- * @param {number[][]} groups  constellation indices, group by group, in learning order
- * @param {(index: number) => boolean} inGoal  constellations to learn
+ * Whether a group is learnt: every member known, and, when `seen` is given, answered since
+ * the group was taken up (so that a group chosen again is gone through once more).
+ * @param {Map<number, Card>} cards
+ * @param {number[]} group
+ * @param {Set<number>} [seen]
+ */
+export function groupDone(cards, group, seen) {
+  return group.every((i) => cards.get(i)?.level >= 1 && (!seen || seen.has(i)));
+}
+
+/**
+ * The group to learn: the one taken up (`current`) until it is learnt, then the first
+ * within the goal not learnt yet.
+ * @param {Map<number, Card>} cards
+ * @param {number[][]} groups  in learning order
+ * @param {(k: number) => boolean} groupInGoal
+ * @param {number} current  the group taken up, or -1
+ * @param {Set<number>} seen  its members answered since it was taken up
+ * @returns {number} a group index, or -1 when every group within the goal is learnt
+ */
+export function groupToLearn(cards, groups, groupInGoal, current, seen) {
+  if (current >= 0 && !groupDone(cards, groups[current], seen)) return current;
+  return groups.findIndex((g, k) => groupInGoal(k) && !groupDone(cards, g));
+}
+
+/**
+ * Picks the card to show next while learning one group at a time (see sky/curriculum.js).
+ * The group's members come in when it is taken up, and are shown in their order, each
+ * once; a miss comes back when it has rested, until every one is known. Every
+ * REVIEW_EVERY-th card is a review instead, when a card outside the group is due (a miss
+ * first, then the one due longest), so that old groups come back now and then; while a
+ * miss in the group rests, the reviews due fill in, then the group's known cards, then an
+ * older card a little early.
+ * With no group, practice goes on with the reviews due, and then the card due soonest.
+ * One due after days away counts as due from the turn it is first found so. The card just
+ * shown waits a turn if another will do.
+ * @param {Map<number, Card>} cards  constellations in play; the group's are added to it
+ * @param {number[]} group  the group being learnt, in order, or [] when there is none
+ * @param {Set<number>} seen  the group's members answered since it was taken up
+ * @param {(index: number) => boolean} inGoal  constellations to review
  * @param {number} turn  cards answered so far
  * @param {number} now   ms
  * @param {number} last  the card just shown, or -1
- * @returns {number} a constellation index, or -1 when there is nothing to learn
+ * @returns {number} a constellation index, or -1 when there is nothing to show
  */
-export function nextCard(cards, groups, inGoal, turn, now, last = -1) {
-  const inPlay = () => [...cards.keys()].filter(inGoal);
-  const waiting = groups.map((g) => g.filter((i) => inGoal(i) && !cards.has(i))).filter((g) => g.length);
-  const bringIn = () => {
-    for (const i of waiting.shift() || []) cards.set(i, { level: 0, dueTurn: turn, dueAt: null, n: 0 });
-  };
-  const pool = () => {
-    const play = inPlay();
-    return play.length > 1 ? play.filter((i) => i !== last) : play;
-  };
+export function nextCard(cards, group, seen, inGoal, turn, now, last = -1) {
+  for (const i of group) if (!cards.has(i)) cards.set(i, { level: 0, dueTurn: turn, dueAt: null, n: 0 });
   for (const [i, c] of cards) if (c.dueAt !== null && now >= c.dueAt && c.dueTurn > turn) cards.set(i, { ...c, dueTurn: turn });
   const soonest = (list) => list.reduce((a, b) => (cards.get(b).dueTurn < cards.get(a).dueTurn ? b : a));
-  const due = () => {
-    const list = pool().filter((i) => isDue(cards.get(i), turn, now));
-    const missed = list.filter((i) => cards.get(i).level === 0 && cards.get(i).n > 0);
-    return missed.length ? missed : list;
+  const notLast = (list) => (list.length > 1 ? list.filter((i) => i !== last) : list);
+  const inGroup = new Set(group);
+  const others = notLast([...cards.keys()].filter((i) => !inGroup.has(i) && inGoal(i)));
+  const due = others.filter((i) => isDue(cards.get(i), turn, now));
+  const review = () => {
+    const miss = due.filter((i) => missed(cards.get(i)));
+    return soonest(miss.length ? miss : due);
   };
-  if (!inPlay().length) bringIn();
-  let list = due();
-  if (waiting.length && (!list.length || inPlay().every((i) => cards.get(i).level >= 1))) {
-    bringIn();
-    list = due();
-  }
-  if (list.length) return soonest(list);
-  const rest = pool();
+  if (due.length && turn % REVIEW_EVERY === REVIEW_EVERY - 1) return review();
+  const mine = group.filter((i) => i !== last);
+  const missedDue = mine.filter((i) => missed(cards.get(i)) && isDue(cards.get(i), turn, now));
+  if (missedDue.length) return soonest(missedDue);
+  const unseen = mine.filter((i) => !seen.has(i));
+  if (unseen.length) return unseen[0];
+  if (due.length) return review();
+  const known = mine.filter((i) => cards.get(i).level >= 1);
+  if (known.length) return soonest(known);
+  // Only a miss is left in the group, still resting: an older card a little early, if any.
+  if (others.length) return soonest(others);
+  const rest = notLast(group);
   return rest.length ? soonest(rest) : -1;
 }
 

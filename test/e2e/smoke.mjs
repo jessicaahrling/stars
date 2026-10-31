@@ -819,7 +819,9 @@ try {
   await settle(quiz);
   assert.deepEqual(await quizState(), { on: true, card: 'UMa', step: 1, inPlay: 3, panel: true, discovering: false });
   assert.equal(await quiz.evaluate(() => Math.round(window.stjarnhimlen.view.fov * 1000) / 1000), 100, 'the field of view the sky opens with');
-  assert.match(await quiz.textContent('#train-prompt'), /^En ny stjärnbild ur gruppen ”Björnarna vid polen”/);
+  assert.match(await quiz.textContent('#train-prompt'), /^En ny stjärnbild!/);
+  // One group at a time: the panel says which, and how much of it is known.
+  assert.equal(await quiz.textContent('#train-group'), 'Grupp 1 av 28: Björnarna vid polen · 0 av 3 kan du');
   assert.equal(await quiz.getAttribute('#btn-train', 'aria-pressed'), 'true');
   assert.equal(await quiz.getAttribute('#btn-discover', 'aria-pressed'), 'false');
   // The list would give the answers away, and the cards decide on lines, names and drawings.
@@ -892,8 +894,8 @@ try {
   assert.match(await quiz.textContent('#train-story-origin'), /^Grekisk mytologi$/);
   assert.match(await quiz.textContent('#train-story-text'), /Kallisto/);
   assert.match(await quiz.textContent('#train-story-special'), /Karlavagnen/);
-  // So is the group it came in with, and why they belong together.
-  assert.equal(await quiz.textContent('#train-group'), 'Grupp 1 av 28: Björnarna vid polen.');
+  // So is why its group belongs together.
+  assert.equal(await quiz.textContent('#train-story-group'), 'Grupp 1, Björnarna vid polen:');
   assert.match(await quiz.textContent('#train-group-text'), /^Karlavagnen hör till Stora björnen/);
   await quiz.click('#train-story summary');
   await quiz.waitForFunction(() => window.stjarnhimlen.training.showStory === false);
@@ -947,25 +949,28 @@ try {
   assert.ok(flight.to && Math.abs(flight.az - flight.to.az) < 1e-6 && Math.abs(flight.alt - flight.to.alt) < 1e-6, 'the flight landed');
   assert.deepEqual([flight.to.fov, flight.fov], [100, 100], 'zoomed out again');
   assert.deepEqual([flight.step, flight.anim], [1, null], 'and the touch did not count as a tap');
-  // The miss rests, so the next group comes in: Perseus and Andromeda's story.
-  assert.deepEqual([(await quizState()).card, (await quizState()).inPlay], ['Cas', 7]);
+  // The group is not left while the miss rests: a card of it already known fills in.
+  assert.deepEqual([(await quizState()).card, (await quizState()).inPlay], ['UMa', 3]);
+  assert.equal(await quiz.textContent('#train-group'), 'Grupp 1 av 28: Björnarna vid polen · 2 av 3 kan du');
   const levelOf = (cid) => quiz.evaluate((c) => window.stjarnhimlen.training.cards.get(window.stjarnhimlen.catalog.byId.get(c).index).level, cid);
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   await quiz.click('#train-actions button:has-text("Kan för tillfället")');
-  assert.equal(await levelOf('Cas'), 1, '"Kan för tillfället" counts it as known for now');
+  assert.equal(await levelOf('UMa'), 2, '"Kan för tillfället" counts it as known for now, once more');
   assert.equal((await quizState()).card, 'UMi', 'the missed card comes back after two others');
 
-  // Key 3 is "Kan permanent", and the group's other new ones follow.
+  // Key 3 is "Kan permanent". With all three known the group is learnt, and the next comes.
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   await quiz.keyboard.press('3');
   assert.equal(await levelOf('UMi'), 9, 'key 3 is "Kan permanent"');
   let q = await quizState();
-  assert.deepEqual([q.inPlay, q.card], [7, 'And']);
-  assert.match(await quiz.textContent('#train-count'), /^4 av 34$/);
+  assert.deepEqual([q.inPlay, q.card], [7, 'Cas']);
+  assert.match(await quiz.textContent('#train-prompt'), /^Du kan gruppen ”Björnarna vid polen”\. Nu kommer ”Perseus räddar Andromeda”\. En ny stjärnbild!/);
+  assert.equal(await quiz.textContent('#train-group'), 'Grupp 2 av 28: Perseus räddar Andromeda · 0 av 4 kan du');
+  assert.match(await quiz.textContent('#train-count'), /^3 av 34$/);
   // "Kan permanent" counts it as known for good.
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   await quiz.click('#train-actions button:has-text("Kan permanent")');
-  assert.match(await quiz.textContent('#train-count'), /^5 av 34$/);
+  assert.match(await quiz.textContent('#train-count'), /^4 av 34$/);
   assert.match(await quiz.textContent('#train-of'), /^kan du i vinterhimlen · 2 permanent · 7 i spel$/);
   q = await quizState();
 
@@ -1032,8 +1037,24 @@ try {
   q = await quizState();
   assert.deepEqual([q.card, q.inPlay, q.step], ['UMa', 3, 1]);
 
-  // How far to go: the winter sky only, all of Sweden's or the whole sky. Cards beyond the
-  // choice are neither asked nor counted, and the choice is remembered.
+  // "Grupper": an overview of all 28 groups, step by step, and a way to take one up now.
+  await quiz.click('#btn-train-groups');
+  assert.equal(await quiz.isVisible('#panel-groups'), true);
+  const groupRows = await quiz.$$eval('#group-list li', (els) => els.map((li) => (li.classList.contains('group-stage') ? `# ${li.textContent}`
+    : `${li.querySelector('strong').textContent}|${li.querySelector('.state').textContent}`)));
+  assert.equal(groupRows.filter((r) => !r.startsWith('#')).length, 28);
+  assert.deepEqual(groupRows.filter((r) => r.startsWith('#')), ['# 1. Vinterhimlen · 10 grupper', '# 2. Resten av Sverige · 8 grupper', '# 3. Resten av himlen · 10 grupper']);
+  assert.equal(groupRows[1], '1. Björnarna vid polen|tränas nu');
+  await quiz.click('#group-list button:has-text("Jägaren Orion")');
+  assert.equal(await quiz.isHidden('#panel-groups'), true);
+  q = await quizState();
+  assert.deepEqual([q.card, q.step], ['Ori', 1]);
+  assert.equal(await quiz.textContent('#train-group'), 'Grupp 4 av 28: Jägaren Orion · 0 av 4 kan du');
+  await quiz.click('#btn-train-groups');
+  assert.equal(await quiz.textContent('#group-list li.is-selected .state'), 'tränas nu');
+
+  // How far to go, chosen in the overview: the winter sky only, all of Sweden's or the whole
+  // sky. Cards beyond the choice are neither asked nor counted, and the choice is remembered.
   const goalChips = () => quiz.$$eval('#train-goal button', (els) => els.map((e) => `${e.textContent.replace(/\s+/g, ' ').trim()}:${e.getAttribute('aria-pressed')}`));
   assert.deepEqual(await goalChips(), ['Vinter 34:false', 'Sverige 59:false', 'Alla 88:true']);
   await quiz.evaluate(() => window.stjarnhimlen.nextTrainingCard({ again: window.stjarnhimlen.catalog.byId.get('Sco').index, instant: true }));
@@ -1044,7 +1065,9 @@ try {
   assert.match(await quiz.getAttribute('#train-meter', 'aria-valuetext'), /^Du kan 0 av 34 i vinterhimlen/);
   q = await quizState();
   assert.ok(q.card !== 'Sco' && await quiz.evaluate(() => window.stjarnhimlen.stages[window.stjarnhimlen.training.card] === 1), `Skorpionen gives way to one of the winter sky (${q.card})`);
-  // Space then shows the next step, not the chip again.
+  // Escape closes the overview, and Space then shows the next step.
+  await quiz.keyboard.press('Escape');
+  assert.equal(await quiz.isHidden('#panel-groups'), true);
   await quiz.keyboard.press(' ');
   assert.equal((await quizState()).step, 2);
   await quiz.waitForFunction(() => JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').training?.goal === 'winter');
@@ -1053,9 +1076,12 @@ try {
   assert.equal(await quiz.getAttribute('#train-goal-winter', 'aria-pressed'), 'true');
   assert.match(await quiz.textContent('#train-count'), /^0 av 34$/);
   // Once the winter sky is known, the progress moves on to the rest of Sweden, and then to the rest.
+  await quiz.click('#btn-train-groups');
   await quiz.click('#train-goal-all');
+  await quiz.keyboard.press('Escape');
   const knownUpTo = (stage) => quiz.evaluate((s) => {
     const a = window.stjarnhimlen;
+    a.training.group = -1;
     a.stages.forEach((st, i) => { if (st <= s) a.training.cards.set(i, { level: 1, dueTurn: 1000, dueAt: null, n: 1 }); });
     a.trainPanel.render();
     return [document.getElementById('train-count').textContent, document.getElementById('train-of').textContent];

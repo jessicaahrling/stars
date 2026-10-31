@@ -22,17 +22,11 @@ export class TrainPanel {
     this.bar = $('train-bar');
     this.goals = { winter: $('train-goal-winter'), sweden: $('train-goal-sweden'), all: $('train-goal-all') };
     this.goalCounts = { winter: $('train-goal-winter-count'), sweden: $('train-goal-sweden-count'), all: $('train-goal-all-count') };
-    this.group = $('train-group');
     this.groupName = $('train-group-name');
+    this.groupCount = $('train-group-count');
+    this.storyGroup = $('train-story-group');
     this.groupText = $('train-group-text');
-    for (const [goal, b] of Object.entries(this.goals)) {
-      b.addEventListener('click', () => {
-        app.setTrainingGoal(goal);
-        // Space then goes on as a tap on the sky does, rather than pressing the chip again.
-        if (app.training.step < 3) this.actions.querySelector('.primary')?.focus();
-        else this.answer.focus();
-      });
-    }
+    for (const [goal, b] of Object.entries(this.goals)) b.addEventListener('click', () => app.setTrainingGoal(goal));
     this.prompt = $('train-prompt');
     this.answer = $('train-answer');
     this.name = $('train-name');
@@ -108,6 +102,17 @@ export class TrainPanel {
     this.restart.textContent = this.confirming ? 'Säker? Tryck igen' : 'Börja om';
     this.restart.disabled = t.cards.size === 0;
 
+    // The group being learnt, and how many of it are known this time round.
+    const learning = app.chunks[t.group];
+    if (learning) {
+      const done = learning.members.filter((i) => t.groupSeen.has(i) && t.cards.get(i)?.level >= 1).length;
+      this.groupName.textContent = `Grupp ${t.group + 1} av ${app.chunks.length}: ${learning.name}`;
+      this.groupCount.textContent = `· ${done} av ${learning.members.length} kan du`;
+    } else {
+      this.groupName.textContent = 'Alla grupper är klara';
+      this.groupCount.textContent = '· nu repeterar du';
+    }
+
     const c = app.catalog.constellations[t.card];
     const card = t.cards.get(t.card);
     const isNew = !card || card.n === 0;
@@ -115,7 +120,11 @@ export class TrainPanel {
     const group = c && app.chunkOf.get(t.card);
     if (!c) prompt = 'Det finns inga stjärnbilder att träna på.';
     else if (t.step === 1) {
-      prompt = isNew ? `En ny stjärnbild ur gruppen ”${group.name}”! Titta på stjärnorna. Vet du vilken det är?` : 'Vilken stjärnbild är det här?';
+      prompt = learning && !learning.members.includes(t.card) ? 'Repetition: vilken stjärnbild är det här?'
+        : isNew ? 'En ny stjärnbild! Titta på stjärnorna. Vet du vilken det är?' : 'Vilken stjärnbild är det här?';
+      if (t.notice) {
+        prompt = `Du kan gruppen ”${t.notice.done}”. ${t.notice.next ? `Nu kommer ”${t.notice.next}”.` : 'Nu repeterar du.'} ${prompt}`;
+      }
       if (p.done) prompt = `Du kan alla ${p.goal} ${AMONG[t.goal]}! Fortsätt att repetera. ${prompt}`;
       if (t.below) {
         const never = visibilityClass(c.figureDecs, app.view.lat) === 'never';
@@ -139,11 +148,9 @@ export class TrainPanel {
     }
     this.answer.hidden = !c || t.step < 3;
     this.view.hidden = !c || t.step < 3;
-    // Named, the card shows the group it came in with, as an aid to remember them together,
-    // and with the story why they belong together.
-    this.group.hidden = !group || t.step < 3;
+    // Named, the card's story says why its group belongs together.
     if (group) {
-      this.groupName.textContent = `Grupp ${app.chunks.indexOf(group) + 1} av ${app.chunks.length}: ${group.name}.`;
+      this.storyGroup.textContent = `Grupp ${app.chunks.indexOf(group) + 1}, ${group.name}:`;
       this.groupText.textContent = group.reason;
     }
     const story = c && STORIES[c.id];

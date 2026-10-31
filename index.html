@@ -177,7 +177,10 @@
     .train-actions { flex: none; }
     .train-actions .chip { min-height: 38px; padding: 0 14px; font-size: 14px; }
     .train-view { display: flex; flex-wrap: wrap; gap: 6px; }
-    .train-goal button { min-height: 30px; font-size: 12px; }
+    .group-stage { padding: 12px 10px 4px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--ink-3); }
+    .group-members { font-size: 13px; color: var(--ink-3); }
+    .train-group b { font-weight: 500; color: var(--ink); }
     /* The story: in the card laid out like the facts, in the training panel like its hints. */
     .story { display: grid; gap: 6px; }
     .story p { margin: 0; }
@@ -239,7 +242,7 @@
       .train-name { font-size: 21px; }
       .discover-next.train-actions { flex-wrap: wrap; overflow: visible; }
       /* Named, the card needs the sky more than the choice of goal and the counts. */
-      .panel-train[data-step="3"] .train-goal, .panel-train[data-step="3"] #train-of { display: none; }
+      .panel-train[data-step="3"] #train-of { display: none; }
       .discover-next::-webkit-scrollbar { display: none; }
     }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -358,11 +361,7 @@
       <span class="discover-progress"><b id="train-count"></b> <span id="train-of"></span></span>
     </div>
     <div id="train-meter" class="meter" role="progressbar" aria-label="Stjärnbilder du kan" aria-valuemin="0"><span id="train-bar"></span></div>
-    <div id="train-goal" class="seg train-goal" role="group" aria-label="Hur långt du tränar: först vinterhimlen, sedan resten av Sverige, sist hela himlen">
-      <button id="train-goal-winter" type="button" class="chip" aria-pressed="false" title="De som syns kl. 22 i december–februari från både Stockholm och Göteborg: minst halva figuren 5° över horisonten under minst en månad">Vinter <span class="muted" id="train-goal-winter-count"></span></button>
-      <button id="train-goal-sweden" type="button" class="chip" aria-pressed="false" title="Först vinterhimlen, sedan de andra som syns från någonstans i Sverige">Sverige <span class="muted" id="train-goal-sweden-count"></span></button>
-      <button id="train-goal-all" type="button" class="chip" aria-pressed="true" title="Först vinterhimlen, sedan resten av Sverige och sist de som aldrig syns härifrån">Alla <span class="muted" id="train-goal-all-count"></span></button>
-    </div>
+    <p id="train-group" class="discover-hint train-group"><b id="train-group-name"></b> <span id="train-group-count"></span></p>
     <div class="discover-body">
       <p id="train-prompt" class="discover-hint" aria-live="polite"></p>
       <p id="train-answer" class="train-answer" tabindex="-1" hidden><span id="train-name" class="train-name"></span> <span id="train-latin" class="latin"></span></p>
@@ -371,22 +370,39 @@
         <button id="btn-train-art" type="button" class="chip toggle" aria-pressed="true" title="Tangent B">Bild</button>
       </div>
       <div id="train-actions" class="discover-next train-actions" role="group" aria-label="Nästa steg"></div>
-      <p id="train-group" class="discover-hint train-group" hidden><b id="train-group-name"></b></p>
       <details id="train-story" class="train-story" hidden>
         <summary id="train-story-title" class="discover-hint"></summary>
         <div class="story">
-          <p class="discover-hint"><b>Gruppen:</b> <span id="train-group-text"></span></p>
+          <p class="discover-hint"><b id="train-story-group"></b> <span id="train-group-text"></span></p>
           <p id="train-story-origin" class="discover-hint story-origin"></p>
           <p id="train-story-text" class="discover-hint"></p>
           <p class="discover-hint"><b>Speciellt:</b> <span id="train-story-special"></span></p>
         </div>
       </details>
       <div class="discover-foot">
+        <button id="btn-train-groups" type="button" class="chip" aria-expanded="false" aria-controls="panel-groups">Grupper</button>
         <button id="btn-train-restart" type="button" class="chip">Börja om</button>
         <button id="btn-train-exit" type="button" class="chip">Sluta träna</button>
       </div>
     </div>
   </section>
+
+  <aside id="panel-groups" class="panel panel-list panel-groups" aria-label="Grupper" hidden>
+    <div class="panel-head">
+      <h2>Grupper</h2>
+      <button id="btn-groups-close" class="icon-btn" type="button" aria-label="Stäng grupperna">×</button>
+    </div>
+    <div class="tools">
+      <p class="list-note">Du lär dig en grupp i taget, tills du kan alla i den, och sedan nästa. Välj en grupp för att träna på den nu.</p>
+      <p class="list-note">Hur långt du vill gå:</p>
+      <div id="train-goal" class="seg train-goal" role="group" aria-label="Hur långt du tränar: först vinterhimlen, sedan resten av Sverige, sist hela himlen">
+        <button id="train-goal-winter" type="button" class="chip" aria-pressed="false" title="De som syns kl. 22 i december–februari från både Stockholm och Göteborg: minst halva figuren 5° över horisonten under minst en månad">Vinter <span class="muted" id="train-goal-winter-count"></span></button>
+        <button id="train-goal-sweden" type="button" class="chip" aria-pressed="false" title="Först vinterhimlen, sedan de andra som syns från någonstans i Sverige">Sverige <span class="muted" id="train-goal-sweden-count"></span></button>
+        <button id="train-goal-all" type="button" class="chip" aria-pressed="true" title="Först vinterhimlen, sedan resten av Sverige och sist de som aldrig syns härifrån">Alla <span class="muted" id="train-goal-all-count"></span></button>
+      </div>
+    </div>
+    <ul id="group-list" class="con-list" aria-label="Grupperna"></ul>
+  </aside>
 
   <section id="card" class="card" aria-live="polite" hidden></section>
   <div id="toast" class="toast" role="status" hidden></div>

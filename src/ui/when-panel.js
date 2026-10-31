@@ -48,6 +48,7 @@ export class WhenPanel {
     if (open) {
       this.app.closeList();
       this.app.closeTheme();
+      this.app.closeGroups();
       this.sync(true);
     }
     this.app.layoutChanged();

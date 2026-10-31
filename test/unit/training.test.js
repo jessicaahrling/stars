@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { buildCatalog } from '../../src/sky/catalog.js';
 import { chunksOf, stagesOf } from '../../src/sky/curriculum.js';
 import {
-  AGAIN_AFTER, grade, isDue, nextCard, NOW_AFTER, NOW_DAYS, PERMANENT, PERMANENT_AFTER, PERMANENT_DAYS, trainingProgress,
+  AGAIN_AFTER, grade, groupDone, groupToLearn, isDue, nextCard, NOW_AFTER, NOW_DAYS, PERMANENT, PERMANENT_AFTER,
+  PERMANENT_DAYS, REVIEW_EVERY, trainingProgress,
 } from '../../src/sky/training.js';
 
 const catalog = buildCatalog();
@@ -19,16 +20,26 @@ function made(...sizes) {
   return sizes.map((n) => Array.from({ length: n }, () => next++));
 }
 
-/** Plays `count` cards, answering each with answerFor(card index, card); returns the indices shown. */
-function play(cards, count, answerFor, { gs = groups, turn = 0, now = 0, inGoal = all } = {}) {
+/**
+ * Plays `count` cards as the app does, one group at a time, answering each with
+ * answerFor(card index, card, k); returns the cards shown and, for each, the group then learnt.
+ */
+function play(cards, count, answerFor, { gs = groups, turn = 0, now = 0, inGoal = all, from = { group: -1, seen: new Set() } } = {}) {
   const shown = [];
+  const learning = [];
+  const state = from;
   let last = -1;
   for (let k = 0; k < count; k++) {
-    last = nextCard(cards, gs, inGoal, turn + k, now, last);
+    const next = groupToLearn(cards, gs, (g) => gs[g].some(inGoal), state.group, state.seen);
+    if (next !== state.group) Object.assign(state, { group: next, seen: new Set() });
+    const group = state.group >= 0 ? gs[state.group] : [];
+    last = nextCard(cards, group, state.seen, inGoal, turn + k, now, last);
     shown.push(last);
+    learning.push(state.group);
     cards.set(last, grade(cards.get(last), answerFor(last, cards.get(last), k), turn + k, now));
+    if (group.includes(last)) state.seen.add(last);
   }
-  return shown;
+  return Object.assign(shown, { learning, state });
 }
 
 test('answers: a miss comes back after two others; known for now comes back later each time', () => {
@@ -63,45 +74,44 @@ test('a card is due after enough cards, or after enough days', () => {
   assert.equal(isDue(grade(undefined, 'again', 0, 0), 0, 365 * DAY), false, 'a miss waits for cards, not days');
 });
 
-test('play starts with the first group, in its order; the next comes in as soon as nothing is due', () => {
+test('one group at a time: its members in order, and the next group once each is known', () => {
   const cards = new Map();
-  const shown = play(cards, 8, () => 'now', { gs: made(4, 3, 3) });
-  assert.deepEqual(shown, [0, 1, 2, 3, 4, 5, 6, 0], 'a whole group at a time, and reviews first');
-  assert.equal(cards.size, 10, 'the third group is in, after the review due');
+  const shown = play(cards, 8, () => 'now', { gs: made(3, 2, 2) });
+  assert.deepEqual([...shown], [0, 1, 2, 3, 4, 5, 6, 0], 'every group learnt, then the reviews');
+  assert.deepEqual(shown.learning, [0, 0, 0, 1, 1, 2, 2, -1]);
 });
 
-test('a group partly in play already brings in only the rest', () => {
-  const cards = new Map([[2, grade(undefined, 'now', 0, 0)]]);
-  const shown = play(cards, 3, () => 'now', { gs: made(4, 3), turn: 1 });
-  assert.deepEqual(shown, [0, 1, 3]);
+test('a group is not left until all of it is known; a miss comes back once it has rested', () => {
+  const cards = new Map();
+  const shown = play(cards, 6, (i, card) => (i === 1 && card.n === 0 ? 'again' : 'now'), { gs: made(3, 2) });
+  // While the miss rests, a known card of the group fills in.
+  assert.deepEqual([...shown], [0, 1, 2, 0, 1, 3]);
+  assert.deepEqual(shown.learning, [0, 0, 0, 0, 0, 1]);
 });
 
-test('a miss comes back after two others', () => {
+test('every third card is a review of an older group, when one is due', () => {
+  const gs = made(...Array(40).fill(3));
   const cards = new Map();
-  const shown = play(cards, 6, (i, card) => (i === 1 && card.n === 0 ? 'again' : 'now'), { gs: made(4, 2) });
-  assert.deepEqual(shown, [0, 1, 2, 3, 1, 4]);
-});
-
-test('while a miss rests, the next group comes in, not known ones early', () => {
-  const cards = new Map();
-  const shown = play(cards, 7, (i, card) => (i === 3 && card.n === 0 ? 'again' : 'now'), { gs: made(4, 2, 2) });
-  assert.deepEqual(shown, [0, 1, 2, 3, 4, 5, 3], 'the miss rests while the next group comes in, and then it comes back');
-
-  // A card missed again and again, among cards known for good: it never comes back
-  // before two others, and the ones known for good stay away.
-  const hard = new Map();
-  const seen = play(hard, 60, (i) => (i === 1 ? 'again' : 'permanent'), { gs: made(...Array(30).fill(3)) });
-  const at = seen.flatMap((i, k) => (i === 1 ? [k] : []));
-  assert.ok(at.length > 10 && at.every((k, j) => j === 0 || k - at[j - 1] > AGAIN_AFTER), at.join(' '));
-  const rest = seen.filter((i) => i !== 1);
-  assert.equal(new Set(rest).size, rest.length, 'no card known for good is shown twice in 60 cards');
+  const shown = play(cards, 90, () => 'now', { gs });
+  const reviews = shown.flatMap((c, k) => (shown.learning[k] >= 0 && !gs[shown.learning[k]].includes(c) ? [k] : []));
+  assert.ok(reviews.length >= 15, `old groups come back (${reviews.length})`);
+  assert.ok(reviews.every((k) => k % REVIEW_EVERY === REVIEW_EVERY - 1), reviews.join(' '));
+  assert.ok(shown.learning.at(-1) > 10, 'and new groups keep coming');
 });
 
 test('knowing every card for good goes through the curriculum once, group by group', () => {
   const cards = new Map();
   const shown = play(cards, 88, () => 'permanent');
-  assert.deepEqual(shown, groups.flat(), 'each constellation once, in the order of the groups');
+  assert.deepEqual([...shown], groups.flat(), 'each constellation once, in the order of the groups');
   assert.equal(trainingProgress(cards, all, 88).done, true);
+});
+
+test('in a group of two, a miss still rests: an older card comes a little early instead', () => {
+  const gs = made(3, 2);
+  const cards = new Map();
+  const shown = play(cards, 7, (i, card) => (i === 3 && card.n === 0 ? 'again' : 'now'), { gs });
+  // 0 1 2, then 3 missed and 4 known: the old 0 fills in before 3 comes back.
+  assert.deepEqual([...shown.slice(3)], [3, 4, 0, 3]);
 });
 
 test('a card known for good stays away while play goes on with others', () => {
@@ -110,78 +120,78 @@ test('a card known for good stays away while play goes on with others', () => {
   const shown = play(cards, 100, (i) => (i === first ? 'permanent' : 'now'));
   assert.equal(shown.filter((i) => i === first).length, 1, `${id(first)} is not shown again within 100 cards`);
   assert.ok(shown.filter((i) => i === groups[0][1]).length >= 3, 'while one known for now comes back');
-  const back = play(cards, PERMANENT_AFTER, (i) => (i === first ? 'permanent' : 'now'), { turn: 100 });
-  assert.ok(back.includes(first), 'but it does come back now and then');
 });
 
-test('the same card is never shown twice in a row while another is in play', () => {
+test('the same card is never shown twice in a row, and a miss rests at least two cards', () => {
   const cards = new Map();
-  const shown = play(cards, 300, (i, card, k) => (k % 3 === 0 ? 'again' : 'now'));
+  const misses = [];
+  // New ones missed every other time, and a few known ones forgotten again.
+  const shown = play(cards, 300, (i, card, k) => {
+    const miss = (card?.n ?? 0) === 0 ? k % 2 === 0 : k % 7 === 0;
+    if (miss) misses.push(k);
+    return miss ? 'again' : 'now';
+  });
   assert.ok(shown.every((s, j) => j === 0 || s !== shown[j - 1]));
-  assert.ok(cards.size > groups[0].length + groups[1].length, `new groups come in between misses (${cards.size})`);
+  for (const k of misses) {
+    const back = shown.indexOf(shown[k], k + 1);
+    assert.ok(back < 0 || back - k > AGAIN_AFTER, `${id(shown[k])} missed at ${k}, back at ${back}`);
+  }
+  assert.ok(shown.learning.at(-1) > 5, `groups are learnt in spite of misses (${shown.learning.at(-1)})`);
 });
 
 test('known for now, the whole sky is learnt with few showings each', () => {
   const cards = new Map();
-  const views = new Map();
-  let turn = 0;
-  let last = -1;
-  while (!trainingProgress(cards, all, 88).done) {
-    last = nextCard(cards, groups, all, turn, 0, last);
-    views.set(last, (views.get(last) || 0) + 1);
-    cards.set(last, grade(cards.get(last), 'now', turn, 0));
-    turn++;
-    assert.ok(turn < 1500);
-  }
-  const counts = [...views.values()];
+  const shown = play(cards, 600, () => 'now');
+  const done = shown.learning.indexOf(-1);
+  assert.ok(done > 0 && done < 3 * 88, `every group learnt after ${done} cards`);
+  const counts = [...new Set(shown.slice(0, done))].map((c) => shown.slice(0, done).filter((x) => x === c).length);
   assert.equal(counts.length, 88);
-  // The first ones are reviewed while the rest come in: 6, 15, 35 and then every 80 cards.
-  assert.ok(Math.max(...counts) <= 8, `at most eight showings each (${Math.max(...counts)})`);
-  assert.ok(turn < 6 * 88, `about five cards shown for each constellation (${turn})`);
+  assert.ok(Math.max(...counts) <= 6, `at most six showings each (${Math.max(...counts)})`);
 });
 
 test('the winter sky is learnt before the rest of Sweden, and Sweden before the rest', () => {
   const cards = new Map();
-  const shown = play(cards, 88, () => 'now').filter((i, k, list) => list.indexOf(i) === k);
+  const shown = play(cards, 300, () => 'now').filter((i, k, list) => list.indexOf(i) === k);
   const stageOrder = shown.map((i) => stages[i]);
   assert.deepEqual(stageOrder, [...stageOrder].sort((a, b) => a - b), 'new cards come in step by step');
 });
 
-test('when everything is known and nothing is due, practice goes on with the card due soonest', () => {
+test('with every group learnt, practice goes on with the reviews due, then the card due soonest', () => {
   const [a, b] = [0, 1];
   const cards = new Map([[a, { level: 2, dueTurn: 50, dueAt: null, n: 3 }], [b, { level: 1, dueTurn: 40, dueAt: null, n: 2 }]]);
-  assert.equal(nextCard(cards, [[a, b]], all, 10, 0, -1), b);
-  assert.equal(nextCard(cards, [[a, b]], all, 10, 0, b), a);
+  assert.equal(nextCard(cards, [], new Set(), all, 10, 0, -1), b);
+  assert.equal(nextCard(cards, [], new Set(), all, 10, 0, b), a);
+  assert.equal(nextCard(cards, [], new Set(), all, 50, 0, b), a, 'due at 50');
 });
 
-test('a goal short of the whole sky: cards beyond it are neither asked nor counted', () => {
+test('a goal short of the whole sky: groups and reviews beyond it wait, and are not counted', () => {
   const winter = (i) => stages[i] === 1;
   const south = groups.flat().find((i) => stages[i] === 3);
   const cards = new Map([[south, { level: 0, dueTurn: 0, dueAt: null, n: 1 }]]);
-  const first = nextCard(cards, groups, winter, 0, 0);
-  assert.ok(winter(first) && first === groups[0][0], 'play starts afresh with the first winter group');
+  const shown = play(cards, 200, () => 'now', { inGoal: winter });
+  assert.ok(shown.every(winter), 'only the winter sky is shown');
+  assert.equal(shown.learning.at(-1), -1, 'and once it is learnt, play goes on with its reviews');
   const p = trainingProgress(cards, winter, 88);
-  assert.deepEqual([p.goal, p.inPlay, p.known], [34, groups[0].length, 0]);
+  assert.deepEqual([p.goal, p.known], [34, 34]);
 });
 
-test('after days away, the reviews due come before a new group, all of them', () => {
-  const gs = made(4, 3, 3);
+test('a group chosen again is gone through once more, then play goes back to the first not learnt', () => {
+  const gs = made(3, 3, 3);
   const cards = new Map();
-  play(cards, 7, () => 'now', { gs });
-  const shown = play(cards, 10, () => 'now', { gs, turn: 7, now: NOW_DAYS[0] * DAY });
-  assert.deepEqual(shown, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  play(cards, 6, () => 'now', { gs });
+  assert.ok(groupDone(cards, gs[0]) && groupDone(cards, gs[1]) && !groupDone(cards, gs[2]));
+  const from = { group: 0, seen: new Set() };
+  const shown = play(cards, 4, () => 'now', { gs, turn: 6, from });
+  assert.deepEqual([...shown.slice(0, 3)].sort(), [0, 1, 2], 'each of the chosen group once more');
+  assert.equal(shown.learning[3], 2, 'and then the first group not learnt');
 });
 
-test('old cards come back after days, however little has been played', () => {
-  const gs = made(4, 2, 2);
+test('after days away, the reviews due come back every third card, the longest due first', () => {
+  const gs = made(3, 3, 3, 3);
   const cards = new Map();
-  play(cards, 4, (i) => (i === 0 ? 'permanent' : 'now'), { gs });
-  const at = (now) => nextCard(new Map(cards), gs, all, 4, now, -1);
-  assert.equal(at(0), 4, 'the same session: nothing is due, so the next group comes in');
-  assert.equal(at(NOW_DAYS[0] * DAY), 1, 'a day later the ones known for now are due, cards or not');
-  const perm = new Map();
-  play(perm, 4, () => 'permanent', { gs });
-  const atPerm = (now) => nextCard(new Map(perm), gs, all, 4, now, -1);
-  assert.equal(atPerm((PERMANENT_DAYS - 1) * DAY), 4, 'known for good: still resting');
-  assert.equal(atPerm(PERMANENT_DAYS * DAY), 0, 'and back after weeks');
+  play(cards, 6, () => 'now', { gs });
+  const shown = play(cards, 9, () => 'now', { gs, turn: 6, now: NOW_DAYS[0] * DAY });
+  assert.deepEqual([shown[2], shown[5], shown[8]], [0, 1, 2], 'one a third, oldest first');
+  assert.deepEqual([shown[0], shown[1], shown[3]], [6, 7, 8], 'between them the next group');
+  assert.equal(isDue(cards.get(3), 15, NOW_DAYS[0] * DAY), true, 'and more are due still');
 });

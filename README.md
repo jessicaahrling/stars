@@ -46,10 +46,15 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   Sverige och 10 för resten (`src/data/chunks-sv.js`). Den första är björnarna vid polen
   (Stora och Lilla björnen och Draken), den andra sagan om Perseus och Andromeda
   (Cassiopeja, Andromeda, Perseus och Cepheus), och varje ny grupp ligger intill en som
-  man redan kan. Nästa grupp kommer in så fort man kan alla i spel, eller när inget kort
-  väntar på repetition (ett fel som vilar räknas inte), och när namnet visas står gruppen
-  och varför de hör ihop. Överst i panelen väljer man hur långt man vill: bara
-  vinterhimlen (**Vinter**), hela Sverige (**Sverige**) eller alla 88 (**Alla**).
+  man redan kan. Man går igenom en grupp i taget: dess stjärnbilder visas en efter en,
+  och de man missar kommer tillbaka tills man kan alla i gruppen; då kommer nästa grupp
+  man inte kan än. Panelen visar vilken grupp man är på och hur många i den man kan, och
+  var tredje kort är en repetition från en tidigare grupp när någon väntar. När namnet
+  visas står under "Om …" varför gruppen hör ihop. Knappen **Grupper** öppnar en överblick
+  över alla 28 grupper, steg för steg, med hur långt man kommit i varje, och där kan man
+  välja vilken grupp man vill träna på nu (en grupp man redan kan går man igenom en gång
+  till) och hur långt man vill gå: bara vinterhimlen (**Vinter**), hela Sverige
+  (**Sverige**) eller alla 88 (**Alla**).
   Vilan räknas i antal visade kort: ett fel kommer tillbaka efter två andra, "kan för
   tillfället" efter 6, sedan 15, 35 och 80 kort, och "kan permanent" först efter 120 kort.
   Mellan sessionerna kommer korten också tillbaka efter 1, 3, 7 eller 21 dagar (45 dagar
