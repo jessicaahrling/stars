@@ -174,6 +174,7 @@
     .chip:disabled { opacity: 0.45; cursor: default; }
     .train-name { font-size: 24px; font-weight: 500; letter-spacing: 0.02em; line-height: 1.15; }
     .train-answer .latin { font-family: var(--font-latin); font-style: italic; font-size: 17px; color: var(--ink-2); }
+    .train-actions { flex: none; }
     .train-actions .chip { min-height: 38px; padding: 0 14px; font-size: 14px; }
     .train-view { display: flex; flex-wrap: wrap; gap: 6px; }
     .train-goal button { min-height: 30px; font-size: 12px; }
@@ -307,7 +308,7 @@
       <p id="list-note" class="list-note" hidden>Listan visar de stjärnbilder du har upptäckt.</p>
       <div class="seg">
         <button id="filter-visible" type="button" class="chip" aria-pressed="true">Syns från <span id="filter-place">Stockholm</span> <span class="muted" id="filter-count"></span></button>
-        <button id="filter-winter" type="button" class="chip" aria-pressed="false" title="De som syns kl. 18–24 i december–februari: minst halva figuren 5° över horisonten i minst en timme">Vinterkvällar <span class="muted" id="filter-winter-count"></span></button>
+        <button id="filter-winter" type="button" class="chip" aria-pressed="false" title="De som syns kl. 22 i december–februari från både Stockholm och Göteborg: minst halva figuren 5° över horisonten under minst en månad">Vinterhimlen <span class="muted" id="filter-winter-count"></span></button>
         <button id="filter-all" type="button" class="chip" aria-pressed="false">Alla 88</button>
       </div>
     </div>
@@ -351,9 +352,10 @@
       <span class="discover-progress"><b id="train-count"></b> <span id="train-of"></span></span>
     </div>
     <div id="train-meter" class="meter" role="progressbar" aria-label="Stjärnbilder du kan" aria-valuemin="0"><span id="train-bar"></span></div>
-    <div id="train-goal" class="seg train-goal" role="group" aria-label="Vilka stjärnbilder du tränar på">
-      <button id="train-goal-year" type="button" class="chip" aria-pressed="true" title="Alla vars figur går upp över horisonten någon gång under året">Hela året <span class="muted" id="train-goal-year-count"></span></button>
-      <button id="train-goal-winter" type="button" class="chip" aria-pressed="false" title="De som syns kl. 18–24 i december–februari: minst halva figuren 5° över horisonten i minst en timme">Vinterkvällar <span class="muted" id="train-goal-winter-count"></span></button>
+    <div id="train-goal" class="seg train-goal" role="group" aria-label="Hur långt du tränar: först vinterhimlen, sedan resten av Sverige, sist hela himlen">
+      <button id="train-goal-winter" type="button" class="chip" aria-pressed="false" title="De som syns kl. 22 i december–februari från både Stockholm och Göteborg: minst halva figuren 5° över horisonten under minst en månad">Vinter <span class="muted" id="train-goal-winter-count"></span></button>
+      <button id="train-goal-sweden" type="button" class="chip" aria-pressed="false" title="Först vinterhimlen, sedan de andra som syns från någonstans i Sverige">Sverige <span class="muted" id="train-goal-sweden-count"></span></button>
+      <button id="train-goal-all" type="button" class="chip" aria-pressed="true" title="Först vinterhimlen, sedan resten av Sverige och sist de som aldrig syns härifrån">Alla <span class="muted" id="train-goal-all-count"></span></button>
     </div>
     <div class="discover-body">
       <p id="train-prompt" class="discover-hint" aria-live="polite"></p>
@@ -363,6 +365,7 @@
         <button id="btn-train-art" type="button" class="chip toggle" aria-pressed="true" title="Tangent B">Bild</button>
       </div>
       <div id="train-actions" class="discover-next train-actions" role="group" aria-label="Nästa steg"></div>
+      <p id="train-group" class="discover-hint train-group" hidden><b id="train-group-name"></b> <span id="train-group-text"></span></p>
       <details id="train-story" class="train-story" hidden>
         <summary id="train-story-title" class="discover-hint"></summary>
         <div class="story">

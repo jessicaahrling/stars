@@ -1,4 +1,4 @@
-// The constellation list: search, filters (seen from here, on winter evenings, all), mark boxes.
+// The constellation list: search, filters (seen from here, the winter sky, all), mark boxes.
 import { MARK_COLORS } from '../render/palette.js';
 
 const STATE_TEXT = { up: 'uppe', rising: 'delvis uppe', down: 'nere' };
@@ -19,7 +19,7 @@ export class ListPanel {
     this.filterCount = $('filter-count');
     this.filterWinterCount = $('filter-winter-count');
     this.note = $('list-note');
-    /** Which constellations the list holds: 'year' those seen from here, 'winter' on winter evenings, or 'all'. */
+    /** Which constellations the list holds: 'year' those seen from here, 'winter' the winter sky, or 'all'. */
     this.scope = 'year';
     this.rows = new Map();
 

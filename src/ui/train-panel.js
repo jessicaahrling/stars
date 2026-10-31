@@ -2,10 +2,16 @@
 // panel uses the Upptäck panel's classes, so that every design styles both alike.
 import { STORIES } from '../data/stories-sv.js';
 
+/** How the progress names each step. */
+const AMONG = { winter: 'i vinterhimlen', sweden: 'av dem som syns från Sverige', all: 'på hela himlen' };
+
+/** "A, B och C". */
+const listed = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} och ${names.at(-1)}` : names.join(''));
+
 export class TrainPanel {
   /**
-   * @param {object} app  see App: catalog, place, training, trainingProgress, scopeCount, setTraining,
-   *   setTrainingGoal, advanceTraining, revealTraining, answerTraining, restartTraining
+   * @param {object} app  see App: catalog, training, trainingProgress, trainingStage, chunkOf, scopeCount,
+   *   setTraining, setTrainingGoal, advanceTraining, revealTraining, answerTraining, restartTraining
    * @param {(id: string) => HTMLElement} $
    */
   constructor(app, $) {
@@ -16,8 +22,11 @@ export class TrainPanel {
     this.of = $('train-of');
     this.meter = $('train-meter');
     this.bar = $('train-bar');
-    this.goals = { year: $('train-goal-year'), winter: $('train-goal-winter') };
-    this.goalCounts = { year: $('train-goal-year-count'), winter: $('train-goal-winter-count') };
+    this.goals = { winter: $('train-goal-winter'), sweden: $('train-goal-sweden'), all: $('train-goal-all') };
+    this.goalCounts = { winter: $('train-goal-winter-count'), sweden: $('train-goal-sweden-count'), all: $('train-goal-all-count') };
+    this.group = $('train-group');
+    this.groupName = $('train-group-name');
+    this.groupText = $('train-group-text');
     for (const [goal, b] of Object.entries(this.goals)) {
       b.addEventListener('click', () => {
         app.setTrainingGoal(goal);
@@ -85,18 +94,18 @@ export class TrainPanel {
     if (!t.on) return;
     const active = document.activeElement;
     const p = app.trainingProgress();
-    const place = app.place.name;
-    const where = t.goal === 'winter' ? `från ${place} på vinterkvällar` : `från ${place}`;
+    // The progress is that of the step being learnt, with the steps before it.
+    const { stage, known, size } = app.trainingStage();
     for (const [goal, b] of Object.entries(this.goals)) {
       b.setAttribute('aria-pressed', String(goal === t.goal));
       this.goalCounts[goal].textContent = String(app.scopeCount(goal));
     }
-    this.count.textContent = `${p.known} av ${p.goal}`;
-    this.of.textContent = `kan du · ${p.permanent} permanent · ${p.inPlay} i spel`;
-    this.bar.style.width = `${p.goal ? (100 * p.known) / p.goal : 0}%`;
-    this.meter.setAttribute('aria-valuenow', String(p.known));
-    this.meter.setAttribute('aria-valuemax', String(p.goal));
-    this.meter.setAttribute('aria-valuetext', `Du kan ${p.known} av ${p.goal} som syns ${where}, ${p.permanent} av dem permanent`);
+    this.count.textContent = `${known} av ${size}`;
+    this.of.textContent = `kan du ${AMONG[stage.id]} · ${p.permanent} permanent · ${p.inPlay} i spel`;
+    this.bar.style.width = `${size ? (100 * known) / size : 0}%`;
+    this.meter.setAttribute('aria-valuenow', String(known));
+    this.meter.setAttribute('aria-valuemax', String(size));
+    this.meter.setAttribute('aria-valuetext', `Du kan ${known} av ${size} ${AMONG[stage.id]}, ${p.permanent} permanent`);
     this.restart.textContent = this.confirming ? 'Säker? Tryck igen' : 'Börja om';
     this.restart.disabled = t.cards.size === 0;
 
@@ -104,11 +113,15 @@ export class TrainPanel {
     const card = t.cards.get(t.card);
     const isNew = !card || card.n === 0;
     let prompt;
-    if (!c) prompt = `Det finns inga stjärnbilder att träna på ${where}.`;
+    const group = c && app.chunkOf.get(t.card);
+    if (!c) prompt = 'Det finns inga stjärnbilder att träna på.';
     else if (t.step === 1) {
-      prompt = isNew ? 'En ny stjärnbild! Titta på stjärnorna. Vet du vilken det är?' : 'Vilken stjärnbild är det här?';
-      if (p.done) prompt = `Du kan alla ${p.goal} som syns ${where}! Fortsätt att repetera. ${prompt}`;
-      if (t.below) prompt += ' Den är under horisonten just nu, så marken är genomskinlig.';
+      prompt = isNew ? `En ny stjärnbild ur gruppen ${group.name}! Titta på stjärnorna. Vet du vilken det är?` : 'Vilken stjärnbild är det här?';
+      if (p.done) prompt = `Du kan alla ${p.goal} ${AMONG[t.goal]}! Fortsätt att repetera. ${prompt}`;
+      if (t.below) {
+        prompt += app.stages[t.card] === 3 ? ' Den går aldrig upp över horisonten i Sverige, så marken är genomskinlig.'
+          : ' Den är under horisonten just nu, så marken är genomskinlig.';
+      }
     } else if (t.step === 2) {
       prompt = 'Här är linjerna. Vilken stjärnbild är det?';
     } else {
@@ -125,6 +138,12 @@ export class TrainPanel {
     }
     this.answer.hidden = !c || t.step < 3;
     this.view.hidden = !c || t.step < 3;
+    // Named, the card shows the group it came in with, as an aid to remember them together.
+    this.group.hidden = !group || t.step < 3;
+    if (group) {
+      this.groupName.textContent = `Gruppen ${group.name}:`;
+      this.groupText.textContent = `${listed(group.members.map((i) => app.catalog.constellations[i].sv))}. ${group.reason}`;
+    }
     const story = c && STORIES[c.id];
     this.story.hidden = !story || t.step < 3;
     if (story) {

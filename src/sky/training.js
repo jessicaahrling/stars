@@ -3,17 +3,10 @@
 //   'again'      Fel                 back after AGAIN_AFTER other cards
 //   'now'        Kan för tillfället  known; back after more and more cards each time
 //   'permanent'  Kan permanent       known; back only now and then
-// Play starts with a few striking constellations, and more come in whenever nothing is
-// due: every card in play is known, or a missed one is still resting. Rests are counted
-// in cards shown, so that play moves on at the learner's pace, and in days too, so that
-// old cards come back between sessions.
-
-/** The first constellations to learn, in this order. After them the rest follow by prominence. */
-export const FIRST = ['UMa', 'Cas', 'Ori', 'Cyg', 'Leo', 'UMi', 'Lyr', 'Tau', 'Gem', 'Aur', 'Boo', 'Peg', 'Sco', 'Aql', 'Per', 'And', 'CMa', 'Dra', 'Her', 'Vir'];
-
-/** How many constellations play starts with, and how many come in at a time after that. */
-export const START_CARDS = 4;
-export const MORE_CARDS = 2;
+// Constellations come into play a group at a time (see sky/curriculum.js), the next group
+// as soon as every card in play is known, or nothing is due because a missed one is still
+// resting. Rests are counted in cards shown, so that play moves on at the learner's pace,
+// and in days too, so that old cards come back between sessions.
 
 /** Cards shown before a missed card comes back. */
 export const AGAIN_AFTER = 2;
@@ -35,24 +28,6 @@ const DAY = 86_400_000;
  * @property {number | null} dueAt  the time (ms) from which it is due anyway, or null
  * @property {number} n       how many times it has been answered
  */
-
-/**
- * Order in which constellations come into play: FIRST, then by the label rank of the
- * catalogue and the light of their five brightest figure stars.
- * @param {{index: number, id: string, rank: number, figureStars: number[]}[]} constellations
- * @param {ArrayLike<number>} mag  star magnitudes
- * @returns {number[]} constellation indices
- */
-export function introductionOrder(constellations, mag) {
-  const light = (c) => c.figureStars.map((i) => mag[i]).sort((a, b) => a - b).slice(0, 5)
-    .reduce((sum, m) => sum + 10 ** (-0.4 * m), 0);
-  const first = FIRST.map((id) => constellations.find((c) => c.id === id)).filter(Boolean);
-  const rest = constellations.filter((c) => !FIRST.includes(c.id))
-    .map((c) => ({ c, light: light(c) }))
-    .sort((a, b) => (a.c.rank || 3) - (b.c.rank || 3) || b.light - a.light)
-    .map((r) => r.c);
-  return [...first, ...rest].map((c) => c.index);
-}
 
 /**
  * A card after an answer.
@@ -81,46 +56,51 @@ export function isDue(card, turn, now) {
 }
 
 /**
- * Picks the card to show next, and brings new constellations into play: START_CARDS at
- * first, then MORE_CARDS at a time whenever nothing is due. A missed card that is due goes
- * first, then the card that has been due longest. While a missed card rests, new ones come
- * in rather than known ones early, so that it still comes back after AGAIN_AFTER others
- * and a card known for good stays away. Once every constellation is in play and nothing
- * is due, the card due soonest is shown, so practice never stops. The card just shown
- * waits a turn if another will do.
+ * Picks the card to show next, and brings new constellations into play a group at a
+ * time (see sky/curriculum.js): the first group at first, then the next as soon as every
+ * card in play is known. A missed card that is due goes first, then the card that has been
+ * due longest (one due after days away counts as due from now), so the reviews that are
+ * due come before a new group's cards, and a new group still comes in however many there
+ * are to review. While a missed card rests and nothing else is due, the next group comes
+ * in too, rather than known cards early, so that the miss comes back after AGAIN_AFTER
+ * others and a card known for good stays away. Once every group is in play and nothing is
+ * due, the card due soonest is shown, so practice never stops. The card just shown waits a
+ * turn if another will do.
  * @param {Map<number, Card>} cards  constellations in play; new ones are added to it
- * @param {number[]} order  see introductionOrder
- * @param {(index: number) => boolean} inGoal  constellations to learn (seen from here)
+ * @param {number[][]} groups  constellation indices, group by group, in learning order
+ * @param {(index: number) => boolean} inGoal  constellations to learn
  * @param {number} turn  cards answered so far
  * @param {number} now   ms
  * @param {number} last  the card just shown, or -1
  * @returns {number} a constellation index, or -1 when there is nothing to learn
  */
-export function nextCard(cards, order, inGoal, turn, now, last = -1) {
+export function nextCard(cards, groups, inGoal, turn, now, last = -1) {
   const inPlay = () => [...cards.keys()].filter(inGoal);
-  const waiting = order.filter((i) => inGoal(i) && !cards.has(i));
-  const bringIn = (count) => {
-    for (const i of waiting.splice(0, count)) cards.set(i, { level: 0, dueTurn: turn, dueAt: null, n: 0 });
+  const waiting = groups.map((g) => g.filter((i) => inGoal(i) && !cards.has(i))).filter((g) => g.length);
+  const bringIn = () => {
+    for (const i of waiting.shift() || []) cards.set(i, { level: 0, dueTurn: turn, dueAt: null, n: 0 });
   };
   const pool = () => {
     const play = inPlay();
     return play.length > 1 ? play.filter((i) => i !== last) : play;
   };
-  const earliest = (list) => list.reduce((a, b) => (cards.get(b).dueTurn < cards.get(a).dueTurn ? b : a));
+  const by = (key) => (list) => list.reduce((a, b) => (key(b) < key(a) ? b : a));
+  const longestDue = by((i) => Math.min(cards.get(i).dueTurn, turn));
+  const soonest = by((i) => cards.get(i).dueTurn);
   const due = () => {
     const list = pool().filter((i) => isDue(cards.get(i), turn, now));
     const missed = list.filter((i) => cards.get(i).level === 0 && cards.get(i).n > 0);
     return missed.length ? missed : list;
   };
-  if (!inPlay().length) bringIn(START_CARDS);
+  if (!inPlay().length) bringIn();
   let list = due();
-  if (!list.length && waiting.length) {
-    bringIn(MORE_CARDS);
+  if (waiting.length && (!list.length || inPlay().every((i) => cards.get(i).level >= 1))) {
+    bringIn();
     list = due();
   }
-  if (list.length) return earliest(list);
+  if (list.length) return longestDue(list);
   const rest = pool();
-  return rest.length ? earliest(rest) : -1;
+  return rest.length ? soonest(rest) : -1;
 }
 
 /**

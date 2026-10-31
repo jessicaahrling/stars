@@ -12,8 +12,9 @@ import { buildCatalog } from './sky/catalog.js';
 import { discoveryState, START_ID } from './sky/discovery.js';
 import { figureState } from './sky/facts.js';
 import { findNeighbours } from './sky/neighbours.js';
-import { winterEvenings, winterOf } from './sky/winter.js';
-import { grade, introductionOrder, nextCard, NOW_AFTER, PERMANENT, trainingProgress } from './sky/training.js';
+import { winterOf } from './sky/winter.js';
+import { chunksOf, STAGES, stagesOf } from './sky/curriculum.js';
+import { grade, nextCard, NOW_AFTER, PERMANENT, trainingProgress } from './sky/training.js';
 import { DEFAULT_FOV, MAX_FOV, MIN_FOV, SkyView } from './sky/view.js';
 import { DiscoverPanel } from './ui/discover-panel.js';
 import { ThemePanel } from './ui/theme-panel.js';
@@ -110,8 +111,8 @@ export class App {
     this.training.showArt = tr.art !== false;
     /** Whether the story under a named card is open: at first only where it leaves room for the sky. */
     this.training.showStory = typeof tr.story === 'boolean' ? tr.story : window.innerWidth > 640;
-    /** What to learn: 'year' every constellation seen from the chosen place, 'winter' those seen on its winter evenings. */
-    this.training.goal = tr.goal === 'winter' ? 'winter' : 'year';
+    /** How far to learn: 'winter' the winter sky, 'sweden' all seen from Sweden, 'all' every one (see sky/curriculum.js). */
+    this.training.goal = STAGES.some((s) => s.id === tr.goal) ? tr.goal : 'all';
     if (tr.v === 2 && Number.isInteger(tr.turn) && tr.turn >= 0) this.training.turn = tr.turn;
     for (const entry of Array.isArray(tr.cards) ? tr.cards : []) {
       const [cid, ...rest] = Array.isArray(entry) ? entry : [];
@@ -138,7 +139,14 @@ export class App {
         }
       }
     }
-    this.trainOrder = introductionOrder(this.catalog.constellations, this.catalog.stars.mag);
+    /**
+     * What "Träna" teaches: the step of each constellation (1 the winter sky, 2 the rest of
+     * Sweden's, 3 the rest), worked out for the winter under way or coming in real time, and
+     * the groups it comes in.
+     */
+    this.stages = stagesOf(this.catalog, winterOf(Date.now()));
+    this.chunks = chunksOf(this.catalog);
+    this.chunkOf = new Map(this.chunks.flatMap((ch) => ch.members.map((i) => [i, ch])));
     this.reveal = null;
     this.discoveryInfo = null;
     /** The constellation found last, named in the panel and on the sky until the next find. */
@@ -386,30 +394,17 @@ export class App {
 
   /**
    * Whether a constellation is one of a choice: 'year' those whose figures rise from the
-   * chosen place, 'winter' those seen there on winter evenings (see sky/winter.js), 'all'.
+   * chosen place, 'winter' the winter sky (see sky/winter.js), 'sweden' those seen from
+   * somewhere in Sweden, 'all'.
    */
   inScope(index, scope) {
-    if (scope === 'all') return true;
-    if (scope === 'winter') return this.winterSet().has(index);
-    return visibilityClass(this.catalog.constellations[index].figureDecs, this.view.lat) !== 'never';
+    if (scope === 'year') return visibilityClass(this.catalog.constellations[index].figureDecs, this.view.lat) !== 'never';
+    const stage = STAGES.find((s) => s.id === scope);
+    return !stage || this.stages[index] <= stage.upTo;
   }
 
   scopeCount(scope) {
     return this.catalog.constellations.filter((c) => this.inScope(c.index, scope)).length;
-  }
-
-  /**
-   * The constellations seen on winter evenings from the chosen place, worked out once per
-   * place for the winter under way or coming (not the one the sky is set to), so that the
-   * choice stays the same whatever time is looked at.
-   */
-  winterSet() {
-    const key = `${this.view.lat},${this.view.lon}`;
-    if (this.winterKey !== key) {
-      this.winterKey = key;
-      this.winterSeen = winterEvenings(this.catalog, this.view.lat, this.view.lon, winterOf(Date.now()));
-    }
-    return this.winterSeen;
   }
 
   // ------------------------------------------------------------------ discovering the sky
@@ -530,15 +525,15 @@ export class App {
     this.flyTo(t.card, { instant: true, fov: TRAIN_FOV });
   }
 
-  /** Constellations to learn: those whose figures rise from the chosen place, or those seen on its winter evenings. */
+  /** Constellations to learn: the steps of the curriculum as far as the goal. */
   trainInGoal(index) {
     return this.inScope(index, this.training.goal);
   }
 
-  /** Chooses what to learn ('year' or 'winter'). A card that is not among them gives way to one that is. */
+  /** Chooses how far to learn ('winter', 'sweden' or 'all'). A card beyond it gives way to one within. */
   setTrainingGoal(goal) {
     const t = this.training;
-    if (t.goal === goal || (goal !== 'year' && goal !== 'winter')) return;
+    if (t.goal === goal || !STAGES.some((s) => s.id === goal)) return;
     t.goal = goal;
     if (t.on && (t.card < 0 || !this.trainInGoal(t.card))) this.nextTrainingCard();
     else this.trainPanel.render();
@@ -550,6 +545,19 @@ export class App {
   }
 
   /**
+   * The step being learnt: the first one, as far as the goal, with a constellation not
+   * known yet (or the goal's own when all are known), and how much of it, with the steps
+   * before, is known.
+   * @returns {{stage: object, known: number, size: number}}
+   */
+  trainingStage() {
+    const goal = STAGES.find((s) => s.id === this.training.goal);
+    const stage = STAGES.find((s) => s.upTo <= goal.upTo && trainingProgress(this.training.cards, (i) => this.inScope(i, s.id), this.stages.length).known < this.scopeCount(s.id)) || goal;
+    const p = trainingProgress(this.training.cards, (i) => this.inScope(i, stage.id), this.stages.length);
+    return { stage, known: p.known, size: p.goal };
+  }
+
+  /**
    * Shows the next card, with its stars only, and turns the view to it. `again` shows that
    * card once more instead (when coming back to training), if it is still one to learn.
    */
@@ -557,7 +565,7 @@ export class App {
     const t = this.training;
     t.card = again >= 0 && this.trainInGoal(again)
       ? again
-      : nextCard(t.cards, this.trainOrder, (i) => this.trainInGoal(i), t.turn, Date.now(), t.card);
+      : nextCard(t.cards, this.chunks.map((ch) => ch.members), (i) => this.trainInGoal(i), t.turn, Date.now(), t.card);
     t.step = 1;
     this.trainingChanged();
     if (t.card >= 0) this.flyTo(t.card, { instant, fov: TRAIN_FOV });

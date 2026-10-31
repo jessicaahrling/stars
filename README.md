@@ -36,11 +36,17 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   valet gäller även nästa kort. Under namnet står en kort berättelse om stjärnbilden, som
   kan fällas ihop (på en mobil börjar den hopfälld så att himlen syns). Sedan svarar man
   **Fel**, **Kan för tillfället** eller **Kan permanent** (eller tangenterna 1, 2 och 3;
-  mellanslag gör som ett tryck på himlen). Man börjar med fyra, Stora björnen,
-  Cassiopeja, Orion och Svanen, och två nya kommer in så fort inget kort väntar på
-  repetition (ett fel som vilar räknas inte), tills man kan alla som syns från vald ort.
-  Överst i panelen väljer man om det är alla som syns någon gång under året (**Hela
-  året**) eller bara de som syns på vinterkvällar (**Vinterkvällar**, se nedan).
+  mellanslag gör som ett tryck på himlen). Himlen lärs i tre steg: först
+  **vinterhimlen** (34 stjärnbilder som syns kl. 22 på vintern från både Stockholm och
+  Göteborg, se nedan), sedan de 25 andra som syns från någonstans i Sverige och sist de
+  29 som aldrig går upp här; de visas då genom en genomskinlig mark. Inom varje steg
+  kommer stjärnbilderna i grupper som hör ihop, genom en gemensam myt, ett mönster som
+  sträcker sig över dem eller en klar granne som visar vägen till de andra, och som ligger
+  bredvid varandra (`src/data/chunks-sv.js`). Nästa grupp kommer in så fort man kan alla i
+  spel, eller när inget kort väntar på repetition (ett fel som vilar räknas inte), och
+  när namnet visas står gruppen och varför de hör ihop. Överst i panelen väljer man hur
+  långt man vill: bara vinterhimlen (**Vinter**), hela Sverige (**Sverige**) eller alla 88
+  (**Alla**).
   Vilan räknas i antal visade kort: ett fel kommer tillbaka efter två andra, "kan för
   tillfället" efter 6, sedan 15, 35 och 80 kort, och "kan permanent" först efter 120 kort.
   Mellan sessionerna kommer korten också tillbaka efter 1, 3, 7 eller 21 dagar (45 dagar
@@ -64,18 +70,14 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   egen färg.
 - **Markera stjärnbilder:** i listan, med rutan framför namnet eller med knappen på
   infokortet. Markerade stjärnbilder får en egen färg på figur, gräns och yta. Listan kan
-  filtreras på de stjärnbilder som syns från vald ort, på dem som syns på vinterkvällar
-  eller visa alla 88, och den visar vilka som är uppe just nu.
-- **Vinterkvällar:** de stjärnbilder där minst halva figuren står 5° eller högre över
-  horisonten i minst en timme i sträck någon kväll mellan kl. 18 och midnatt under
-  december–februari, räknat för vald ort. Från Stockholm är det 45 av de 57 som syns någon
-  gång under året. De som fattas är sommarens Skorpionen, Skytten, Ormbäraren och Vågen,
-  de som bara når strax över horisonten i söder (Södra fisken, Ugnen, Bildhuggaren,
-  Akterskeppet och Kompassen) och tre som bara skymtar i kanten av kvällarna: Skölden
-  några minuter kl. 18 i början av december, Korpen och Ormen strax före midnatt i slutet
-  av februari. Längre norrut, från Sundsvall och uppåt, faller också Stora hunden och
-  Floden Eridanus bort, eftersom mindre än halva figuren når 5° där. "Syns från vald ort"
-  (Hela året) räknar alla vars figur över huvud taget går upp där.
+  filtreras på de stjärnbilder som syns från vald ort, på vinterhimlen eller visa alla 88,
+  och den visar vilka som är uppe just nu.
+- **Vinterhimlen:** de stjärnbilder där minst halva figuren står 5° eller högre över
+  horisonten kl. 22 under minst en månad av vintern (december–februari), sett från både
+  Stockholm och Göteborg: 34 stycken. Orion, Oxen, Tvillingarna, Kusken, Stora och Lilla
+  hunden, Haren, Lejonet och Vattenormen hör dit, liksom de som aldrig går ned, som Stora
+  björnen och Cassiopeja. Herkules är uppe kl. 22 en månad i Stockholm men inte i Göteborg
+  och väntar därför till nästa steg. Listan kan visa bara vinterhimlen.
 - **Design:** knappen "Design" i övre raden byter utseende på knappar och paneler.
   Förutom det nuvarande finns fem designer i stil med äldre NASA-gränssnitt: Mission
   Control 1969, Apollo DSKY, Bärnstensskärm, NASA 1975 och Checklista. Valet sparas.
