@@ -1119,25 +1119,26 @@ try {
   await phoneQuiz.keyboard.press('2');
   assert.deepEqual((await phoneCard()).levels, [`${firstCard}:1`, `${secondCard}:1`, `${thirdCard}:1`]);
 
-  // On a touch screen, the tap that shows the name makes the panel grow under the finger;
-  // the click the browser makes up from that tap must not press the answer now there.
+  // On a touch screen, the tap that shows the name changes the panel under the finger;
+  // the click the browser makes up from that tap must not press a button now there.
   const touchQuiz = await openPage({ width: 390, height: 844 }, { discover: true, touch: true });
   await touchQuiz.evaluate(() => window.stjarnhimlen.setTraining(true));
   await settle(touchQuiz);
   await touchQuiz.evaluate(() => window.stjarnhimlen.revealTraining());
-  const fel = await touchQuiz.$eval('#train-actions button', (b) => { const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, text: b.textContent }; });
-  assert.equal(fel.text, 'Fel');
+  const named = await touchQuiz.$$eval('#panel-train button', (bs) => bs.filter((b) => b.offsetParent)
+    .map((b) => { const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, text: b.textContent }; }));
   await touchQuiz.evaluate(() => window.stjarnhimlen.answerTraining('now'));
   await settle(touchQuiz);
   await touchQuiz.evaluate(() => window.stjarnhimlen.advanceTraining());
   const panelBottom = await touchQuiz.$eval('#panel-train', (p) => p.getBoundingClientRect().bottom);
-  assert.ok(panelBottom < fel.y, 'at step 2 the sky shows where Fel will be');
+  const spot = named.find((b) => b.y > panelBottom + 4);
+  assert.ok(spot, 'at step 2 the sky shows where a button of the named card will be');
   const touched = (await cardOf(touchQuiz)).card;
-  await touchQuiz.touchscreen.tap(fel.x, fel.y);
+  await touchQuiz.touchscreen.tap(spot.x, spot.y);
   await settle(touchQuiz);
-  assert.deepEqual(await cardOf(touchQuiz), { card: touched, step: 3, levels: ['UMa:1'] }, 'the tap showed the name and pressed nothing');
-  const underFinger = await touchQuiz.evaluate(([x, y]) => document.elementFromPoint(x, y)?.textContent, [fel.x, fel.y]);
-  assert.equal(underFinger, 'Fel', 'though Fel came up under the finger');
+  assert.deepEqual([await cardOf(touchQuiz), await touchQuiz.evaluate(() => window.stjarnhimlen.training.on)], [{ card: touched, step: 3, levels: ['UMa:1'] }, true], 'the tap showed the name and pressed nothing');
+  const underFinger = await touchQuiz.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('button')?.textContent, [spot.x, spot.y]);
+  assert.equal(underFinger, spot.text, `though "${spot.text}" came up under the finger`);
 
   // "Design": a list of interface designs. Each one is put on the page when chosen, keeps
   // the layout in one piece on a desktop and a phone, and is remembered.
