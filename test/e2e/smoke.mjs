@@ -1009,8 +1009,8 @@ try {
   });
   await quiz.reload();
   await quiz.waitForFunction(() => window.stjarnhimlen);
-  assert.deepEqual(await quiz.evaluate(() => [...window.stjarnhimlen.training.cards].map(([i, c]) => [window.stjarnhimlen.catalog.constellations[i].id, c.level, c.dueTurn, c.dueAt !== null])), [['UMa', 3, 0, false], ['Cas', 0, 0, false], ['Ori', 4, 80, true]]);
-  assert.equal((await quizState()).card, 'Cas', 'the missed one comes first');
+  assert.deepEqual(await quiz.evaluate(() => [...window.stjarnhimlen.training.cards].filter(([, c]) => c.n > 0).map(([i, c]) => [window.stjarnhimlen.catalog.constellations[i].id, c.level, c.dueTurn, c.dueAt !== null])), [['UMa', 3, 0, false], ['Cas', 0, 0, false], ['Ori', 4, 80, true]]);
+  assert.deepEqual([(await quizState()).card, await quiz.textContent('#train-group')], ['UMa', 'Grupp 1 av 28: Björnarna vid polen · 0 av 3 kan du'], 'the first group not learnt is taken up');
 
   // A card below the horizon is shown through see-through ground, without changing the
   // setting, and stays in view when the time changes. Leaving training lifts the view
