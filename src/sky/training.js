@@ -59,9 +59,10 @@ export function isDue(card, turn, now) {
  * Picks the card to show next, and brings new constellations into play a group at a
  * time (see sky/curriculum.js): the first group at first, then the next as soon as every
  * card in play is known. A missed card that is due goes first, then the card that has been
- * due longest (one due after days away counts as due from now), so the reviews that are
- * due come before a new group's cards, and a new group still comes in however many there
- * are to review. While a missed card rests and nothing else is due, the next group comes
+ * due longest (one due after days away counts as due from the turn it is first found so),
+ * so the reviews that are due come before a new group's cards. A new group still comes in
+ * however many there are to review: rests counted in cards would otherwise stop play at
+ * about as many cards as the longest rest, short of the whole sky. While a missed card rests and nothing else is due, the next group comes
  * in too, rather than known cards early, so that the miss comes back after AGAIN_AFTER
  * others and a card known for good stays away. Once every group is in play and nothing is
  * due, the card due soonest is shown, so practice never stops. The card just shown waits a
@@ -84,9 +85,8 @@ export function nextCard(cards, groups, inGoal, turn, now, last = -1) {
     const play = inPlay();
     return play.length > 1 ? play.filter((i) => i !== last) : play;
   };
-  const by = (key) => (list) => list.reduce((a, b) => (key(b) < key(a) ? b : a));
-  const longestDue = by((i) => Math.min(cards.get(i).dueTurn, turn));
-  const soonest = by((i) => cards.get(i).dueTurn);
+  for (const [i, c] of cards) if (c.dueAt !== null && now >= c.dueAt && c.dueTurn > turn) cards.set(i, { ...c, dueTurn: turn });
+  const soonest = (list) => list.reduce((a, b) => (cards.get(b).dueTurn < cards.get(a).dueTurn ? b : a));
   const due = () => {
     const list = pool().filter((i) => isDue(cards.get(i), turn, now));
     const missed = list.filter((i) => cards.get(i).level === 0 && cards.get(i).n > 0);
@@ -98,7 +98,7 @@ export function nextCard(cards, groups, inGoal, turn, now, last = -1) {
     bringIn();
     list = due();
   }
-  if (list.length) return longestDue(list);
+  if (list.length) return soonest(list);
   const rest = pool();
   return rest.length ? soonest(rest) : -1;
 }

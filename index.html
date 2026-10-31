@@ -184,6 +184,8 @@
     .story-origin { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
     .story-origin b { font-weight: 600; }
     .train-story { min-height: 0; overflow-y: auto; flex: 0 1 auto; }
+    /* Folded, the story keeps its heading; the foot always stays inside the panel. */
+    .train-story:not([open]), .panel-train .discover-foot { flex: none; }
     .train-story summary { cursor: pointer; font-weight: 500; }
     .train-story .story { margin-top: 8px; }
     .card { max-height: calc(100% - var(--top) - var(--bottom) - 130px); overflow-y: auto; }
@@ -365,10 +367,11 @@
         <button id="btn-train-art" type="button" class="chip toggle" aria-pressed="true" title="Tangent B">Bild</button>
       </div>
       <div id="train-actions" class="discover-next train-actions" role="group" aria-label="Nästa steg"></div>
-      <p id="train-group" class="discover-hint train-group" hidden><b id="train-group-name"></b> <span id="train-group-text"></span></p>
+      <p id="train-group" class="discover-hint train-group" hidden><b id="train-group-name"></b></p>
       <details id="train-story" class="train-story" hidden>
         <summary id="train-story-title" class="discover-hint"></summary>
         <div class="story">
+          <p class="discover-hint"><b>Gruppen:</b> <span id="train-group-text"></span></p>
           <p id="train-story-origin" class="discover-hint story-origin"></p>
           <p id="train-story-text" class="discover-hint"></p>
           <p class="discover-hint"><b>Speciellt:</b> <span id="train-story-special"></span></p>

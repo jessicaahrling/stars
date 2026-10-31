@@ -164,6 +164,14 @@ test('a goal short of the whole sky: cards beyond it are neither asked nor count
   assert.deepEqual([p.goal, p.inPlay, p.known], [34, groups[0].length, 0]);
 });
 
+test('after days away, the reviews due come before a new group, all of them', () => {
+  const gs = made(4, 3, 3);
+  const cards = new Map();
+  play(cards, 7, () => 'now', { gs });
+  const shown = play(cards, 10, () => 'now', { gs, turn: 7, now: NOW_DAYS[0] * DAY });
+  assert.deepEqual(shown, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+});
+
 test('old cards come back after days, however little has been played', () => {
   const gs = made(4, 2, 2);
   const cards = new Map();

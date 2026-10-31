@@ -893,7 +893,8 @@ try {
   assert.match(await quiz.textContent('#train-story-text'), /Kallisto/);
   assert.match(await quiz.textContent('#train-story-special'), /Karlavagnen/);
   // So is the group it came in with, and why they belong together.
-  assert.match(await quiz.textContent('#train-group'), /^Grupp 1 av 28: Björnarna vid polen\. Karlavagnen hör till Stora björnen/);
+  assert.equal(await quiz.textContent('#train-group'), 'Grupp 1 av 28: Björnarna vid polen.');
+  assert.match(await quiz.textContent('#train-group-text'), /^Karlavagnen hör till Stora björnen/);
   await quiz.click('#train-story summary');
   await quiz.waitForFunction(() => window.stjarnhimlen.training.showStory === false);
   // Space on the story's heading opens and folds it; it does not answer.
@@ -1060,6 +1061,20 @@ try {
     return [document.getElementById('train-count').textContent, document.getElementById('train-of').textContent];
   }, stage);
   assert.deepEqual(await knownUpTo(1), ['34 av 59', 'kan du av dem som syns från Sverige · 0 permanent · 34 i spel']);
+  // The next group is from the rest of Sweden, and a miss on the winter sky then does not
+  // take the progress back a step.
+  const missed = await quiz.evaluate(() => {
+    const a = window.stjarnhimlen;
+    a.nextTrainingCard({ instant: true });
+    const card = a.catalog.constellations[a.training.card].id;
+    a.training.cards.set(a.catalog.byId.get('Cas').index, { level: 0, dueTurn: 1000, dueAt: null, n: 2 });
+    a.trainPanel.render();
+    return [card, document.getElementById('train-count').textContent, document.getElementById('train-of').textContent];
+  });
+  assert.deepEqual(missed, ['Vir', '33 av 59', 'kan du av dem som syns från Sverige · 0 permanent · 37 i spel']);
+  // One seen only further south in Sweden says so.
+  await quiz.evaluate(() => window.stjarnhimlen.nextTrainingCard({ again: window.stjarnhimlen.catalog.byId.get('Mic').index, instant: true }));
+  assert.match(await quiz.textContent('#train-prompt'), /Den går aldrig upp från Stockholm, bara längre söderut i Sverige/);
   assert.deepEqual(await knownUpTo(2), ['59 av 88', 'kan du på hela himlen · 0 permanent · 59 i spel']);
   await quiz.click('#btn-train-exit');
   assert.equal((await quizState()).on, false);

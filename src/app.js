@@ -545,16 +545,20 @@ export class App {
   }
 
   /**
-   * The step being learnt: the first one, as far as the goal, with a constellation not
-   * known yet (or the goal's own when all are known), and how much of it, with the steps
-   * before, is known.
-   * @returns {{stage: object, known: number, size: number}}
+   * The step being learnt, as far as the goal: the first with a constellation not known
+   * yet, or a later one that has come into play (a miss on an earlier step does not take
+   * the learner back), and how it stands, counted with the steps before it.
+   * @returns {{stage: object, known: number, size: number, permanent: number, inPlay: number}}
    */
   trainingStage() {
-    const goal = STAGES.find((s) => s.id === this.training.goal);
-    const stage = STAGES.find((s) => s.upTo <= goal.upTo && trainingProgress(this.training.cards, (i) => this.inScope(i, s.id), this.stages.length).known < this.scopeCount(s.id)) || goal;
-    const p = trainingProgress(this.training.cards, (i) => this.inScope(i, stage.id), this.stages.length);
-    return { stage, known: p.known, size: p.goal };
+    const t = this.training;
+    const goal = STAGES.find((s) => s.id === t.goal);
+    const progress = (s) => trainingProgress(t.cards, (i) => this.inScope(i, s.id), this.stages.length);
+    const first = STAGES.find((s) => s.upTo <= goal.upTo && progress(s).known < progress(s).goal) || goal;
+    const reached = Math.max(first.upTo, ...[...t.cards.keys()].filter((i) => this.trainInGoal(i)).map((i) => this.stages[i]));
+    const stage = STAGES.find((s) => s.upTo === Math.min(reached, goal.upTo));
+    const p = progress(stage);
+    return { stage, known: p.known, size: p.goal, permanent: p.permanent, inPlay: p.inPlay };
   }
 
   /**

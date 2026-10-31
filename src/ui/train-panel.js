@@ -1,5 +1,6 @@
 // "Träna": the card being practised, the buttons for each step and the progress. The
 // panel uses the Upptäck panel's classes, so that every design styles both alike.
+import { visibilityClass } from '../astro/visibility.js';
 import { STORIES } from '../data/stories-sv.js';
 
 /** How the progress names each step. */
@@ -92,17 +93,17 @@ export class TrainPanel {
     const active = document.activeElement;
     const p = app.trainingProgress();
     // The progress is that of the step being learnt, with the steps before it.
-    const { stage, known, size } = app.trainingStage();
+    const { stage, known, size, permanent, inPlay } = app.trainingStage();
     for (const [goal, b] of Object.entries(this.goals)) {
       b.setAttribute('aria-pressed', String(goal === t.goal));
       this.goalCounts[goal].textContent = String(app.scopeCount(goal));
     }
     this.count.textContent = `${known} av ${size}`;
-    this.of.textContent = `kan du ${AMONG[stage.id]} · ${p.permanent} permanent · ${p.inPlay} i spel`;
+    this.of.textContent = `kan du ${AMONG[stage.id]} · ${permanent} permanent · ${inPlay} i spel`;
     this.bar.style.width = `${size ? (100 * known) / size : 0}%`;
     this.meter.setAttribute('aria-valuenow', String(known));
     this.meter.setAttribute('aria-valuemax', String(size));
-    this.meter.setAttribute('aria-valuetext', `Du kan ${known} av ${size} ${AMONG[stage.id]}, ${p.permanent} permanent`);
+    this.meter.setAttribute('aria-valuetext', `Du kan ${known} av ${size} ${AMONG[stage.id]}, ${permanent} permanent`);
     this.restart.textContent = this.confirming ? 'Säker? Tryck igen' : 'Börja om';
     this.restart.disabled = t.cards.size === 0;
 
@@ -116,8 +117,10 @@ export class TrainPanel {
       prompt = isNew ? `En ny stjärnbild ur gruppen ”${group.name}”! Titta på stjärnorna. Vet du vilken det är?` : 'Vilken stjärnbild är det här?';
       if (p.done) prompt = `Du kan alla ${p.goal} ${AMONG[t.goal]}! Fortsätt att repetera. ${prompt}`;
       if (t.below) {
+        const never = visibilityClass(c.figureDecs, app.view.lat) === 'never';
         prompt += app.stages[t.card] === 3 ? ' Den går aldrig upp över horisonten i Sverige, så marken är genomskinlig.'
-          : ' Den är under horisonten just nu, så marken är genomskinlig.';
+          : never ? ` Den går aldrig upp från ${app.place.name}, bara längre söderut i Sverige, så marken är genomskinlig.`
+            : ' Den är under horisonten just nu, så marken är genomskinlig.';
       }
     } else if (t.step === 2) {
       prompt = 'Här är linjerna. Vilken stjärnbild är det?';
@@ -135,7 +138,8 @@ export class TrainPanel {
     }
     this.answer.hidden = !c || t.step < 3;
     this.view.hidden = !c || t.step < 3;
-    // Named, the card shows the group it came in with, as an aid to remember them together.
+    // Named, the card shows the group it came in with, as an aid to remember them together,
+    // and with the story why they belong together.
     this.group.hidden = !group || t.step < 3;
     if (group) {
       this.groupName.textContent = `Grupp ${app.chunks.indexOf(group) + 1} av ${app.chunks.length}: ${group.name}.`;
