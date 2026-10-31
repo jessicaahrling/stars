@@ -184,8 +184,10 @@
     .story-origin { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
     .story-origin b { font-weight: 600; }
     .train-story { min-height: 0; overflow-y: auto; flex: 0 1 auto; }
-    /* Folded, the story keeps its heading; the foot always stays inside the panel. */
+    /* Folded, the story keeps its heading; the foot always stays inside the panel, which
+       scrolls when even so there is more than fits. */
     .train-story:not([open]), .panel-train .discover-foot { flex: none; }
+    .panel-train .discover-body { overflow-y: auto; }
     .train-story summary { cursor: pointer; font-weight: 500; }
     .train-story .story { margin-top: 8px; }
     .card { max-height: calc(100% - var(--top) - var(--bottom) - 130px); overflow-y: auto; }
@@ -236,6 +238,8 @@
       .discover-next { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; flex: none; scrollbar-width: none; }
       .train-name { font-size: 21px; }
       .discover-next.train-actions { flex-wrap: wrap; overflow: visible; }
+      /* Named, the card needs the sky more than the choice of goal and the counts. */
+      .panel-train[data-step="3"] .train-goal, .panel-train[data-step="3"] #train-of { display: none; }
       .discover-next::-webkit-scrollbar { display: none; }
     }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

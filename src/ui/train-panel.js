@@ -87,6 +87,7 @@ export class TrainPanel {
     const t = app.training;
     this.button.setAttribute('aria-pressed', String(t.on));
     this.root.hidden = !t.on;
+    this.root.dataset.step = String(t.step);
     // The constellation list would give the answers away (and fly off the card).
     app.list.button.disabled = t.on;
     if (!t.on) return;
