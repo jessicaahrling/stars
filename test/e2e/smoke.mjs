@@ -258,16 +258,16 @@ try {
   assert.match(await page.textContent('#card .story'), /^Grekisk mytologi.*nemeiska lejonet.*Speciellt: .*Regulus/);
 
   await page.fill('#search', '');
-  // "Vinterkvällar" keeps those seen on winter evenings: 45 of the 57 seen from Stockholm.
+  // "Vinterhimlen" keeps the 34 seen at ten on winter evenings from Stockholm and Göteborg.
   const listNames = () => page.$$eval('#con-list li:not([hidden]) strong', (els) => els.map((e) => e.textContent));
   const listChips = () => page.$$eval('#filter-visible, #filter-winter, #filter-all', (els) => els.map((e) => e.getAttribute('aria-pressed')));
-  assert.deepEqual([await page.textContent('#filter-count'), await page.textContent('#filter-winter-count')], ['57', '45']);
+  assert.deepEqual([await page.textContent('#filter-count'), await page.textContent('#filter-winter-count')], ['57', '34']);
   assert.equal((await listNames()).length, 57);
   await page.click('#filter-winter');
   assert.deepEqual(await listChips(), ['false', 'true', 'false']);
-  assert.deepEqual([await page.textContent('#filter-count'), await page.textContent('#filter-winter-count')], ['57', '45']);
+  assert.deepEqual([await page.textContent('#filter-count'), await page.textContent('#filter-winter-count')], ['57', '34']);
   const winterNames = await listNames();
-  assert.equal(winterNames.length, 45);
+  assert.equal(winterNames.length, 34);
   assert.ok(winterNames.includes('Orion') && winterNames.includes('Stora björnen') && !winterNames.includes('Skorpionen'));
   await page.click('#filter-all');
   assert.equal((await listNames()).length, 88);
@@ -324,7 +324,7 @@ try {
   await page.selectOption('#place', 'kiruna');
   assert.equal(await page.textContent('#when-place'), 'Kiruna');
   assert.notEqual(await page.textContent('#filter-count'), before, 'fewer constellations rise in Kiruna');
-  assert.equal(await page.textContent('#filter-winter-count'), '41');
+  assert.equal(await page.textContent('#filter-winter-count'), '34', 'the winter sky is the same from every place');
   await page.click('#btn-when');
 
   // Clicking the ground closes the card and toggles no illustration.
@@ -789,8 +789,8 @@ try {
   assert.ok(overflow <= 0, `no horizontal scroll on phones (overflow ${overflow}px)`);
   await phone.screenshot({ path: path.join(shots, 'phone-ursa-major.png') });
 
-  // "Träna": flashcards. Play starts with four striking constellations, Ursa Major first,
-  // shown with its stars only; then its lines, then its name and drawing.
+  // "Träna": flashcards. Play starts with the first group, the bears at the pole, Ursa
+  // Major first, shown with its stars only; then its lines, then its name and drawing.
   const quiz = await openPage({ width: 1280, height: 800 }, { discover: true });
   const quizState = () => quiz.evaluate(() => {
     const a = window.stjarnhimlen;
@@ -817,8 +817,9 @@ try {
   const umaCard = () => quiz.evaluate(() => JSON.stringify(window.stjarnhimlen.training.cards.get(window.stjarnhimlen.catalog.byId.get('UMa').index)));
   await quiz.click('#btn-train');
   await settle(quiz);
-  assert.deepEqual(await quizState(), { on: true, card: 'UMa', step: 1, inPlay: 4, panel: true, discovering: false });
+  assert.deepEqual(await quizState(), { on: true, card: 'UMa', step: 1, inPlay: 3, panel: true, discovering: false });
   assert.equal(await quiz.evaluate(() => Math.round(window.stjarnhimlen.view.fov * 1000) / 1000), 100, 'the field of view the sky opens with');
+  assert.match(await quiz.textContent('#train-prompt'), /^En ny stjärnbild ur gruppen ”Björnarna vid polen”/);
   assert.equal(await quiz.getAttribute('#btn-train', 'aria-pressed'), 'true');
   assert.equal(await quiz.getAttribute('#btn-discover', 'aria-pressed'), 'false');
   // The list would give the answers away, and the cards decide on lines, names and drawings.
@@ -891,6 +892,8 @@ try {
   assert.match(await quiz.textContent('#train-story-origin'), /^Grekisk mytologi$/);
   assert.match(await quiz.textContent('#train-story-text'), /Kallisto/);
   assert.match(await quiz.textContent('#train-story-special'), /Karlavagnen/);
+  // So is the group it came in with, and why they belong together.
+  assert.match(await quiz.textContent('#train-group'), /^Grupp 1 av 28: Björnarna vid polen\. Karlavagnen hör till Stora björnen/);
   await quiz.click('#train-story summary');
   await quiz.waitForFunction(() => window.stjarnhimlen.training.showStory === false);
   // Space on the story's heading opens and folds it; it does not answer.
@@ -911,20 +914,20 @@ try {
   // "Visa svaret" goes straight to the name. A miss ("Fel") comes back after two other cards.
   await quiz.mouse.click(700, 400);
   await settle(quiz);
-  assert.deepEqual(await quizState(), { on: true, card: 'Cas', step: 1, inPlay: 4, panel: true, discovering: false });
+  assert.deepEqual(await quizState(), { on: true, card: 'UMi', step: 1, inPlay: 3, panel: true, discovering: false });
   assert.equal(await quiz.evaluate(() => window.stjarnhimlen.training.cards.get(window.stjarnhimlen.catalog.byId.get('UMa').index).level), 1);
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   assert.equal((await quizState()).step, 3);
   assert.deepEqual(await quiz.$$eval('#train-actions button', (els) => els.map((e) => e.textContent)), ['Fel', 'Kan för tillfället', 'Kan permanent']);
   assert.equal(await quiz.getAttribute('#btn-train-art', 'aria-pressed'), 'false', 'the choice of drawing stays for the next card');
-  assert.deepEqual(await quiz.evaluate(() => [document.querySelector('#train-story').open, document.querySelector('#train-story-title').textContent]), [false, 'Om Cassiopeja'], 'and so does the folded story');
-  assert.match(await quiz.textContent('#train-story-text'), /Andromeda/);
+  assert.deepEqual(await quiz.evaluate(() => [document.querySelector('#train-story').open, document.querySelector('#train-story-title').textContent]), [false, 'Om Lilla björnen'], 'and so does the folded story');
+  assert.match(await quiz.textContent('#train-story-text'), /Kynosura/);
   await quiz.click('#train-story summary');
   assert.deepEqual((await quizParts()).art, []);
   await quiz.click('#btn-train-art');
-  assert.deepEqual((await quizParts()).art, ['Cas']);
+  assert.deepEqual((await quizParts()).art, ['UMi']);
   await quiz.click('#train-actions button:has-text("Fel")');
-  assert.equal((await quizState()).card, 'Ori');
+  assert.equal((await quizState()).card, 'Dra');
   // A touch during the flight to the next card lands it rather than stopping halfway.
   // Every card is shown at the field of view the sky opens with, even after zooming in.
   const flight = await quiz.evaluate(() => {
@@ -943,25 +946,26 @@ try {
   assert.ok(flight.to && Math.abs(flight.az - flight.to.az) < 1e-6 && Math.abs(flight.alt - flight.to.alt) < 1e-6, 'the flight landed');
   assert.deepEqual([flight.to.fov, flight.fov], [100, 100], 'zoomed out again');
   assert.deepEqual([flight.step, flight.anim], [1, null], 'and the touch did not count as a tap');
-  assert.equal((await quizState()).card, 'Cyg');
+  // The miss rests, so the next group comes in: Perseus and Andromeda's story.
+  assert.deepEqual([(await quizState()).card, (await quizState()).inPlay], ['Cas', 7]);
   const levelOf = (cid) => quiz.evaluate((c) => window.stjarnhimlen.training.cards.get(window.stjarnhimlen.catalog.byId.get(c).index).level, cid);
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   await quiz.click('#train-actions button:has-text("Kan för tillfället")');
-  assert.equal(await levelOf('Cyg'), 1, '"Kan för tillfället" counts it as known for now');
-  assert.equal((await quizState()).card, 'Cas', 'the missed card comes back after two others');
+  assert.equal(await levelOf('Cas'), 1, '"Kan för tillfället" counts it as known for now');
+  assert.equal((await quizState()).card, 'UMi', 'the missed card comes back after two others');
 
-  // Two more come in as soon as none is due.
+  // Key 3 is "Kan permanent", and the group's other new ones follow.
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   await quiz.keyboard.press('3');
-  assert.equal(await levelOf('Cas'), 9, 'key 3 is "Kan permanent"');
+  assert.equal(await levelOf('UMi'), 9, 'key 3 is "Kan permanent"');
   let q = await quizState();
-  assert.deepEqual([q.inPlay, q.card], [6, 'Leo']);
-  assert.match(await quiz.textContent('#train-count'), /^4 av 57$/);
+  assert.deepEqual([q.inPlay, q.card], [7, 'And']);
+  assert.match(await quiz.textContent('#train-count'), /^4 av 34$/);
   // "Kan permanent" counts it as known for good.
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   await quiz.click('#train-actions button:has-text("Kan permanent")');
-  assert.match(await quiz.textContent('#train-count'), /^5 av 57$/);
-  assert.match(await quiz.textContent('#train-of'), /^kan du · 2 permanent · 6 i spel$/);
+  assert.match(await quiz.textContent('#train-count'), /^5 av 34$/);
+  assert.match(await quiz.textContent('#train-of'), /^kan du i vinterhimlen · 2 permanent · 7 i spel$/);
   q = await quizState();
 
   // "Upptäck" takes over and keeps its own progress; "Träna" comes back to the same card.
@@ -979,14 +983,14 @@ try {
   // What is learnt is remembered, levels, rests and all.
   await quiz.waitForFunction(() => {
     const saved = JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').training;
-    return saved?.v === 2 && saved.on === true && saved.cards.length === 6 && saved.turn === window.stjarnhimlen.training.turn;
+    return saved?.v === 2 && saved.on === true && saved.cards.length === 7 && saved.turn === window.stjarnhimlen.training.turn;
   });
   const learnt = () => quiz.evaluate(() => JSON.stringify([window.stjarnhimlen.training.turn, ...window.stjarnhimlen.training.cards]));
   const learntBefore = await learnt();
   await quiz.reload();
   await quiz.waitForFunction(() => window.stjarnhimlen);
   q = await quizState();
-  assert.deepEqual([q.on, q.inPlay, q.panel, q.step], [true, 6, true, 1]);
+  assert.deepEqual([q.on, q.inPlay, q.panel, q.step], [true, 7, true, 1]);
   assert.equal(await learnt(), learntBefore);
   assert.equal(await quiz.evaluate(() => window.stjarnhimlen.training.showStory), true, 'the story stays open');
 
@@ -1025,20 +1029,20 @@ try {
   assert.equal(await quiz.textContent('#btn-train-restart'), 'Säker? Tryck igen');
   await quiz.click('#btn-train-restart');
   q = await quizState();
-  assert.deepEqual([q.card, q.inPlay, q.step], ['UMa', 4, 1]);
+  assert.deepEqual([q.card, q.inPlay, q.step], ['UMa', 3, 1]);
 
-  // "Vinterkvällar": only those seen on winter evenings are asked and counted, and the
-  // choice is remembered.
+  // How far to go: the winter sky only, all of Sweden's or the whole sky. Cards beyond the
+  // choice are neither asked nor counted, and the choice is remembered.
   const goalChips = () => quiz.$$eval('#train-goal button', (els) => els.map((e) => `${e.textContent.replace(/\s+/g, ' ').trim()}:${e.getAttribute('aria-pressed')}`));
-  assert.deepEqual(await goalChips(), ['Hela året 57:true', 'Vinterkvällar 45:false']);
+  assert.deepEqual(await goalChips(), ['Vinter 34:false', 'Sverige 59:false', 'Alla 88:true']);
   await quiz.evaluate(() => window.stjarnhimlen.nextTrainingCard({ again: window.stjarnhimlen.catalog.byId.get('Sco').index, instant: true }));
   assert.equal((await quizState()).card, 'Sco');
   await quiz.click('#train-goal-winter');
-  assert.deepEqual(await goalChips(), ['Hela året 57:false', 'Vinterkvällar 45:true']);
-  assert.match(await quiz.textContent('#train-count'), /^0 av 45$/);
-  assert.match(await quiz.getAttribute('#train-meter', 'aria-valuetext'), /som syns från Stockholm på vinterkvällar/);
+  assert.deepEqual(await goalChips(), ['Vinter 34:true', 'Sverige 59:false', 'Alla 88:false']);
+  assert.match(await quiz.textContent('#train-count'), /^0 av 34$/);
+  assert.match(await quiz.getAttribute('#train-meter', 'aria-valuetext'), /^Du kan 0 av 34 i vinterhimlen/);
   q = await quizState();
-  assert.ok(q.card !== 'Sco' && await quiz.evaluate(() => window.stjarnhimlen.winterSet().has(window.stjarnhimlen.training.card)), `Skorpionen gives way to one seen in winter (${q.card})`);
+  assert.ok(q.card !== 'Sco' && await quiz.evaluate(() => window.stjarnhimlen.stages[window.stjarnhimlen.training.card] === 1), `Skorpionen gives way to one of the winter sky (${q.card})`);
   // Space then shows the next step, not the chip again.
   await quiz.keyboard.press(' ');
   assert.equal((await quizState()).step, 2);
@@ -1046,9 +1050,17 @@ try {
   await quiz.reload();
   await quiz.waitForFunction(() => window.stjarnhimlen);
   assert.equal(await quiz.getAttribute('#train-goal-winter', 'aria-pressed'), 'true');
-  assert.match(await quiz.textContent('#train-count'), /^0 av 45$/);
-  await quiz.click('#train-goal-year');
-  assert.match(await quiz.textContent('#train-count'), /^0 av 57$/);
+  assert.match(await quiz.textContent('#train-count'), /^0 av 34$/);
+  // Once the winter sky is known, the progress moves on to the rest of Sweden, and then to the rest.
+  await quiz.click('#train-goal-all');
+  const knownUpTo = (stage) => quiz.evaluate((s) => {
+    const a = window.stjarnhimlen;
+    a.stages.forEach((st, i) => { if (st <= s) a.training.cards.set(i, { level: 1, dueTurn: 1000, dueAt: null, n: 1 }); });
+    a.trainPanel.render();
+    return [document.getElementById('train-count').textContent, document.getElementById('train-of').textContent];
+  }, stage);
+  assert.deepEqual(await knownUpTo(1), ['34 av 59', 'kan du av dem som syns från Sverige · 0 permanent · 34 i spel']);
+  assert.deepEqual(await knownUpTo(2), ['59 av 88', 'kan du på hela himlen · 0 permanent · 59 i spel']);
   await quiz.click('#btn-train-exit');
   assert.equal((await quizState()).on, false);
 

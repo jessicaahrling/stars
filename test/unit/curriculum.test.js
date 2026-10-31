@@ -54,6 +54,14 @@ test('the constellations of a group lie together: each borders another of the gr
   }
 });
 
+test('each new group borders one learnt before it, so it can be found from known ones', () => {
+  const known = new Set(chunks[0].members);
+  for (const ch of chunks.slice(1)) {
+    assert.ok(ch.members.some((i) => neighbours[i].some((n) => known.has(n))), ch.name);
+    ch.members.forEach((i) => known.add(i));
+  }
+});
+
 test('each group has a short name and a reason, tidy Swedish', () => {
   assert.equal(new Set(CHUNKS.map((ch) => ch.name)).size, CHUNKS.length, 'names are unique');
   for (const ch of CHUNKS) {

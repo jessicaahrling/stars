@@ -5,12 +5,9 @@ import { STORIES } from '../data/stories-sv.js';
 /** How the progress names each step. */
 const AMONG = { winter: 'i vinterhimlen', sweden: 'av dem som syns från Sverige', all: 'på hela himlen' };
 
-/** "A, B och C". */
-const listed = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} och ${names.at(-1)}` : names.join(''));
-
 export class TrainPanel {
   /**
-   * @param {object} app  see App: catalog, training, trainingProgress, trainingStage, chunkOf, scopeCount,
+   * @param {object} app  see App: catalog, training, trainingProgress, trainingStage, chunks, chunkOf, stages, scopeCount,
    *   setTraining, setTrainingGoal, advanceTraining, revealTraining, answerTraining, restartTraining
    * @param {(id: string) => HTMLElement} $
    */
@@ -116,7 +113,7 @@ export class TrainPanel {
     const group = c && app.chunkOf.get(t.card);
     if (!c) prompt = 'Det finns inga stjärnbilder att träna på.';
     else if (t.step === 1) {
-      prompt = isNew ? `En ny stjärnbild ur gruppen ${group.name}! Titta på stjärnorna. Vet du vilken det är?` : 'Vilken stjärnbild är det här?';
+      prompt = isNew ? `En ny stjärnbild ur gruppen ”${group.name}”! Titta på stjärnorna. Vet du vilken det är?` : 'Vilken stjärnbild är det här?';
       if (p.done) prompt = `Du kan alla ${p.goal} ${AMONG[t.goal]}! Fortsätt att repetera. ${prompt}`;
       if (t.below) {
         prompt += app.stages[t.card] === 3 ? ' Den går aldrig upp över horisonten i Sverige, så marken är genomskinlig.'
@@ -141,8 +138,8 @@ export class TrainPanel {
     // Named, the card shows the group it came in with, as an aid to remember them together.
     this.group.hidden = !group || t.step < 3;
     if (group) {
-      this.groupName.textContent = `Gruppen ${group.name}:`;
-      this.groupText.textContent = `${listed(group.members.map((i) => app.catalog.constellations[i].sv))}. ${group.reason}`;
+      this.groupName.textContent = `Grupp ${app.chunks.indexOf(group) + 1} av ${app.chunks.length}: ${group.name}.`;
+      this.groupText.textContent = group.reason;
     }
     const story = c && STORIES[c.id];
     this.story.hidden = !story || t.step < 3;
