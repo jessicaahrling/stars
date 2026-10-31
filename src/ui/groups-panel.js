@@ -53,6 +53,8 @@ export class GroupsPanel {
 
   toggle(force) {
     const open = force ?? this.panel.hidden;
+    // Closed from within, focus goes back to the card, so that Space goes on with it.
+    const within = !open && this.panel.contains(document.activeElement);
     this.panel.hidden = !open;
     this.button.setAttribute('aria-expanded', String(open));
     if (open) {
@@ -63,6 +65,7 @@ export class GroupsPanel {
       this.rows[this.app.training.group]?.li.scrollIntoView({ block: 'nearest' });
     }
     this.app.layoutChanged();
+    if (within && this.app.training.on) this.app.trainPanel.focusCard();
   }
 
   /** Each group's state: being learnt now, learnt, how many of it are known, or not begun. */

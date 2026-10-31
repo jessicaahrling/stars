@@ -60,6 +60,12 @@ export class TrainPanel {
     this.restart.addEventListener('click', () => this.onRestart());
   }
 
+  /** Puts focus on the card: the next step, or the name once shown, so that Space goes on. */
+  focusCard() {
+    if (this.app.training.step < 3) this.actions.querySelector('.primary')?.focus();
+    else this.answer.focus();
+  }
+
   /** Starting over forgets what has been learnt, so it takes a second press to confirm. */
   onRestart() {
     clearTimeout(this.confirmTimer);
