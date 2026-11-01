@@ -3,6 +3,9 @@
 import { visibilityClass } from '../astro/visibility.js';
 import { STORIES } from '../data/stories-sv.js';
 
+/** "A, B och C". */
+const listed = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} och ${names.at(-1)}` : names.join(''));
+
 /** How the progress names each step. */
 const AMONG = { winter: 'i vinterhimlen', sweden: 'av dem som syns från Sverige', all: 'på hela himlen' };
 
@@ -25,6 +28,7 @@ export class TrainPanel {
     this.groupName = $('train-group-name');
     this.groupCount = $('train-group-count');
     this.storyGroup = $('train-story-group');
+    this.why = $('train-group-why');
     this.groupText = $('train-group-text');
     for (const [goal, b] of Object.entries(this.goals)) b.addEventListener('click', () => app.setTrainingGoal(goal));
     this.prompt = $('train-prompt');
@@ -108,12 +112,15 @@ export class TrainPanel {
     this.restart.textContent = this.confirming ? 'Säker? Tryck igen' : 'Börja om';
     this.restart.disabled = t.cards.size === 0;
 
-    // The group being learnt, and how many of it are known this time round.
+    // The group being learnt, or the one shown whole, and how many of it are known: this
+    // time round while it is learnt.
     const learning = app.chunks[t.group];
-    if (learning) {
-      const done = learning.members.filter((i) => t.groupSeen.has(i) && t.cards.get(i)?.level >= 1).length;
-      this.groupName.textContent = `Grupp ${t.group + 1} av ${app.chunks.length}: ${learning.name}`;
-      this.groupCount.textContent = `· ${done} av ${learning.members.length} kan du`;
+    const gk = t.view ? t.view.group : t.group;
+    const shownGroup = app.chunks[gk];
+    if (shownGroup) {
+      const known = (i) => t.cards.get(i)?.level >= 1 && (t.view || t.groupSeen.has(i));
+      this.groupName.textContent = `Grupp ${gk + 1} av ${app.chunks.length}: ${shownGroup.name}`;
+      this.groupCount.textContent = `· ${shownGroup.members.filter(known).length} av ${shownGroup.members.length} kan du`;
     } else {
       this.groupName.textContent = 'Alla grupper är klara';
       this.groupCount.textContent = '· nu repeterar du';
@@ -124,13 +131,17 @@ export class TrainPanel {
     const isNew = !card || card.n === 0;
     let prompt;
     const group = c && app.chunkOf.get(t.card);
-    if (!c) prompt = 'Det finns inga stjärnbilder att träna på.';
+    // A group shown whole: its members together on the sky, and why they belong together.
+    this.why.hidden = !t.view;
+    if (t.view) {
+      const names = listed(shownGroup.members.map((i) => app.catalog.constellations[i].sv));
+      prompt = t.view.kind === 'done' ? `Du kan gruppen ”${shownGroup.name}”! Så här ligger de tillsammans: ${names}.`
+        : `Här är gruppen ”${shownGroup.name}”: ${names}, tillsammans på himlen.`;
+      this.why.textContent = shownGroup.reason;
+    } else if (!c) prompt = 'Det finns inga stjärnbilder att träna på.';
     else if (t.step === 1) {
       prompt = learning && !learning.members.includes(t.card) ? 'Repetition: vilken stjärnbild är det här?'
         : isNew ? 'En ny stjärnbild! Titta på stjärnorna. Vet du vilken det är?' : 'Vilken stjärnbild är det här?';
-      if (t.notice) {
-        prompt = `Du kan gruppen ”${t.notice.done}”. ${t.notice.next ? `Nu kommer ”${t.notice.next}”.` : 'Nu repeterar du.'} ${prompt}`;
-      }
       if (p.done) prompt = `Du kan alla ${p.goal} ${AMONG[t.goal]}! Fortsätt att repetera. ${prompt}`;
       if (t.below) {
         const never = visibilityClass(c.figureDecs, app.view.lat) === 'never';
@@ -174,7 +185,7 @@ export class TrainPanel {
       this.latin.textContent = c.la;
     }
 
-    const key = c ? `${t.card}:${t.step}` : '';
+    const key = t.view ? `view:${t.view.group}:${t.view.kind}` : c ? `${t.card}:${t.step}` : '';
     if (key === this.actionsKey) return;
     this.actionsKey = key;
     const focused = this.actions.contains(active) || active === this.answer;
@@ -187,8 +198,9 @@ export class TrainPanel {
       b.addEventListener('click', onClick);
       return b;
     };
-    const buttons = !c ? []
-      : t.step === 1 ? [
+    const buttons = t.view ? [button('Fortsätt', () => app.leaveTrainingGroup(), { primary: true, title: 'Mellanslag, eller tryck på himlen' })]
+      : !c ? []
+        : t.step === 1 ? [
         button('Visa linjerna', () => app.advanceTraining(), { primary: true, title: 'Mellanslag, eller tryck på himlen' }),
         button('Visa svaret', () => app.revealTraining()),
       ]

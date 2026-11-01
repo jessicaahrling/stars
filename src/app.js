@@ -14,7 +14,7 @@ import { figureState } from './sky/facts.js';
 import { findNeighbours } from './sky/neighbours.js';
 import { winterOf } from './sky/winter.js';
 import { chunksOf, STAGES, stagesOf } from './sky/curriculum.js';
-import { grade, groupToLearn, nextCard, NOW_AFTER, PERMANENT, trainingProgress } from './sky/training.js';
+import { grade, groupToLearn, isDue, nextCard, NOW_AFTER, PERMANENT, takeUp, trainingProgress } from './sky/training.js';
 import { DEFAULT_FOV, MAX_FOV, MIN_FOV, SkyView } from './sky/view.js';
 import { DiscoverPanel } from './ui/discover-panel.js';
 import { ThemePanel } from './ui/theme-panel.js';
@@ -157,7 +157,10 @@ export class App {
     this.training.group = group;
     const seen = group >= 0 && Array.isArray(tr.seen) ? tr.seen.map((id) => this.catalog.byId.get(id)?.index) : [];
     this.training.groupSeen = new Set(seen.filter((i) => group >= 0 && this.chunks[group].members.includes(i)));
-    this.training.notice = null;
+    /** A whole group shown together ({group, kind: 'done' | 'intro'}), between cards, or null. */
+    this.training.view = null;
+    /** The group last shown whole as it was taken up, so that it is not shown again before its first card. */
+    this.training.introduced = -1;
     this.reveal = null;
     this.discoveryInfo = null;
     /** The constellation found last, named in the panel and on the sky until the next find. */
@@ -510,6 +513,7 @@ export class App {
     if (on) {
       this.nextTrainingCard({ again: t.card });
     } else {
+      t.view = null;
       const wasBelow = t.below;
       this.trainingChanged();
       // Back on opaque ground, a view left looking below the horizon is lifted above it.
@@ -528,6 +532,12 @@ export class App {
   /** Keeps the training card in view, and its ground right, after the time or the place changes. */
   trainingResync() {
     const t = this.training;
+    if (t.on && t.view) {
+      this.anim = null;
+      this.trainingChanged();
+      this.flyTo(this.chunks[t.view.group].members, { instant: true, atLeast: TRAIN_FOV });
+      return;
+    }
     if (!t.on || t.card < 0) return;
     if (!this.trainInGoal(t.card) && !this.chunks[t.group]?.members.includes(t.card)) {
       this.nextTrainingCard({ instant: true });
@@ -550,13 +560,23 @@ export class App {
     t.goal = goal;
     const before = t.group;
     if (t.group >= 0 && !this.groupInGoal(t.group)) t.group = -1;
-    // A wider goal can bring a group to learn, a narrower one take it away; a word about
-    // the next group would no longer hold.
-    if (this.trainingGroup() !== before) t.notice = null;
-    if (t.on && (t.card < 0 || !this.trainInGoal(t.card))) this.nextTrainingCard();
+    // A wider goal can bring a group to learn, a narrower one take it away.
+    const changed = this.trainingGroup() !== before;
+    if (t.on && (changed || t.card < 0 || !this.trainInGoal(t.card))) this.nextTrainingCard();
     else this.trainPanel.render();
     this.groupsPanel.render();
     this.saveSoon();
+  }
+
+  /**
+   * While a group is learnt, its members already known this time round: they stay on the
+   * sky, with their lines, drawings and names, around a card of the group.
+   */
+  trainingContext() {
+    const t = this.training;
+    const members = this.chunks[t.group]?.members;
+    if (!t.on || t.view || !members || !members.includes(t.card)) return [];
+    return members.filter((i) => i !== t.card && t.groupSeen.has(i) && t.cards.get(i)?.level >= 1);
   }
 
   /** Whether a group is within the goal: its step no further than the goal's. */
@@ -575,23 +595,56 @@ export class App {
     if (next !== t.group) {
       t.group = next;
       t.groupSeen = new Set();
+      t.introduced = -1;
     }
     return next;
   }
 
-  /** Takes up a group chosen in the overview, from its first member; it is gone through once more if already learnt. */
+  /**
+   * Takes up a group chosen in the overview, shown whole first; a group already learnt is
+   * gone through once more, and the group being learnt goes on where it was.
+   */
   chooseTrainingGroup(k) {
     const t = this.training;
     if (!this.chunks[k]) return;
-    // The group being learnt goes on where it was.
-    if (k === t.group) {
-      this.groupsPanel.toggle(false);
+    if (k !== t.group) {
+      t.group = k;
+      t.groupSeen = new Set();
+    }
+    this.groupsPanel.toggle(false);
+    this.showTrainingGroup(k, 'intro');
+  }
+
+  /**
+   * Shows a whole group on the sky, each member with its lines, drawing and name: when it
+   * has just been learnt ('done'), and when it is come to for the first time or chosen in
+   * the overview ('intro'). A tap, Space or the button goes on.
+   */
+  showTrainingGroup(k, kind, { instant = false } = {}) {
+    const t = this.training;
+    t.view = { group: k, kind };
+    if (kind === 'intro') t.introduced = k;
+    t.step = 0;
+    t.namedAt = performance.now();
+    this.trainingChanged();
+    this.flyTo(this.chunks[k].members, { instant, atLeast: TRAIN_FOV });
+  }
+
+  /** Goes on from a group shown whole: after an introduction with its first card not yet answered. */
+  leaveTrainingGroup() {
+    const t = this.training;
+    if (!t.view || performance.now() - t.namedAt < SECOND_TAP_MS) return;
+    const { group, kind } = t.view;
+    t.view = null;
+    if (kind === 'done') {
+      this.nextTrainingCard();
       return;
     }
-    t.group = k;
-    t.groupSeen = new Set();
-    this.groupsPanel.toggle(false);
-    this.nextTrainingCard({ again: this.chunks[k].members[0] });
+    const { members } = this.chunks[group];
+    takeUp(t.cards, members, t.turn);
+    const resting = (i) => t.cards.get(i).level === 0 && t.cards.get(i).n > 0 && !isDue(t.cards.get(i), t.turn, Date.now());
+    const first = members.find((i) => !t.groupSeen.has(i) && !resting(i)) ?? -1;
+    this.nextTrainingCard({ intro: false, again: first });
   }
 
   trainingProgress() {
@@ -619,12 +672,20 @@ export class App {
    * Shows the next card, with its stars only, and turns the view to it. `again` shows that
    * card once more instead (when coming back to training), if it is still one to learn.
    */
-  nextTrainingCard({ instant = false, again = -1 } = {}) {
+  nextTrainingCard({ instant = false, again = -1, intro = true } = {}) {
     const t = this.training;
+    t.view = null;
     const before = t.group;
     const k = this.trainingGroup();
-    // The card after a group has been learnt says so, and names the next.
-    t.notice = before >= 0 && k !== before ? { done: this.chunks[before].name, next: this.chunks[k]?.name ?? null } : null;
+    // A group just learnt is shown whole, and so is one come to for the first time.
+    if (before >= 0 && k !== before) {
+      this.showTrainingGroup(before, 'done', { instant });
+      return;
+    }
+    if (intro && k >= 0 && k !== t.introduced && !this.chunks[k].members.some((i) => t.cards.get(i)?.n > 0)) {
+      this.showTrainingGroup(k, 'intro', { instant });
+      return;
+    }
     const group = k >= 0 ? this.chunks[k].members : [];
     t.card = again >= 0 && (this.trainInGoal(again) || group.includes(again))
       ? again
@@ -638,7 +699,7 @@ export class App {
   /** Shows the lines, then the name. */
   advanceTraining() {
     const t = this.training;
-    if (!t.on || t.card < 0 || t.step >= 3) return;
+    if (!t.on || t.view || t.card < 0 || t.step >= 3) return;
     t.step++;
     if (t.step === 3) t.namedAt = performance.now();
     this.trainingChanged();
@@ -647,7 +708,7 @@ export class App {
   /** Shows the name straight away. */
   revealTraining() {
     const t = this.training;
-    if (!t.on || t.card < 0 || t.step === 3) return;
+    if (!t.on || t.view || t.card < 0 || t.step === 3) return;
     t.step = 3;
     t.namedAt = performance.now();
     this.trainingChanged();
@@ -659,7 +720,13 @@ export class App {
    */
   continueTraining(again = false) {
     const t = this.training;
-    if (!t.on || t.card < 0) return;
+    if (!t.on) return;
+    // A group shown whole goes on, though not on the heels of the answer that led to it.
+    if (t.view) {
+      if (!again) this.leaveTrainingGroup();
+      return;
+    }
+    if (t.card < 0) return;
     if (t.step < 3) this.advanceTraining();
     else if (!again && performance.now() - t.namedAt >= SECOND_TAP_MS) this.answerTraining('now');
   }
@@ -667,7 +734,7 @@ export class App {
   /** Records how the card went ('again', 'now' or 'permanent') and goes on to the next one. */
   answerTraining(answer) {
     const t = this.training;
-    if (!t.on || t.card < 0) return;
+    if (!t.on || t.view || t.card < 0) return;
     t.cards.set(t.card, grade(t.cards.get(t.card), answer, t.turn, Date.now()));
     t.turn++;
     if (this.chunks[t.group]?.members.includes(t.card)) t.groupSeen.add(t.card);
@@ -677,6 +744,7 @@ export class App {
   /** Turns the named card's lines ('lines') or drawing ('art') on or off; the choice stays for later cards. */
   toggleTrainingView(part) {
     const t = this.training;
+    if (t.view) return;
     if (part === 'lines') t.showLines = !t.showLines;
     else if (part === 'art') t.showArt = !t.showArt;
     else return;
@@ -698,6 +766,7 @@ export class App {
     this.training.card = -1;
     this.training.group = -1;
     this.training.groupSeen = new Set();
+    this.training.view = null;
     this.nextTrainingCard();
   }
 
@@ -706,17 +775,19 @@ export class App {
     const t = this.training;
     t.stars = null;
     t.below = false;
-    if (t.on && t.card >= 0) {
+    const shown = !t.on ? [] : t.view ? this.chunks[t.view.group].members : t.card >= 0 ? [t.card] : [];
+    if (shown.length) {
       const { catalog } = this;
-      const c = catalog.constellations[t.card];
+      // The card's stars, and those of its group's members already known, stand out.
+      const bright = [...shown, ...this.trainingContext()];
       const stars = new Uint8Array(catalog.stars.count);
-      for (let s = 0; s < stars.length; s++) stars[s] = catalog.stars.con[s] === t.card ? 1 : 0;
-      for (const s of c.figureStars) stars[s] = 1;
+      for (let s = 0; s < stars.length; s++) stars[s] = bright.includes(catalog.stars.con[s]) ? 1 : 0;
+      for (const i of bright) for (const s of catalog.constellations[i].figureStars) stars[s] = 1;
       t.stars = stars;
       this.view.timeMs = this.now();
       this.view.update();
       // Low figures sink into the haze and behind the trees, so they are seen through the ground.
-      t.below = c.figureStars.some((s) => this.view.altOf(catalog.starVec(s)) < 10);
+      t.below = shown.some((i) => catalog.constellations[i].figureStars.some((s) => this.view.altOf(catalog.starVec(s)) < 10));
     }
     this.maskDirty = true;
     this.invalidate();
@@ -867,18 +938,28 @@ export class App {
     this.invalidate();
   }
 
-  /** Turns the view to a constellation, framed to fit it unless a field of view is given. */
-  flyTo(index, { instant = false, fov: fixedFov = null } = {}) {
-    const c = this.catalog.constellations[index];
+  /**
+   * Turns the view to a constellation, or a group of them, framed to fit unless a field of
+   * view is given; `atLeast` keeps it from zooming in further than that.
+   */
+  flyTo(index, { instant = false, fov: fixedFov = null, atLeast = 0 } = {}) {
     const v = this.view;
     v.timeMs = this.now();
     v.update();
-    const [az, alt] = v.azAltOf(c.centerVec);
+    // A group is framed around the middle of its members, far enough out for all of them.
+    const members = (Array.isArray(index) ? index : [index]).map((i) => this.catalog.constellations[i]);
+    const sum = members.reduce((a, c) => a.map((x, k) => x + c.centerVec[k]), [0, 0, 0]);
+    const len = Math.hypot(...sum) || 1;
+    const centerVec = sum.map((x) => x / len);
+    const [az, alt] = v.azAltOf(centerVec);
     // fov spans the longer screen side; fit the figure across the shorter one.
     const aspect = Math.max(v.width, v.height) / Math.min(v.width, v.height);
     // Frame the name as well as the figure (Cassiopeja's sits well outside its W).
-    const reach = Math.max(c.radius, Math.min(...c.labelVecs.map((l) => angleBetween(c.centerVec, l))) + 2);
-    const fov = fixedFov ?? clamp(reach * 2.5 * Math.min(aspect, 2.2), 28, MAX_FOV - 10);
+    const reach = Math.max(...members.map((c) => angleBetween(centerVec, c.centerVec)
+      + Math.max(c.radius, Math.min(...c.labelVecs.map((l) => angleBetween(c.centerVec, l))) + 2)));
+    // A group may take the widest view there is; one constellation stays short of it.
+    const widest = members.length > 1 ? MAX_FOV : MAX_FOV - 10;
+    const fov = fixedFov ?? clamp(Math.max(atLeast, reach * 2.5 * Math.min(aspect, 2.2)), 28, widest);
     let targetAlt = this.seeThroughNow() ? alt : Math.max(alt, Math.min(fov * 0.22, 20));
     // Centre the figure in the sky left free by the panel and the info card.
     const free = this.freeArea();
@@ -941,7 +1022,7 @@ export class App {
     // answer Fel, Kan för tillfället and Kan permanent. Space on a button or the story's
     // heading is theirs.
     const tr = this.training;
-    if (tr.on && tr.card >= 0 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (tr.on && (tr.card >= 0 || tr.view) && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const answer = { 1: 'again', 2: 'now', 3: 'permanent' }[e.key];
       if (e.key === ' ' && !(t && t.closest && t.closest('button, summary'))) {
         e.preventDefault();
@@ -1193,8 +1274,20 @@ export class App {
     v.update();
     // While training, the sky shows the card and nothing else: no marks, tints or hover.
     const t = this.training;
-    const quiz = t.on && t.card >= 0 ? {
+    // A whole group shown together: every member with its lines, drawing and name.
+    const together = t.on && t.view ? this.chunks[t.view.group].members : null;
+    const quiz = together ? {
+      target: together[0],
+      targets: together,
+      context: [],
+      step: 3,
+      stars: t.stars,
+      lines: true,
+      art: true,
+    } : t.on && t.card >= 0 ? {
       target: t.card,
+      targets: [t.card],
+      context: this.trainingContext(),
       step: t.step,
       stars: t.stars,
       // Lines from the second step; once named, lines and drawing as the learner has them.
@@ -1213,8 +1306,8 @@ export class App {
       selected: -1,
       hover: -1,
       groundOpaque: !this.seeThroughNow(),
-      artShown: (i) => quiz.art && i === quiz.target,
-      anyArt: quiz.art,
+      artShown: (i) => (quiz.art && quiz.targets.includes(i)) || quiz.context.includes(i),
+      anyArt: quiz.art || quiz.context.length > 0,
       reveal: null,
       recent: -1,
       avoid: this.labelObstacles(),

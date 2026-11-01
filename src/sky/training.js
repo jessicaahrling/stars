@@ -71,6 +71,11 @@ export function groupDone(cards, group, seen) {
   return group.every((i) => cards.get(i)?.level >= 1 && (!seen || seen.has(i)));
 }
 
+/** Brings a group into play: its members not yet in it come in as new cards. */
+export function takeUp(cards, group, turn) {
+  for (const i of group) if (!cards.has(i)) cards.set(i, { level: 0, dueTurn: turn, dueAt: null, n: 0 });
+}
+
 /**
  * The group to learn: the one taken up (`current`) until it is learnt, then the next one
  * after it within the goal not learnt yet, and when there is none after it, the first.
@@ -109,7 +114,7 @@ export function groupToLearn(cards, groups, groupInGoal, current, seen) {
  * @returns {number} a constellation index, or -1 when there is nothing to show
  */
 export function nextCard(cards, group, seen, inGoal, turn, now, last = -1) {
-  for (const i of group) if (!cards.has(i)) cards.set(i, { level: 0, dueTurn: turn, dueAt: null, n: 0 });
+  takeUp(cards, group, turn);
   for (const [i, c] of cards) if (c.dueAt !== null && now >= c.dueAt && c.dueTurn > turn) cards.set(i, { ...c, dueTurn: turn });
   const soonest = (list) => list.reduce((a, b) => (cards.get(b).dueTurn < cards.get(a).dueTurn ? b : a));
   const notLast = (list) => (list.length > 1 ? list.filter((i) => i !== last) : list);

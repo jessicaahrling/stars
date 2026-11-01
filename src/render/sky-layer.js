@@ -67,8 +67,10 @@ export class SkyLayer {
    *   discovering the sky: {con: Uint8Array per constellation (1 found, 2 can be added
    *   next, 0 hidden), stars: Uint8Array per star (1 shown)}, otherwise null; recent (the
    *   constellation found last) and avoid (screen boxes names keep clear of) are for the HUD;
-   *   quiz while training: {target, step (1 stars, 2 lines, 3 name), stars: Uint8Array per
-   *   star (1 for the target's), lines and art: whether to draw them}, otherwise null
+   *   quiz while training: {target, targets (the card, or a whole group shown together),
+   *   context (the card's group's members already known, drawn around it), step (1 stars,
+   *   2 lines, 3 name), stars: Uint8Array per star (1 for the targets' and context's),
+   *   lines and art: whether to draw the targets'}, otherwise null
    */
   render(view, st) {
     const { ctx, catalog } = this;
@@ -130,13 +132,21 @@ export class SkyLayer {
 
     // Stick figures (while training, only the target's, when the card shows them)
     ctx.lineCap = 'round';
+    // While a group is learnt, the ones of it already known stay with their lines.
+    if (st.quiz && st.quiz.context.length) {
+      ctx.lineWidth = 1.3;
+      ctx.strokeStyle = SKY.lineHover;
+      ctx.beginPath();
+      for (const i of st.quiz.context) this.traceSegments(catalog.constellations[i].segments);
+      ctx.stroke();
+    }
     if (st.quiz && st.quiz.lines) {
       ctx.lineWidth = 2;
       ctx.strokeStyle = SELECT_COLOR.hex;
       ctx.shadowColor = SELECT_COLOR.hex;
       ctx.shadowBlur = 6;
       ctx.beginPath();
-      this.traceSegments(catalog.constellations[st.quiz.target].segments);
+      for (const i of st.quiz.targets) this.traceSegments(catalog.constellations[i].segments);
       ctx.stroke();
       ctx.shadowBlur = 0;
     }

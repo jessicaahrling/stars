@@ -53,6 +53,7 @@ export class HudLayer {
     const quiz = st.quiz;
     if (st.layers.starNames && (!quiz || quiz.step === 3)) this.drawStarNames(view, sky, quiz && quiz.stars);
     if (quiz) {
+      this.drawContextNames(view, quiz);
       if (quiz.step === 3) this.drawQuizName(view, st);
     } else {
       this.drawConstellationNames(view, st);
@@ -127,14 +128,29 @@ export class HudLayer {
     return false;
   }
 
-  /** The training card's name, once it is revealed. */
+  /** While a group is learnt, the names of the ones of it already known, around the card. */
+  drawContextNames(view, quiz) {
+    const { pt } = this;
+    const font = `500 12px ${this.fontFamily}`;
+    for (const i of quiz.context) {
+      const c = this.catalog.constellations[i];
+      for (const v of c.labelVecs) {
+        if (!view.projectEq(v, pt) || pt.z < view.cosCorner - 0.1) continue;
+        this.label(c.sv.toUpperCase(), pt.x, pt.y, font, SKY.labelHover, 12 * 0.18, true);
+      }
+    }
+  }
+
+  /** The training card's name once it is revealed, or the names of a group shown together. */
   drawQuizName(view, st) {
     const { pt } = this;
-    const c = this.catalog.constellations[st.quiz.target];
     const font = `600 16px ${this.fontFamily}`;
-    for (const v of c.labelVecs) {
-      if (!view.projectEq(v, pt) || pt.z < view.cosCorner - 0.1) continue;
-      this.label(c.sv.toUpperCase(), pt.x, pt.y, font, SELECT_COLOR.hex, 16 * 0.18, true);
+    for (const i of st.quiz.targets) {
+      const c = this.catalog.constellations[i];
+      for (const v of c.labelVecs) {
+        if (!view.projectEq(v, pt) || pt.z < view.cosCorner - 0.1) continue;
+        this.label(c.sv.toUpperCase(), pt.x, pt.y, font, SELECT_COLOR.hex, 16 * 0.18, true);
+      }
     }
   }
 

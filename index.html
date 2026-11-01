@@ -247,7 +247,7 @@
       .train-name { font-size: 21px; }
       .discover-next.train-actions { flex-wrap: wrap; overflow: visible; }
       /* Named, the card needs the sky more than the choice of goal and the counts. */
-      .panel-train[data-step="3"] #train-of { display: none; }
+      .panel-train[data-step="3"] #train-of, .panel-train[data-step="0"] #train-of { display: none; }
       .discover-next::-webkit-scrollbar { display: none; }
     }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -369,6 +369,7 @@
     <p id="train-group" class="discover-hint train-group"><b id="train-group-name"></b> <span id="train-group-count"></span></p>
     <div class="discover-body">
       <p id="train-prompt" class="discover-hint" aria-live="polite"></p>
+      <p id="train-group-why" class="discover-hint" hidden></p>
       <p id="train-answer" class="train-answer" tabindex="-1" hidden><span id="train-name" class="train-name"></span> <span id="train-latin" class="latin"></span></p>
       <div id="train-view" class="train-view" role="group" aria-label="Visa på himlen" hidden>
         <button id="btn-train-lines" type="button" class="chip toggle" aria-pressed="true" title="Tangent L">Linjer</button>

@@ -48,7 +48,10 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   (Cassiopeja, Andromeda, Perseus och Cepheus), och varje ny grupp ligger intill en som
   man redan kan. Man går igenom en grupp i taget: dess stjärnbilder visas en efter en,
   och de man missar kommer tillbaka tills man kan alla i gruppen; då kommer nästa grupp
-  man inte kan än. Panelen visar vilken grupp man är på och hur många i den man kan, och
+  man inte kan än. De i gruppen man redan kan ligger kvar på himlen, med linjer, bild och
+  namn, medan man lär sig nästa. När man kommer till en grupp första gången, väljer den i
+  överblicken eller har lärt sig den, visas hela gruppen samtidigt med alla linjer, bilder
+  och namn, och varför de hör ihop; ett tryck, mellanslag eller **Fortsätt** går vidare. Panelen visar vilken grupp man är på och hur många i den man kan, och
   var tredje kort är en repetition från en tidigare grupp när någon väntar. När namnet
   visas står under "Om …" varför gruppen hör ihop. Knappen **Grupper** öppnar en överblick
   över alla 28 grupper, steg för steg, med hur långt man kommit i varje, och där kan man

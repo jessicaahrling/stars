@@ -817,6 +817,26 @@ try {
   const umaCard = () => quiz.evaluate(() => JSON.stringify(window.stjarnhimlen.training.cards.get(window.stjarnhimlen.catalog.byId.get('UMa').index)));
   await quiz.click('#btn-train');
   await settle(quiz);
+  // The first group is shown whole first: its members together, with lines, drawings and names.
+  const viewOf = (page) => page.evaluate(() => {
+    const a = window.stjarnhimlen;
+    const v = a.training.view;
+    return v ? `${v.kind}:${a.chunks[v.group].name}` : null;
+  });
+  const passGroup = (page) => page.evaluate(() => {
+    const a = window.stjarnhimlen;
+    a.training.namedAt -= 1000;
+    a.leaveTrainingGroup();
+  });
+  assert.equal(await viewOf(quiz), 'intro:Björnarna vid polen');
+  assert.match(await quiz.textContent('#train-prompt'), /^Här är gruppen ”Björnarna vid polen”: Stora björnen, Lilla björnen och Draken, tillsammans på himlen\.$/);
+  assert.match(await quiz.textContent('#train-group-why'), /^Karlavagnen hör till Stora björnen/);
+  const together = await quizParts();
+  assert.deepEqual([together.segments, together.art, together.names].map((list) => [...list].sort()), [['Dra', 'UMa', 'UMi'], ['Dra', 'UMa', 'UMi'], ['Dra', 'UMa', 'UMi']]);
+  // "Fortsätt" (here by Space, focus being on it) goes on to the first card.
+  await quiz.evaluate(() => { window.stjarnhimlen.training.namedAt -= 1000; });
+  await quiz.keyboard.press(' ');
+  await settle(quiz);
   assert.deepEqual(await quizState(), { on: true, card: 'UMa', step: 1, inPlay: 3, panel: true, discovering: false });
   assert.equal(await quiz.evaluate(() => Math.round(window.stjarnhimlen.view.fov * 1000) / 1000), 100, 'the field of view the sky opens with');
   assert.match(await quiz.textContent('#train-prompt'), /^En ny stjärnbild!/);
@@ -919,6 +939,9 @@ try {
   await settle(quiz);
   assert.deepEqual(await quizState(), { on: true, card: 'UMi', step: 1, inPlay: 3, panel: true, discovering: false });
   assert.equal(await quiz.evaluate(() => window.stjarnhimlen.training.cards.get(window.stjarnhimlen.catalog.byId.get('UMa').index).level), 1);
+  // Stora björnen, known now, stays on the sky around the next card of its group.
+  const around = await quizParts();
+  assert.deepEqual([around.segments, around.art, around.names].map((list) => [...list]), [['UMa'], ['UMa'], ['UMa']]);
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   assert.equal((await quizState()).step, 3);
   assert.deepEqual(await quiz.$$eval('#train-actions button', (els) => els.map((e) => e.textContent)), ['Fel', 'Kan för tillfället', 'Kan permanent']);
@@ -926,9 +949,9 @@ try {
   assert.deepEqual(await quiz.evaluate(() => [document.querySelector('#train-story').open, document.querySelector('#train-story-title').textContent]), [false, 'Om Lilla björnen'], 'and so does the folded story');
   assert.match(await quiz.textContent('#train-story-text'), /Kynosura/);
   await quiz.click('#train-story summary');
-  assert.deepEqual((await quizParts()).art, []);
+  assert.deepEqual([...(await quizParts()).art], ['UMa'], 'only the known one around it');
   await quiz.click('#btn-train-art');
-  assert.deepEqual((await quizParts()).art, ['UMi']);
+  assert.deepEqual([...(await quizParts()).art].sort(), ['UMa', 'UMi']);
   await quiz.click('#train-actions button:has-text("Fel")');
   assert.equal((await quizState()).card, 'Dra');
   // A touch during the flight to the next card lands it rather than stopping halfway.
@@ -962,11 +985,19 @@ try {
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   await quiz.keyboard.press('3');
   assert.equal(await levelOf('UMi'), 9, 'key 3 is "Kan permanent"');
+  // The group learnt is shown whole; then the next, as it is taken up; then its first card.
+  assert.equal(await viewOf(quiz), 'done:Björnarna vid polen');
+  assert.match(await quiz.textContent('#train-prompt'), /^Du kan gruppen ”Björnarna vid polen”! Så här ligger de tillsammans: Stora björnen, Lilla björnen och Draken\.$/);
+  assert.equal(await quiz.textContent('#train-group'), 'Grupp 1 av 28: Björnarna vid polen · 3 av 3 kan du');
+  assert.match(await quiz.textContent('#train-count'), /^3 av 34$/);
+  await passGroup(quiz);
+  assert.equal(await viewOf(quiz), 'intro:Perseus räddar Andromeda');
+  assert.equal(await quiz.textContent('#train-group'), 'Grupp 2 av 28: Perseus räddar Andromeda · 0 av 4 kan du');
+  assert.deepEqual([...(await quizParts()).segments].sort(), ['And', 'Cas', 'Cep', 'Per']);
+  await passGroup(quiz);
   let q = await quizState();
   assert.deepEqual([q.inPlay, q.card], [7, 'Cas']);
-  assert.match(await quiz.textContent('#train-prompt'), /^Du kan gruppen ”Björnarna vid polen”\. Nu kommer ”Perseus räddar Andromeda”\. En ny stjärnbild!/);
-  assert.equal(await quiz.textContent('#train-group'), 'Grupp 2 av 28: Perseus räddar Andromeda · 0 av 4 kan du');
-  assert.match(await quiz.textContent('#train-count'), /^3 av 34$/);
+  assert.match(await quiz.textContent('#train-prompt'), /^En ny stjärnbild!/);
   // "Kan permanent" counts it as known for good.
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   await quiz.click('#train-actions button:has-text("Kan permanent")');
@@ -1034,6 +1065,8 @@ try {
   await quiz.click('#btn-train-restart');
   assert.equal(await quiz.textContent('#btn-train-restart'), 'Säker? Tryck igen');
   await quiz.click('#btn-train-restart');
+  assert.equal(await viewOf(quiz), 'intro:Björnarna vid polen');
+  await passGroup(quiz);
   q = await quizState();
   assert.deepEqual([q.card, q.inPlay, q.step], ['UMa', 3, 1]);
 
@@ -1047,14 +1080,18 @@ try {
   assert.equal(groupRows[1], '1. Björnarna vid polen|tränas nu');
   await quiz.click('#group-list button:has-text("Jägaren Orion")');
   assert.equal(await quiz.isHidden('#panel-groups'), true);
+  assert.equal(await viewOf(quiz), 'intro:Jägaren Orion', 'a group chosen is shown whole first');
+  await passGroup(quiz);
   q = await quizState();
   assert.deepEqual([q.card, q.step], ['Ori', 1]);
   assert.equal(await quiz.textContent('#train-group'), 'Grupp 4 av 28: Jägaren Orion · 0 av 4 kan du');
   await quiz.click('#btn-train-groups');
   assert.equal(await quiz.textContent('#group-list li.is-selected .state'), 'tränas nu');
-  // Choosing the group being learnt goes on where it was.
+  // Choosing the group being learnt shows it whole too, and goes on where it was.
   await quiz.click('#group-list li.is-selected button');
-  assert.deepEqual([(await quizState()).card, await quiz.isHidden('#panel-groups')], ['Ori', true]);
+  assert.deepEqual([await viewOf(quiz), await quiz.isHidden('#panel-groups')], ['intro:Jägaren Orion', true]);
+  await passGroup(quiz);
+  assert.equal((await quizState()).card, 'Ori');
   // Opened and closed with its own button, the overview gives focus back to the card.
   await quiz.click('#btn-train-groups');
   await quiz.click('#btn-train-groups');
@@ -1101,12 +1138,15 @@ try {
   const missed = await quiz.evaluate(() => {
     const a = window.stjarnhimlen;
     a.nextTrainingCard({ instant: true });
-    const card = a.catalog.constellations[a.training.card].id;
+    const shown = a.training.view && a.chunks[a.training.view.group].name;
+    a.training.namedAt -= 1000;
+    a.leaveTrainingGroup();
+    const card = `${shown}: ${a.catalog.constellations[a.training.card].id}`;
     a.training.cards.set(a.catalog.byId.get('Cas').index, { level: 0, dueTurn: 1000, dueAt: null, n: 2 });
     a.trainPanel.render();
     return [card, document.getElementById('train-count').textContent, document.getElementById('train-of').textContent];
   });
-  assert.deepEqual(missed, ['Vir', '33 av 59', 'kan du av dem som syns från Sverige · 0 permanent · 37 i spel']);
+  assert.deepEqual(missed, ['Jungfrun och korpen som ljög: Vir', '33 av 59', 'kan du av dem som syns från Sverige · 0 permanent · 37 i spel']);
   // One seen only further south in Sweden says so.
   await quiz.evaluate(() => window.stjarnhimlen.nextTrainingCard({ again: window.stjarnhimlen.catalog.byId.get('Mic').index, instant: true }));
   assert.match(await quiz.textContent('#train-prompt'), /Den går aldrig upp från Stockholm, bara längre söderut i Sverige/);
@@ -1117,6 +1157,9 @@ try {
   // On a phone the panel fits, and a tap on the sky shows the next step.
   const phoneQuiz = await openPage({ width: 390, height: 844 }, { discover: true });
   await phoneQuiz.click('#btn-train');
+  await settle(phoneQuiz);
+  await phoneQuiz.screenshot({ path: path.join(shots, 'phone-training-group.png') });
+  await passGroup(phoneQuiz);
   await settle(phoneQuiz);
   assert.ok((await phoneQuiz.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 0, 'no horizontal scroll');
   await phoneQuiz.mouse.click(195, 600);
@@ -1159,6 +1202,7 @@ try {
   const touchQuiz = await openPage({ width: 390, height: 844 }, { discover: true, touch: true });
   await touchQuiz.evaluate(() => window.stjarnhimlen.setTraining(true));
   await settle(touchQuiz);
+  await passGroup(touchQuiz);
   await touchQuiz.evaluate(() => window.stjarnhimlen.revealTraining());
   const named = await touchQuiz.$$eval('#panel-train button', (bs) => bs.filter((b) => b.offsetParent)
     .map((b) => { const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, text: b.textContent }; }));
