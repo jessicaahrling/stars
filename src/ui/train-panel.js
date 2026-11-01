@@ -49,6 +49,14 @@ export class TrainPanel {
     this.artButton = $('btn-train-art');
     this.linesButton.addEventListener('click', () => app.toggleTrainingView('lines'));
     this.artButton.addEventListener('click', () => app.toggleTrainingView('art'));
+    // The boundary round the group, at every step: on until the learner turns it off.
+    // Clicked, focus goes back to the card, so that Space goes on with it rather than
+    // pressing this again; reached with the keyboard, it stays.
+    this.boundsButton = $('btn-train-bounds');
+    this.boundsButton.addEventListener('click', (e) => {
+      app.toggleTrainingView('bounds');
+      if (e.detail) this.focusCard();
+    });
     this.restart = $('btn-train-restart');
     this.actionsKey = '';
     this.confirming = false;
@@ -115,7 +123,7 @@ export class TrainPanel {
     // The group being learnt, or the one shown whole, and how many of it are known: this
     // time round while it is learnt.
     const learning = app.chunks[t.group];
-    const gk = t.view ? t.view.group : t.group;
+    const gk = app.trainingGroupShown();
     const shownGroup = app.chunks[gk];
     if (shownGroup) {
       const known = (i) => t.cards.get(i)?.level >= 1 && (t.view || t.groupSeen.has(i));
@@ -180,6 +188,9 @@ export class TrainPanel {
     }
     this.linesButton.setAttribute('aria-pressed', String(t.showLines));
     this.artButton.setAttribute('aria-pressed', String(t.showArt));
+    this.boundsButton.setAttribute('aria-pressed', String(t.showBounds));
+    // Every group learnt, there is no group to draw round.
+    this.boundsButton.hidden = !shownGroup;
     if (c) {
       this.name.textContent = c.sv;
       this.latin.textContent = c.la;

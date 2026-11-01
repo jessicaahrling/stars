@@ -51,7 +51,11 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   man inte kan än. De i gruppen man redan kan ligger kvar på himlen, med linjer, bild och
   namn, medan man lär sig nästa. När man kommer till en grupp första gången, väljer den i
   överblicken eller har lärt sig den, visas hela gruppen samtidigt med alla linjer, bilder
-  och namn, och varför de hör ihop; ett tryck, mellanslag eller **Fortsätt** går vidare. Panelen visar vilken grupp man är på och hur många i den man kan, och
+  och namn, och varför de hör ihop; ett tryck, mellanslag eller **Fortsätt** går vidare.
+  Gränsen runt gruppen, ytterkanten av dess stjärnbilders gränser tillsammans, ritas hela
+  tiden man är i den, i alla steg; den säger inget mer än panelen gör, men visar var på
+  himlen gruppen ligger. **Gränser** i panelen (eller i raden längst ner, eller tangenten
+  `G`) stänger av och sätter på den. Panelen visar vilken grupp man är på och hur många i den man kan, och
   var tredje kort är en repetition från en tidigare grupp när någon väntar. När namnet
   visas står under "Om …" varför gruppen hör ihop. Knappen **Grupper** öppnar en överblick
   över alla 28 grupper, steg för steg, med hur långt man kommit i varje, och där kan man
@@ -62,8 +66,9 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   tillfället" efter 6, sedan 15, 35 och 80 kort, och "kan permanent" först efter 120 kort.
   Mellan sessionerna kommer korten också tillbaka efter 1, 3, 7 eller 21 dagar (45 dagar
   för permanenta). Står stjärnbilden lågt eller under horisonten blir marken genomskinlig.
-  Listan och lagren Linjer, Namn, Gränser och Illustrationer vilar medan man tränar,
-  eftersom de skulle avslöja svaret. Framstegen sparas.
+  Listan och lagren Linjer, Namn och Illustrationer vilar medan man tränar, eftersom de
+  skulle avslöja svaret, och **Gränser** gäller då bara gränsen runt gruppen. Framstegen
+  sparas.
 - **Titta runt:** dra för att vrida blicken, scrolla eller nyp för att zooma (piltangenter
   och `+`/`−` fungerar också). Projektionen är stereografisk, som i ett planetarium, och
   horisonten hålls vågrät.
@@ -122,7 +127,10 @@ linjer (2D), marken och skogskanten (WebGL), namn och väderstreck (2D).
 
 Stjärnbildsgränserna är definierade i B1875-koordinater, där varje kant är en linje med
 konstant rektascension eller deklination. Därför avgörs vilken stjärnbild en punkt ligger
-i genom att räkna om punkten till B1875 och testa mot gränserna där.
+i genom att räkna om punkten till B1875 och testa mot gränserna där. Två stjärnbilder som
+gränsar till varandra har kanter på samma linje som överlappar, och gränsen runt en grupp
+är det som blir kvar av medlemmarnas kanter när de delade bitarna tagits bort
+(`src/sky/group-outline.js`).
 
 Illustrationerna ritas i ett eget koordinatsystem per stjärnbild, en stereografisk
 projektion kring stjärnbildens mitt med norr uppåt (se `src/sky/art-frame.js`). Vid

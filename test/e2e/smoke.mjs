@@ -441,6 +441,8 @@ try {
     const boxes = [];
     let covered = 0;
     let tinted = 0;
+    // Lines of the boundary round the group being learnt.
+    let outlined = 0;
     const wrap = (obj, name, record) => {
       const fn = obj[name];
       obj[name] = function (...args) {
@@ -449,7 +451,10 @@ try {
       };
     };
     wrap(sl, 'traceSegments', (segs) => owner.has(segs) && seen.segments.add(owner.get(segs)));
-    wrap(sl, 'tracePolyline', (view, rings) => owner.has(rings) && seen.outlines.add(owner.get(rings)));
+    wrap(sl, 'tracePolyline', (view, rings) => {
+      if (owner.has(rings)) seen.outlines.add(owner.get(rings));
+      else if (a.training.on && rings === a.trainingOutline()) outlined += rings.length;
+    });
     wrap(sl, 'traceArt', (view, lines) => owner.has(lines) && seen.art.add(owner.get(lines)));
     wrap(a.hud, 'label', (text, x, y) => {
       seen.texts.add(text);
@@ -473,7 +478,7 @@ try {
     boxes.forEach((p, i) => boxes.slice(i + 1).forEach((q) => {
       if (p[0] < q[1] && q[0] < p[1] && p[2] < q[3] && q[2] < p[3]) overlaps++;
     }));
-    return { ...Object.fromEntries(Object.entries(seen).map(([k, v]) => [k, [...v].sort()])), covered, overlaps, tinted };
+    return { ...Object.fromEntries(Object.entries(seen).map(([k, v]) => [k, [...v].sort()])), covered, overlaps, tinted, outlined };
   }, hover);
   const offer = (await discovery()).next;
   const plain = await drawnParts();
@@ -833,6 +838,7 @@ try {
   assert.match(await quiz.textContent('#train-group-why'), /^Karlavagnen hör till Stora björnen/);
   const together = await quizParts();
   assert.deepEqual([together.segments, together.art, together.names].map((list) => [...list].sort()), [['Dra', 'UMa', 'UMi'], ['Dra', 'UMa', 'UMi'], ['Dra', 'UMa', 'UMi']]);
+  assert.deepEqual([together.outlines, together.outlined], [[], 1], 'one line round the group, none round each of them');
   // "Fortsätt" (here by Space, focus being on it) goes on to the first card.
   await quiz.evaluate(() => { window.stjarnhimlen.training.namedAt -= 1000; });
   await quiz.keyboard.press(' ');
@@ -850,6 +856,7 @@ try {
   assert.equal(await quiz.getAttribute('[data-layer="lines"]', 'aria-pressed'), 'false');
   let seenNow = await quizParts();
   assert.deepEqual([seenNow.segments, seenNow.outlines, seenNow.art, seenNow.names], [[], [], [], []], 'stars only: no lines, outlines, drawings or names');
+  assert.equal(seenNow.outlined, 1, 'but the boundary round the group, which the panel names anyway');
   await unnamed(seenNow);
   assert.match(await quiz.textContent('#train-prompt'), /En ny stjärnbild/);
   const stars = await quiz.evaluate(() => {
@@ -875,6 +882,26 @@ try {
   await unnamed(seenNow);
   await quiz.keyboard.press('1');
   assert.equal((await quizState()).step, 2);
+  // The boundary round the group can be turned off and on, at any step: G, "Gränser" in
+  // the panel, or "Gränser" at the bottom, which while training is the group's.
+  const boundsState = () => quiz.evaluate(() => {
+    const bar = document.querySelector('[data-layer="bounds"]');
+    return [window.stjarnhimlen.training.showBounds, document.getElementById('btn-train-bounds').getAttribute('aria-pressed'), bar.getAttribute('aria-pressed'), bar.disabled];
+  });
+  assert.deepEqual(await boundsState(), [true, 'true', 'true', false]);
+  await quiz.keyboard.press('g');
+  assert.deepEqual(await boundsState(), [false, 'false', 'false', false]);
+  assert.equal((await quizParts()).outlined, 0, 'turned off');
+  await quiz.waitForFunction(() => JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').training?.bounds === false);
+  // Clicked, either gives focus back to the card, so that Space goes on with it.
+  const focused = () => quiz.evaluate(() => document.activeElement.textContent);
+  await quiz.click('#btn-train-bounds');
+  assert.deepEqual([...await boundsState(), await focused()], [true, 'true', 'true', false, 'Visa svaret']);
+  await quiz.click('[data-layer="bounds"]');
+  assert.deepEqual([...await boundsState(), await focused()], [false, 'false', 'false', false, 'Visa svaret']);
+  assert.equal(await quiz.evaluate(() => window.stjarnhimlen.layers.bounds), false, 'the boundaries of every constellation stay as they were');
+  await quiz.keyboard.press('G');
+  assert.deepEqual([(await quizParts()).outlined, (await quizState()).step], [1, 2], 'on again, and still the second step');
   // A tap on the sky shows the name and the drawing.
   await quiz.mouse.click(700, 400);
   await settle(quiz);
@@ -990,8 +1017,11 @@ try {
   assert.match(await quiz.textContent('#train-prompt'), /^Du kan gruppen ”Björnarna vid polen”! Så här ligger de tillsammans: Stora björnen, Lilla björnen och Draken\.$/);
   assert.equal(await quiz.textContent('#train-group'), 'Grupp 1 av 28: Björnarna vid polen · 3 av 3 kan du');
   assert.match(await quiz.textContent('#train-count'), /^3 av 34$/);
-  // Leaving training while it is shown and coming back shows it again.
+  assert.equal((await quizParts()).outlined, 1, 'with the boundary round it');
+  // Leaving training while it is shown and coming back shows it again. Out of training,
+  // "Gränser" is the boundaries of every constellation again.
   await quiz.click('#btn-train-exit');
+  assert.deepEqual(await boundsState(), [true, 'true', 'false', false]);
   await quiz.click('#btn-train');
   assert.equal(await viewOf(quiz), 'done:Björnarna vid polen');
   await passGroup(quiz);
@@ -1131,6 +1161,23 @@ try {
   await quiz.waitForFunction(() => window.stjarnhimlen);
   assert.equal(await quiz.getAttribute('#train-goal-winter', 'aria-pressed'), 'true');
   assert.match(await quiz.textContent('#train-count'), /^0 av 34$/);
+  // With every group of the winter sky learnt there is no group to draw round: "Gränser"
+  // rests at the bottom and is gone from the panel, and G does nothing.
+  const allDone = await quiz.evaluate(() => {
+    const a = window.stjarnhimlen;
+    a.training.group = -1;
+    a.stages.forEach((st, i) => { if (st === 1) a.training.cards.set(i, { level: 1, dueTurn: 1000, dueAt: null, n: 1 }); });
+    a.nextTrainingCard({ instant: true });
+    if (a.training.view) {
+      a.training.namedAt -= 1000;
+      a.leaveTrainingGroup();
+    }
+    const bar = document.querySelector('[data-layer="bounds"]');
+    return [a.training.group, a.trainingOutline(), bar.disabled, bar.getAttribute('aria-pressed'), document.getElementById('btn-train-bounds').hidden, document.getElementById('train-group').textContent];
+  });
+  assert.deepEqual(allDone, [-1, null, true, 'false', true, 'Alla grupper är klara · nu repeterar du']);
+  await quiz.keyboard.press('g');
+  assert.equal(await quiz.evaluate(() => window.stjarnhimlen.training.showBounds), true);
   // Once the winter sky is known, the progress moves on to the rest of Sweden, and then to the rest.
   await quiz.click('#btn-train-groups');
   await quiz.click('#train-goal-all');

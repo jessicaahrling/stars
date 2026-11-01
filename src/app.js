@@ -11,6 +11,7 @@ import { SkyLayer } from './render/sky-layer.js';
 import { buildCatalog } from './sky/catalog.js';
 import { discoveryState, START_ID } from './sky/discovery.js';
 import { figureState } from './sky/facts.js';
+import { groupOutline } from './sky/group-outline.js';
 import { findNeighbours } from './sky/neighbours.js';
 import { winterOf } from './sky/winter.js';
 import { chunksOf, STAGES, stagesOf } from './sky/curriculum.js';
@@ -50,7 +51,7 @@ const SECOND_TAP_MS = 400;
  */
 const TRAIN_FOV = DEFAULT_FOV;
 /** Layers that "Träna" sets itself, step by step. */
-const TRAINING_LAYERS = new Set(['lines', 'names', 'bounds', 'art']);
+const TRAINING_LAYERS = new Set(['lines', 'names', 'art']);
 
 export class App {
   constructor(doc = document) {
@@ -99,6 +100,8 @@ export class App {
     }
     this.discovery.found.add(this.catalog.byId.get(START_ID).index);
     this.neighbours = findNeighbours(this.catalog.constellations);
+    /** The boundary round each group, by group index, worked out when first drawn. */
+    this.groupOutlines = new Map();
     /**
      * "Träna": flashcards with spaced repetition (see sky/training.js). cards maps the
      * constellations in play to their level, when they are due and how often they have been
@@ -110,6 +113,8 @@ export class App {
     /** Once a card is named, its lines and drawing can be turned on and off to learn the shape. */
     this.training.showLines = tr.lines !== false;
     this.training.showArt = tr.art !== false;
+    /** Whether the boundary round the group being learnt is drawn, at every step: until turned off. */
+    this.training.showBounds = tr.bounds !== false;
     /** Whether the story under a named card is open: at first only where it leaves room for the sky. */
     this.training.showStory = typeof tr.story === 'boolean' ? tr.story : window.innerWidth > 640;
     /** How far to learn: 'winter' the winter sky, 'sweden' all seen from Sweden, 'all' every one (see sky/curriculum.js). */
@@ -208,10 +213,15 @@ export class App {
 
     this.toggleButtons = [...$('toggles').querySelectorAll('[data-layer]')];
     for (const b of this.toggleButtons) {
-      b.addEventListener('click', () => {
+      b.addEventListener('click', (e) => {
         // Once the learner sets the ground themselves, a restart leaves it as they chose.
         if (b.dataset.layer === 'seeThrough') this.discovery.autoSeeThrough = false;
-        this.setLayer(b.dataset.layer, !this.layerPressed(b.dataset.layer));
+        // While training, "Gränser" is the boundary round the group. Clicked, focus goes
+        // back to the card, so that Space goes on with it rather than pressing this again.
+        if (this.training.on && b.dataset.layer === 'bounds') {
+          this.toggleTrainingView('bounds');
+          if (e.detail) this.trainPanel.focusCard();
+        } else this.setLayer(b.dataset.layer, !this.layerPressed(b.dataset.layer));
       });
     }
     $('zoom-in').addEventListener('click', () => this.zoomAt(1 / 1.35, view.width / 2, view.height / 2));
@@ -744,16 +754,44 @@ export class App {
     this.nextTrainingCard();
   }
 
-  /** Turns the named card's lines ('lines') or drawing ('art') on or off; the choice stays for later cards. */
+  /**
+   * Turns the named card's lines ('lines') or drawing ('art') on or off, or the boundary
+   * round the group ('bounds', at any step and while a group is shown whole); the choice
+   * stays for later cards.
+   */
   toggleTrainingView(part) {
     const t = this.training;
-    if (t.view) return;
-    if (part === 'lines') t.showLines = !t.showLines;
+    if (part === 'bounds') {
+      // With every group learnt there is nothing to draw round.
+      if (!this.chunks[this.trainingGroupShown()]) return;
+      t.showBounds = !t.showBounds;
+    } else if (t.view) return;
+    else if (part === 'lines') t.showLines = !t.showLines;
     else if (part === 'art') t.showArt = !t.showArt;
     else return;
     this.invalidate();
     this.trainPanel.render();
+    if (part === 'bounds') this.syncControls();
     this.saveSoon();
+  }
+
+  /** The group shown whole, or else the one being learnt: an index into chunks, or -1. */
+  trainingGroupShown() {
+    const t = this.training;
+    return t.view ? t.view.group : t.group;
+  }
+
+  /**
+   * The boundary drawn round the group being learnt, or the one shown whole: lines of
+   * J2000 unit vectors, or null when turned off or every group is learnt. Worked out once
+   * for each group.
+   */
+  trainingOutline() {
+    const t = this.training;
+    const k = this.trainingGroupShown();
+    if (!t.on || !t.showBounds || !this.chunks[k]) return null;
+    if (!this.groupOutlines.has(k)) this.groupOutlines.set(k, groupOutline(this.catalog.constellations, this.chunks[k].members));
+    return this.groupOutlines.get(k);
   }
 
   setTrainingStory(open) {
@@ -1042,11 +1080,13 @@ export class App {
         this.answerTraining(answer);
         return;
       }
-      // L and B turn the named card's lines and drawing (bild) on and off.
-      const part = { l: 'lines', b: 'art' }[e.key.toLowerCase()];
-      if (part && tr.step === 3) {
+      // L and B turn the named card's lines and drawing (bild) on and off, G the boundary
+      // round the group (gränser) at any step.
+      const part = { l: 'lines', b: 'art', g: 'bounds' }[e.key.toLowerCase()];
+      if (part && (tr.step === 3 || part === 'bounds')) {
         e.preventDefault();
-        this.toggleTrainingView(part);
+        // Held down, the key turns it once, not on and off with every repeat.
+        if (!e.repeat) this.toggleTrainingView(part);
         return;
       }
     }
@@ -1129,13 +1169,18 @@ export class App {
   }
 
   syncControls() {
-    // While training, the cards decide on lines, names, boundaries and drawings.
+    // While training, the cards decide on lines, names and drawings, and "Gränser" turns
+    // the boundary round the group on and off; with every group learnt, it rests too.
+    const training = this.training.on;
+    const hasGroup = training && Boolean(this.chunks[this.trainingGroupShown()]);
     for (const b of this.toggleButtons) {
-      const byCards = this.training.on && TRAINING_LAYERS.has(b.dataset.layer);
+      const isBounds = b.dataset.layer === 'bounds';
+      const group = hasGroup && isBounds;
+      const byCards = training && !group && (TRAINING_LAYERS.has(b.dataset.layer) || isBounds);
       b.disabled = byCards;
-      b.setAttribute('aria-pressed', String(!byCards && this.layerPressed(b.dataset.layer)));
+      b.setAttribute('aria-pressed', String(group ? this.training.showBounds : !byCards && this.layerPressed(b.dataset.layer)));
       if (b.dataset.title === undefined) b.dataset.title = b.title;
-      b.title = byCards ? 'Styrs av Träna just nu' : b.dataset.title;
+      b.title = group ? 'Gränsen runt gruppen du tränar på (tangent G)' : byCards ? 'Styrs av Träna just nu' : b.dataset.title;
     }
     // Marks on constellations still to be discovered are kept but not counted.
     let marks = 0;
@@ -1212,6 +1257,7 @@ export class App {
           turn: this.training.turn,
           lines: this.training.showLines,
           art: this.training.showArt,
+          bounds: this.training.showBounds,
           story: this.training.showStory,
           goal: this.training.goal,
           group: this.chunks[this.training.group]?.name ?? null,
@@ -1292,6 +1338,7 @@ export class App {
       stars: t.stars,
       lines: true,
       art: true,
+      outline: this.trainingOutline(),
     } : t.on && t.card >= 0 ? {
       target: t.card,
       targets: [t.card],
@@ -1301,6 +1348,8 @@ export class App {
       // Lines from the second step; once named, lines and drawing as the learner has them.
       lines: t.step === 2 || (t.step === 3 && t.showLines),
       art: t.step === 3 && t.showArt,
+      // The boundary round the group, at every step: it says no more than the panel does.
+      outline: this.trainingOutline(),
     } : null;
     if (this.maskDirty) {
       this.maskDirty = false;

@@ -70,7 +70,8 @@ export class SkyLayer {
    *   quiz while training: {target, targets (the card, or a whole group shown together),
    *   context (the card's group's members already known, drawn around it), step (1 stars,
    *   2 lines, 3 name), stars: Uint8Array per star (1 for the targets' and context's),
-   *   lines and art: whether to draw the targets'}, otherwise null
+   *   lines and art: whether to draw the targets', outline: the boundary round the group
+   *   as open lines of unit vectors, or null}, otherwise null
    */
   render(view, st) {
     const { ctx, catalog } = this;
@@ -88,7 +89,8 @@ export class SkyLayer {
     const rv = st.reveal;
     const found = (c) => !rv || rv.con[c.index] === 1;
 
-    // Boundaries (never while training: their shape would give the answer away)
+    // Boundaries (while training only the one round the group: a constellation's own
+    // would give the answer away)
     if (st.layers.bounds && !st.quiz) {
       ctx.setLineDash([3, 4]);
       ctx.lineWidth = 1;
@@ -128,6 +130,14 @@ export class SkyLayer {
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
+    if (st.quiz && st.quiz.outline) {
+      ctx.setLineDash([6, 5]);
+      ctx.lineWidth = 1.3;
+      ctx.strokeStyle = SKY.groupBound;
+      ctx.beginPath();
+      this.tracePolyline(view, st.quiz.outline, false);
+      ctx.stroke();
+    }
     ctx.setLineDash([]);
 
     // Stick figures (while training, only the target's, when the card shows them)
@@ -343,12 +353,12 @@ export class SkyLayer {
     }
   }
 
-  /** Adds closed outlines (arrays of J2000 vectors) to the current path. */
-  tracePolyline(view, rings) {
+  /** Adds outlines (arrays of J2000 vectors) to the current path, closed unless told otherwise. */
+  tracePolyline(view, rings, closed = true) {
     const { ctx, pt } = this;
     for (const ring of rings) {
       let pen = false;
-      for (let k = 0; k <= ring.length; k++) {
+      for (let k = 0; k < ring.length + (closed ? 1 : 0); k++) {
         if (!view.projectEq(ring[k % ring.length], pt) || pt.z < -0.3) {
           pen = false;
           continue;

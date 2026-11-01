@@ -235,6 +235,8 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px #000
 .panel-discover { padding: 12px 12px 14px 14px; gap: 10px; }
 .discover-head { gap: 4px 10px; }
 .discover-progress { font-size: 18px; color: var(--amber-2); }
+/* "Gränser" in the Träna head reads like the other keys of the panel. */
+.discover-head .train-bounds { padding: 0 6px; font-size: 18px; }
 .discover-progress b { color: var(--amber); font-weight: 400; }
 /* Progress as a bar graph of character cells */
 .meter { height: 10px; border-radius: 0; background: none; border: 1px solid var(--amber-line); padding: 1px; }
@@ -297,6 +299,10 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px #000
   .discover-head h2 { flex: none; }
   .discover-head h2::after { display: none; }
   .discover-progress { order: 0; flex: 1; flex-basis: auto; }
+  /* Träna's progress keeps its counts at first, so it takes a row of its own under
+     "Gränser"; named or shown whole, as on the phone, the count alone stays by the title. */
+  .panel-train:not([data-step="3"]):not([data-step="0"]) .discover-progress { order: 3; flex-basis: 100%; }
+  .panel-train[data-step="3"] #train-of, .panel-train[data-step="0"] #train-of { display: none; }
   #discover-of { display: none; }
   .discover-body { gap: 6px; }
   .discover-hint { font-size: 17px; line-height: 1.1; }

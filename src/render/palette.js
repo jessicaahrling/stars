@@ -24,6 +24,7 @@ export const SKY = {
   artHover: 'rgba(240, 226, 196, 0.7)',
   artHoverFine: 'rgba(240, 226, 196, 0.42)',
   boundHover: 'rgba(214, 226, 255, 0.45)',
+  groupBound: 'rgba(200, 214, 250, 0.5)',
   candidate: 'rgba(188, 203, 240, 0.5)',
   candidateHover: 'rgba(228, 236, 255, 0.95)',
   candidateLabel: 'rgba(206, 218, 248, 0.86)',

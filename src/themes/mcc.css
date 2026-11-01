@@ -303,6 +303,8 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 26px; box-sizing: b
   .card h3, .train-name { font-size: 21px; }
   .facts { font-size: 12px; letter-spacing: -0.01em; }
   .discover-head { margin: -9px -11px 0; padding: 2px 4px 2px 12px; }
+  /* "Gränser" stays inside the narrow header strip. */
+  .discover-head .train-bounds { margin: 0 0 0 auto; min-height: 24px; }
   .discover-hint { font-size: 13px; }
 }
 

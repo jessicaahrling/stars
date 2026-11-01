@@ -149,6 +149,8 @@
     .discover-head { display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; }
     .discover-head h2 { flex: 1; }
     .discover-progress { order: 3; flex-basis: 100%; font-size: 13px; color: var(--ink-2); }
+    /* The boundary round the group: at the end of the title's row, without making it taller. */
+    .discover-head .train-bounds { order: 2; flex: none; min-height: 28px; margin: -3px 0 -6px auto; padding: 0 10px; font-size: 12px; }
     .discover-head .icon-btn { flex: none; width: 30px; height: 30px; margin: -6px -8px -6px 0; display: grid; place-items: center; }
     .discover-head .icon-btn::before { content: ""; width: 8px; height: 8px; border: solid currentColor; border-width: 0 1.5px 1.5px 0;
       transform: translateY(2px) rotate(225deg); }
@@ -242,6 +244,8 @@
       #discover-of { display: none; }
       .discover-head h2 { flex: none; }
       .discover-progress { order: 0; flex: 1; flex-basis: auto; }
+      /* With its counts, the progress takes a row of its own, under the title and "Gränser". */
+      .panel-train:not([data-step="3"]):not([data-step="0"]) .discover-progress { order: 3; flex-basis: 100%; }
       .discover-hint { font-size: 13px; }
       .discover-next { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; flex: none; scrollbar-width: none; }
       .train-name { font-size: 21px; }
@@ -366,6 +370,7 @@
     <div class="discover-head">
       <h2>Träna</h2>
       <span class="discover-progress"><b id="train-count"></b> <span id="train-of"></span></span>
+      <button id="btn-train-bounds" type="button" class="chip toggle train-bounds" aria-pressed="true" title="Tangent G: gränsen runt gruppen du tränar på">Gränser</button>
     </div>
     <div id="train-meter" class="meter" role="progressbar" aria-label="Stjärnbilder du kan" aria-valuemin="0"><span id="train-bar"></span></div>
     <p id="train-group" class="discover-hint train-group"><b id="train-group-name"></b> <span id="train-group-count"></span></p>
