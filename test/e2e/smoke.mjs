@@ -990,6 +990,10 @@ try {
   assert.match(await quiz.textContent('#train-prompt'), /^Du kan gruppen ”Björnarna vid polen”! Så här ligger de tillsammans: Stora björnen, Lilla björnen och Draken\.$/);
   assert.equal(await quiz.textContent('#train-group'), 'Grupp 1 av 28: Björnarna vid polen · 3 av 3 kan du');
   assert.match(await quiz.textContent('#train-count'), /^3 av 34$/);
+  // Leaving training while it is shown and coming back shows it again.
+  await quiz.click('#btn-train-exit');
+  await quiz.click('#btn-train');
+  assert.equal(await viewOf(quiz), 'done:Björnarna vid polen');
   await passGroup(quiz);
   assert.equal(await viewOf(quiz), 'intro:Perseus räddar Andromeda');
   assert.equal(await quiz.textContent('#train-group'), 'Grupp 2 av 28: Perseus räddar Andromeda · 0 av 4 kan du');
@@ -1065,6 +1069,12 @@ try {
   await quiz.click('#btn-train-restart');
   assert.equal(await quiz.textContent('#btn-train-restart'), 'Säker? Tryck igen');
   await quiz.click('#btn-train-restart');
+  assert.equal(await viewOf(quiz), 'intro:Björnarna vid polen');
+  // Choosing how far to go while a group is shown whole keeps it shown.
+  await quiz.click('#btn-train-groups');
+  await quiz.click('#train-goal-winter');
+  await quiz.click('#train-goal-all');
+  await quiz.keyboard.press('Escape');
   assert.equal(await viewOf(quiz), 'intro:Björnarna vid polen');
   await passGroup(quiz);
   q = await quizState();

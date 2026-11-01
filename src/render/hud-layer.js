@@ -53,7 +53,7 @@ export class HudLayer {
     const quiz = st.quiz;
     if (st.layers.starNames && (!quiz || quiz.step === 3)) this.drawStarNames(view, sky, quiz && quiz.stars);
     if (quiz) {
-      this.drawContextNames(view, quiz);
+      this.drawContextNames(view, st);
       if (quiz.step === 3) this.drawQuizName(view, st);
     } else {
       this.drawConstellationNames(view, st);
@@ -129,13 +129,14 @@ export class HudLayer {
   }
 
   /** While a group is learnt, the names of the ones of it already known, around the card. */
-  drawContextNames(view, quiz) {
+  drawContextNames(view, st) {
     const { pt } = this;
     const font = `500 12px ${this.fontFamily}`;
-    for (const i of quiz.context) {
+    for (const i of st.quiz.context) {
       const c = this.catalog.constellations[i];
       for (const v of c.labelVecs) {
         if (!view.projectEq(v, pt) || pt.z < view.cosCorner - 0.1) continue;
+        if (st.groundOpaque && view.altOf(v) < -2) continue;
         this.label(c.sv.toUpperCase(), pt.x, pt.y, font, SKY.labelHover, 12 * 0.18, true);
       }
     }
@@ -143,13 +144,28 @@ export class HudLayer {
 
   /** The training card's name once it is revealed, or the names of a group shown together. */
   drawQuizName(view, st) {
-    const { pt } = this;
+    const { ctx, pt } = this;
     const font = `600 16px ${this.fontFamily}`;
+    const spacing = 16 * 0.18;
+    // A group's names keep clear of each other and inside the screen: one that would run
+    // into another moves a line up or down, and none is left out.
+    const taken = st.avoid ? [...st.avoid] : [];
     for (const i of st.quiz.targets) {
       const c = this.catalog.constellations[i];
+      const text = c.sv.toUpperCase();
       for (const v of c.labelVecs) {
         if (!view.projectEq(v, pt) || pt.z < view.cosCorner - 0.1) continue;
-        this.label(c.sv.toUpperCase(), pt.x, pt.y, font, SELECT_COLOR.hex, 16 * 0.18, true);
+        ctx.font = font;
+        if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacing.toFixed(1)}px`;
+        const half = ctx.measureText(text).width / 2 + 4;
+        pt.x = Math.min(Math.max(pt.x, half), view.width - half);
+        const y0 = pt.y;
+        const clear = [0, 22, -22, 44, -44].some((dy) => {
+          pt.y = y0 + dy;
+          return !this.covered(text, font, spacing, 16, taken);
+        });
+        if (!clear) pt.y = y0;
+        this.label(text, pt.x, pt.y, font, SELECT_COLOR.hex, spacing, true);
       }
     }
   }

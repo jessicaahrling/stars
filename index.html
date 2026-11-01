@@ -248,6 +248,8 @@
       .discover-next.train-actions { flex-wrap: wrap; overflow: visible; }
       /* Named, the card needs the sky more than the choice of goal and the counts. */
       .panel-train[data-step="3"] #train-of, .panel-train[data-step="0"] #train-of { display: none; }
+      /* Shown whole, the group needs the sky; why it belongs together is in each card's story. */
+      .panel-train[data-step="0"] #train-group-why { display: none; }
       .discover-next::-webkit-scrollbar { display: none; }
     }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

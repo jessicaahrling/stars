@@ -511,9 +511,10 @@ export class App {
     this.closeList();
     this.closeGroups();
     if (on) {
-      this.nextTrainingCard({ again: t.card });
+      // A group shown whole when training was left is shown again.
+      if (t.view) this.showTrainingGroup(t.view.group, t.view.kind);
+      else this.nextTrainingCard({ again: t.card });
     } else {
-      t.view = null;
       const wasBelow = t.below;
       this.trainingChanged();
       // Back on opaque ground, a view left looking below the horizon is lifted above it.
@@ -562,7 +563,8 @@ export class App {
     if (t.group >= 0 && !this.groupInGoal(t.group)) t.group = -1;
     // A wider goal can bring a group to learn, a narrower one take it away.
     const changed = this.trainingGroup() !== before;
-    if (t.on && (changed || t.card < 0 || !this.trainInGoal(t.card))) this.nextTrainingCard();
+    // A group shown whole stays, unless the group to learn has changed.
+    if (t.on && (changed || (!t.view && (t.card < 0 || !this.trainInGoal(t.card))))) this.nextTrainingCard();
     else this.trainPanel.render();
     this.groupsPanel.render();
     this.saveSoon();
@@ -628,6 +630,7 @@ export class App {
     t.namedAt = performance.now();
     this.trainingChanged();
     this.flyTo(this.chunks[k].members, { instant, atLeast: TRAIN_FOV });
+    this.saveSoon();
   }
 
   /** Goes on from a group shown whole: after an introduction with its first card not yet answered. */
@@ -1024,6 +1027,11 @@ export class App {
     const tr = this.training;
     if (tr.on && (tr.card >= 0 || tr.view) && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const answer = { 1: 'again', 2: 'now', 3: 'permanent' }[e.key];
+      // Space held down does nothing more, not even on a button focus has just moved to.
+      if (e.key === ' ' && e.repeat) {
+        e.preventDefault();
+        return;
+      }
       if (e.key === ' ' && !(t && t.closest && t.closest('button, summary'))) {
         e.preventDefault();
         if (!e.repeat) this.continueTraining();
