@@ -1,0 +1,280 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,600&display=swap");
+
+/* Design "lekfull": playful and friendly, after jonasgeografi.se. Deep space blue,
+   chunky rounded buttons in heavy type, a bright yellow main button that looks as if it
+   can be pressed down, cheerful pastel buttons, round icon buttons ringed in blue, and
+   white speech bubbles with dark text for what the app says. The cards are dark, like the
+   panels of a game, so that nothing large glares on the night sky. */
+
+:root {
+  --space: #02060d;          /* behind everything */
+  --deck: #14243a;           /* panels */
+  --deck-2: #1b3150;         /* a row under the pointer */
+  --well: #0a1526;           /* dark buttons and fields */
+  --ring: rgba(46, 158, 255, 0.7);    /* the blue ring round dark buttons and fields (3:1 and more) */
+  --ring-soft: rgba(91, 191, 255, 0.3);
+  --sky-blue: #5bbfff;       /* titles and what is chosen */
+  --ice: #7ec8e3;
+  --yellow: #ffdc32;         /* the main button, the name once shown */
+  --on-bright: #08131f;      /* type on yellow and pastel buttons */
+  --option: #24405f;         /* other buttons in a panel */
+  --option-hover: #2c4d72;
+  --option-shadow: #0b1626;
+  --bubble: #ffffff;         /* speech bubbles: the hints and the toast */
+  --bubble-ink: #14243a;
+  --red: #c9372c;            /* the badge: white type on it 5.4:1 */
+  --ink: #eef4fb;
+  --ink-2: #b4cadd;          /* 8:1 on the panels */
+  --ink-3: #86a9c6;          /* 6:1 on the panels */
+
+  --font-sans: "Nunito", "Segoe UI", "Trebuchet MS", system-ui, sans-serif;
+  --font-latin: var(--font-sans);
+  --sky-font: "Nunito", "Segoe UI", "Trebuchet MS", system-ui, sans-serif;
+
+  /* The base tokens, in this design's colours. */
+  --night: var(--space);
+  --glass: rgba(10, 21, 38, 0.92);
+  --glass-strong: rgba(20, 36, 58, 0.97);
+  --hairline: rgba(91, 191, 255, 0.22);
+  --gold: var(--yellow);
+  --up: #8ce99a;
+  --radius: 18px;
+}
+
+:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+
+/* ---- The name: yellow, heavy and a little tilted, like a title on a game box. ---- */
+.brand { gap: 9px; font-size: 20px; font-weight: 900; letter-spacing: 0.01em; text-transform: none;
+  color: var(--yellow); text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6), 0 0 18px rgba(46, 158, 255, 0.3);
+  transform: rotate(-2deg); transform-origin: left center; }
+.brand svg polyline { stroke: var(--yellow); stroke-opacity: 0.85; stroke-width: 1.5; }
+.brand svg circle { fill: #fff; }
+
+/* ---- Buttons: chunky, rounded, heavy type. Dark ones ringed in blue. ---- */
+.chip { border-radius: 12px; border: 2px solid var(--ring); background: var(--glass);
+  -webkit-backdrop-filter: none; backdrop-filter: none; color: #dbe9f5; font-weight: 800;
+  letter-spacing: 0; transition: transform .08s, box-shadow .08s, background-color .15s, border-color .15s, color .15s; }
+.chip:not(:disabled):hover { border-color: var(--sky-blue); background: #10203a; }
+.chip[aria-expanded="true"] { border-color: var(--sky-blue); background: rgba(91, 191, 255, 0.18); color: var(--sky-blue); }
+.chip[aria-pressed="true"] { border-color: var(--sky-blue); background: var(--sky-blue); color: var(--on-bright);
+  box-shadow: 0 3px 0 var(--option-shadow); }
+.chip .muted { color: var(--ink-2); font-weight: 700; }
+.chip[aria-pressed="true"] .muted { color: rgba(8, 19, 31, 0.72); }
+.chip .sep { color: var(--ink-3); }
+.chip:disabled, .discover-foot .chip:disabled { opacity: 0.45; cursor: default; transform: none; }
+
+/* The main button: yellow, with a hard shadow under it that it sinks into when pressed. */
+.chip.primary { background: var(--yellow); border-color: var(--yellow); color: var(--on-bright); font-weight: 900;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.5); }
+.chip.primary:not(:disabled):hover { background: #ffe45c; border-color: #ffe45c; transform: translateY(1px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5); }
+.chip.primary:active { transform: translateY(3px); box-shadow: none; }
+
+/* Round icon buttons, ringed in blue. */
+.round { border-radius: 50%; background: var(--well); color: var(--ice); font-weight: 800; }
+.icon-btn { border: 2px solid var(--ring); background: var(--well); color: var(--ice); font-weight: 800; }
+.icon-btn:hover { border-color: var(--sky-blue); background: #10203a; color: #fff; }
+.panel-head .icon-btn { width: 34px; height: 34px; font-size: 20px; line-height: 1; }
+
+/* The marks' count: a red badge with a white rim. */
+.count { min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box; font-size: 11px;
+  background: var(--red); color: #fff; border: 1.5px solid #fff; font-weight: 900; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.65); }
+.live { color: var(--up); font-weight: 800; }
+.live::before { background: var(--up); box-shadow: 0 0 8px var(--up); }
+#when-time { font-weight: 800; }
+
+/* ---- The row at the bottom: each button its own cheerful colour, filled when on. ---- */
+.toggle { --c: #74b9ff; min-height: 36px; padding: 0 10px; gap: 6px; font-size: 13px; font-weight: 800; color: #cfe0ee;
+  border-color: color-mix(in srgb, var(--c) 60%, transparent); }
+.toggle:not(:disabled):hover { border-color: var(--c); background: #10203a; }
+.toggle::before { content: ""; width: 10px; height: 10px; border-radius: 3px; box-sizing: border-box;
+  border: 2px solid var(--c); background: transparent; }
+.toggle[aria-pressed="true"] { background: var(--c); border-color: var(--c); color: var(--on-bright);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.5); }
+.toggle[aria-pressed="true"]:hover { background: var(--c); border-color: #fff; }
+.toggle[aria-pressed="true"]::before { background: var(--on-bright); border-color: var(--on-bright); }
+/* Room round the row for the focus ring and the hard shadows, which it would clip. */
+.toggles { gap: 5px; padding: 5px; margin: -3px; }
+/* Yellow is kept for the main button; the row has the other colours. */
+#btn-discover { --c: #06d6a0; }
+#btn-train { --c: #f4a261; }
+[data-layer="lines"], #btn-train-lines { --c: #74b9ff; }
+[data-layer="figureStarsOnly"] { --c: #b39ddb; }
+[data-layer="art"], #btn-train-art { --c: #ef7674; }
+[data-layer="names"] { --c: #8ce99a; }
+[data-layer="bounds"], #btn-train-bounds { --c: #ffd166; }
+[data-layer="starNames"] { --c: #74b9ff; }
+[data-layer="milkyWay"] { --c: #b39ddb; }
+[data-layer="seeThrough"] { --c: #f4a261; }
+
+/* ---- Panels: deep blue cards with round corners and a soft blue rim. ---- */
+.panel { background: var(--glass-strong); border: 1.5px solid var(--ring-soft); border-radius: 18px;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 10px 34px rgba(0, 0, 0, 0.7); }
+.panel h2 { font-size: 14px; font-weight: 900; letter-spacing: 0.08em; color: var(--sky-blue); }
+
+/* Buttons inside a panel or the card: raised blue blocks, like the choices in a game's menu. */
+.panel .chip:not(.primary):not(.toggle), .card .chip:not(.primary) { background: var(--option); border-color: var(--option);
+  color: #e8f1fa; box-shadow: 0 3px 0 var(--option-shadow); }
+.panel .chip:not(.primary):not(.toggle):not(:disabled):hover, .card .chip:not(.primary):hover { background: var(--option-hover);
+  border-color: var(--option-hover); transform: translateY(1px); box-shadow: 0 2px 0 var(--option-shadow); }
+.panel .chip:not(.primary):not(.toggle)[aria-pressed="true"], .card .chip:not(.primary)[aria-pressed="true"],
+.panel .chip:not(.primary):not(.toggle)[aria-expanded="true"] { background: var(--sky-blue); border-color: var(--sky-blue);
+  color: var(--on-bright); }
+.panel .chip[aria-pressed="true"] .muted { color: rgba(8, 19, 31, 0.8); }
+/* Switches in a panel (lines, drawing, boundary) stay quiet beside the answers: a dark
+   button with its colour in the marker and the rim. */
+.panel .toggle { background: transparent; border-color: var(--ring-soft); color: var(--ink-2); box-shadow: none; }
+.panel .toggle:not(:disabled):hover { background: rgba(91, 191, 255, 0.1); border-color: var(--sky-blue); color: #fff; }
+.panel .toggle[aria-pressed="true"] { background: var(--option); border-color: var(--c); color: #fff;
+  box-shadow: 0 3px 0 var(--option-shadow); }
+.panel .toggle[aria-pressed="true"]:hover { background: var(--option-hover); border-color: var(--c); }
+.panel .toggle[aria-pressed="true"]::before { background: var(--c); border-color: var(--c); }
+/* The less important ones at the foot: outlined only. */
+.panel .discover-foot .chip:not(.primary) { background: transparent; border-color: var(--ring-soft); color: var(--ink-2);
+  box-shadow: none; }
+.panel .discover-foot .chip:not(.primary):not(:disabled):hover { background: rgba(91, 191, 255, 0.1); border-color: var(--sky-blue);
+  color: #fff; transform: none; box-shadow: none; }
+.panel .discover-foot .chip[aria-expanded="true"] { background: rgba(91, 191, 255, 0.18); border-color: var(--sky-blue);
+  color: var(--sky-blue); }
+.panel-foot { border-top-color: var(--hairline); }
+
+/* Fields: dark wells ringed in blue. */
+select, input[type="date"], input[type="search"] { background: var(--well); border: 2px solid rgba(46, 158, 255, 0.8);
+  border-radius: 12px; color: var(--ink); font-weight: 700; }
+select:focus, input[type="date"]:focus, input[type="search"]:focus { border-color: var(--sky-blue); }
+input[type="search"]::placeholder { color: var(--ink-3); }
+input[type="range"] { accent-color: var(--yellow); }
+.field label, .field legend { color: var(--ink-3); font-weight: 800; letter-spacing: 0.04em; }
+.field output { font-weight: 900; color: var(--yellow); }
+
+/* Lists: rows that light up blue; the chosen one gets a yellow edge. */
+.con-list { border-top-color: var(--hairline); }
+.con-list li:hover { background: rgba(91, 191, 255, 0.08); }
+.con-list li.is-selected { background: rgba(91, 191, 255, 0.16); box-shadow: inset 4px 0 0 var(--yellow); }
+.con-name strong { font-weight: 800; }
+.con-name em { font-family: var(--font-sans); font-style: italic; font-weight: 600; font-size: 14px; color: var(--ink-3); }
+.state { font-weight: 800; letter-spacing: 0.06em; color: var(--ink-3); }
+.state.up { color: var(--up); }
+.con-list li.is-selected .state { color: var(--yellow); }
+.mark-box span { border: 2px solid var(--ice); border-radius: 6px; }
+.group-stage { color: var(--sky-blue); font-weight: 900; letter-spacing: 0.08em; }
+.group-members { color: var(--ink-3); font-weight: 600; }
+.list-note { color: var(--ink-2); }
+
+/* The list of designs. */
+.theme-option:hover { background: rgba(91, 191, 255, 0.08); }
+.theme-option:has(input:checked) { background: rgba(91, 191, 255, 0.16); box-shadow: inset 4px 0 0 var(--yellow); }
+.theme-option input { accent-color: var(--yellow); }
+.theme-name { font-weight: 800; }
+.theme-note { color: var(--ink-2); font-weight: 600; }
+.theme-foot { color: var(--ink-3); border-top-color: var(--hairline); }
+
+/* ---- Upptäck and Träna ---- */
+.discover-progress { color: var(--ink-2); font-weight: 700; }
+.discover-progress b { color: var(--yellow); font-weight: 900; }
+.meter { height: 8px; border-radius: 4px; background: var(--well); box-shadow: inset 0 0 0 1px var(--ring-soft); }
+.meter span { border-radius: 4px; background: var(--yellow); }
+.discover-hint { color: #c9dbea; }
+.discover-head .icon-btn { border-width: 2px; }
+
+/* What the app says to the learner is a speech bubble: white, dark type, heavy. */
+#discover-hint, #train-prompt { background: var(--bubble); color: var(--bubble-ink); font-weight: 700;
+  padding: 7px 11px; border-radius: 14px; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); }
+#discover-hint:empty { display: none; }
+
+/* The neighbours to add are cheerful coloured buttons, each constellation its own colour
+   (data-hue, set by the panel, stays the same as the list changes). */
+#discover-next .chip { --c: #ffd166; background: var(--c); border-color: var(--c); color: var(--on-bright);
+  font-weight: 900; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.5); }
+#discover-next .chip:hover { transform: translateY(1px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5); border-color: #fff; }
+#discover-next .chip[data-hue="1"] { --c: #06d6a0; }
+#discover-next .chip[data-hue="2"] { --c: #ef7674; }
+#discover-next .chip[data-hue="3"] { --c: #74b9ff; }
+#discover-next .chip[data-hue="4"] { --c: #f4a261; }
+#discover-next .chip[data-hue="5"] { --c: #b39ddb; }
+#discover-next .chip[data-hue="6"] { --c: #8ce99a; }
+#discover-next .state { color: rgba(8, 19, 31, 0.85); font-weight: 800; }
+/* Below the horizon: no colour, only a dashed rim. */
+#discover-next .chip.below { background: transparent; border-color: var(--ink-3); border-style: dashed; color: var(--ink-2);
+  box-shadow: none; }
+#discover-next .chip.below .state { color: var(--ink-3); }
+/* Room round the row for the focus ring and the hard shadows; in a panel the buttons line
+   up with the bubble above them. The training panel's body scrolls, so it gets the same room. */
+.discover-next { padding: 5px; margin: -3px; }
+.panel .discover-next { margin: -5px; }
+.panel-train .discover-body { padding: 5px; margin: -5px; }
+.train-story summary:focus-visible { outline-offset: -3px; }
+
+/* Training: the name, once shown, in the title's yellow. */
+.train-group b { color: var(--sky-blue); font-weight: 800; }
+.train-name { font-weight: 900; color: var(--yellow); letter-spacing: 0.01em; text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5); }
+.train-answer .latin, .card .latin { font-family: var(--font-sans); font-style: italic; font-weight: 600; }
+.train-answer .latin { color: var(--ink-2); }
+/* The answers in colour: a miss in red, known for good in green, known for now the yellow main button. */
+.panel-train[data-step="3"] .train-actions .chip:first-child:not(.primary) { background: #ef7674; border-color: #ef7674;
+  color: var(--on-bright); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.5); }
+.panel-train[data-step="3"] .train-actions .chip:last-child:not(.primary) { background: #06d6a0; border-color: #06d6a0;
+  color: var(--on-bright); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.5); }
+.panel-train[data-step="3"] .train-actions .chip:not(.primary):hover { border-color: #fff; }
+.train-story summary { color: var(--sky-blue); font-weight: 800; }
+.story-origin { color: var(--yellow); font-weight: 800; }
+
+/* ---- The card: a dark game panel about the constellation chosen, its name in heavy white. ---- */
+.card { background: var(--glass-strong); border: 1.5px solid var(--ring-soft); border-radius: 20px;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 10px 34px rgba(0, 0, 0, 0.75); }
+.card h3 { font-weight: 900; color: #fff; }
+.card .latin { color: var(--ink-2); }
+.card .facts { color: var(--ink-2); }
+.card .facts b { color: var(--ink); font-weight: 800; }
+
+/* The toast is a bubble too. */
+.toast { background: var(--bubble); color: var(--bubble-ink); border: 0; font-weight: 700;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.7); }
+
+/* The heavy type takes room. The list's two buttons stay on one row, sharing it, their
+   words wrapping inside them if need be. */
+.panel-foot { flex-wrap: nowrap; }
+.panel-foot .chip { flex: 1 1 auto; min-width: 0; justify-content: center; text-align: center; white-space: normal;
+  text-wrap: balance; line-height: 1.15; padding: 4px 9px; font-size: 13px; }
+.panel-foot .chip:last-child { flex: 0 1 auto; }
+
+/* A landscape phone or a narrow window: the top bar a little tighter. */
+@media (min-width: 641px) and (max-width: 820px) {
+  .bar-top { gap: 8px; }
+  .bar-top .chip { padding: 0 10px; font-size: 14px; }
+  .brand { font-size: 17px; }
+}
+@media (max-width: 640px) {
+  .brand { font-size: 18px; }
+  /* A little less padding, so that the top bar fits with the design button still round,
+     and the three answers and the card's buttons stay on one row. */
+  .bar-top { gap: 8px; }
+  .bar-top .chip { padding: 0 11px; font-size: 14px; }
+  .bar-top .chip-theme { flex: none; width: 40px; height: 40px; box-sizing: border-box; padding: 0; border-radius: 50%; }
+  .train-actions .chip, .card .btn-row .chip { padding: 0 10px; font-size: 13.5px; }
+  /* A compact card, so that more of it fits below the panel; a focused button scrolls fully into view. */
+  .card { padding: 14px 16px; gap: 8px; scroll-padding-bottom: 16px; }
+  .card .facts { font-size: 13.5px; gap: 3px; }
+}
+/* Phones up to 420 px, with room for the marks' badge: tighter still. */
+@media (max-width: 420px) {
+  .bar-top { gap: 6px; }
+  .bar-top .chip { padding: 0 8px; font-size: 13px; }
+  .brand svg { width: 30px; }
+}
+/* Small phones with marks counted: the logo gives way to the badge. */
+@media (max-width: 380px) {
+  .bar-top:has(#mark-count:not([hidden])) .brand { display: none; }
+  .bar-top:has(#mark-count:not([hidden])) .chip-theme { margin-left: auto; }
+}
+/* The smallest phones: the logo gives way, so that the buttons keep their room. */
+@media (max-width: 340px) {
+  .brand { display: none; }
+  .bar-top .chip-theme { margin-left: auto; }
+  .bar-top .chip { padding: 0 7px; font-size: 12.5px; }
+}
+/* Low screens (a phone on its side): smaller bubbles and bar, and always a row of neighbours. */
+@media (max-height: 480px) {
+  #discover-hint, #train-prompt { padding: 4px 9px; font-size: 13px; }
+  .meter { height: 5px; }
+  #discover-next { min-height: 46px; }
+}

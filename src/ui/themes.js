@@ -1,13 +1,16 @@
-// The interface designs one can switch between under "Design". Apart from the current
-// glass look, each is a style sheet in src/themes/ that is added to the page when chosen.
+// The interface designs one can switch between under "Design". Apart from the glass look
+// of the base styles, each is a style sheet in src/themes/ that is added to the page when
+// chosen. The playful one is the default.
 import checklista from '../themes/checklista.css';
 import crt from '../themes/crt.css';
 import dsky from '../themes/dsky.css';
+import lekfull from '../themes/lekfull.css';
 import mcc from '../themes/mcc.css';
 import nasa75 from '../themes/nasa75.css';
 
 export const THEMES = [
-  { id: 'glas', name: 'Nuvarande', note: 'Mjukt glas, som hittills', css: '' },
+  { id: 'lekfull', name: 'Lekfull', note: 'Glada färgknappar och pratbubblor, i stil med jonasgeografi.se', css: lekfull },
+  { id: 'glas', name: 'Mjukt glas', note: 'Den tidigare designen, som genom en kikare', css: '' },
   { id: 'mcc', name: 'Mission Control 1969', note: 'Konsoler med upplysta tryckknappar', css: mcc },
   { id: 'dsky', name: 'Apollo DSKY', note: 'Färddatorns tangentbord och gröna siffror', css: dsky },
   { id: 'crt', name: 'Bärnstensskärm', note: 'Terminal med bärnstensfärgad fosfor', css: crt },
@@ -15,7 +18,7 @@ export const THEMES = [
   { id: 'checklista', name: 'Checklista', note: 'Apollos maskinskrivna färdpärmar', css: checklista },
 ];
 
-export const DEFAULT_THEME = 'glas';
+export const DEFAULT_THEME = 'lekfull';
 
 /**
  * Puts a design on the page: data-theme on <html> and its style sheet in <style id="theme-style">.

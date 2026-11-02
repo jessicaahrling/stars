@@ -61,7 +61,10 @@ export class App {
     const saved = loadSettings();
 
     // The chosen design goes on first, so that every panel is measured in it.
-    this.theme = applyTheme(THEMES.some((t) => t.id === saved.theme) ? saved.theme : DEFAULT_THEME, doc).id;
+    // Saved before the playful design came (themes: 2), 'glas' was the default rather than a
+    // choice, so the new default takes its place; any other design chosen stays.
+    const savedTheme = saved.theme === 'glas' && saved.themes !== 2 ? null : saved.theme;
+    this.theme = applyTheme(THEMES.some((t) => t.id === savedTheme) ? savedTheme : DEFAULT_THEME, doc).id;
     this.layers = { ...DEFAULT_LAYERS };
     for (const k of Object.keys(DEFAULT_LAYERS)) if (typeof saved.layers?.[k] === 'boolean') this.layers[k] = saved.layers[k];
     this.place = PLACES.find((p) => p.id === saved.placeId) || PLACES.find((p) => p.id === DEFAULT_PLACE_ID);
@@ -204,6 +207,12 @@ export class App {
     this.themePanel = new ThemePanel(this, $);
     this.trainPanel = new TrainPanel(this, $);
     this.groupsPanel = new GroupsPanel(this, $);
+    // The card is fitted again whenever it or a game's panel changes size (see fitCard),
+    // a frame later so that the fitting does not resize what is being observed.
+    if (typeof ResizeObserver === 'function') {
+      const fit = new ResizeObserver(() => requestAnimationFrame(() => this.fitCard()));
+      for (const el of [this.card.root, this.discoverPanel.root, this.trainPanel.root]) fit.observe(el);
+    }
     this.toast = $('toast');
     this.brand = doc.querySelector('.brand');
     this.markCount = $('mark-count');
@@ -1170,6 +1179,7 @@ export class App {
     const covered = crowded || overlaps || (narrow && (this.when.open || this.themePanel.open || this.groupsPanel.open));
     for (const p of [this.discoverPanel.root, this.trainPanel.root]) p.style.visibility = covered ? 'hidden' : '';
     this.placeToast();
+    this.fitCard();
     // Names keep clear of the panel, so they are drawn again when it comes or goes.
     this.invalidate();
   }
@@ -1257,6 +1267,7 @@ export class App {
         view: { az: Math.round(v.az * 10) / 10, alt: Math.round(v.alt * 10) / 10, fov: Math.round(v.fov * 10) / 10 },
         listScope: this.list.scope,
         theme: this.theme,
+        themes: 2,
         training: {
           v: 2,
           on: this.training.on,
@@ -1289,6 +1300,27 @@ export class App {
     const panel = this.modePanel();
     if (panel) out.push(panel.getBoundingClientRect());
     return out;
+  }
+
+  /**
+   * On a phone held upright the card keeps below the panel of the game being played, which
+   * a taller card or panel (a design with larger type, a long story) would otherwise slide
+   * under; a card taller than the room between them scrolls. With too little room for its
+   * title and a few lines, it comes in front of the panel instead. (On a phone on its side
+   * the two stand side by side as on a desktop.)
+   */
+  fitCard() {
+    const card = this.card.root;
+    const panel = window.innerWidth <= 640 && !card.hidden ? this.modePanel() : null;
+    let max = '';
+    let front = '';
+    if (panel) {
+      const room = Math.floor(card.getBoundingClientRect().bottom - panel.getBoundingClientRect().bottom - 8);
+      if (room >= 120) max = `${room}px`;
+      else front = '6';
+    }
+    if (card.style.maxHeight !== max) card.style.maxHeight = max;
+    if (card.style.zIndex !== front) card.style.zIndex = front;
   }
 
   /** The panel of the game being played (Upptäck or Träna) while it is on screen, or null. */

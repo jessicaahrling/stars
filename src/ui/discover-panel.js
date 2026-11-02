@@ -106,6 +106,9 @@ export class DiscoverPanel {
         b.type = 'button';
         b.className = 'chip';
         b.dataset.id = c.id;
+        // A colour of its own for designs that colour the neighbours, the same every time,
+        // and seldom the same as the one beside it: the rows are in alphabetical order too.
+        b.dataset.hue = String(this.hueOf(c));
         const name = document.createElement('span');
         name.textContent = `+ ${c.sv}`;
         const state = document.createElement('span');
@@ -122,6 +125,15 @@ export class DiscoverPanel {
       }
     }
     this.syncStates();
+  }
+
+  /** A colour number 0-6 for a constellation: its place among all 88 in Swedish alphabetical order. */
+  hueOf(c) {
+    if (!this.hues) {
+      const cons = [...this.app.catalog.constellations].sort((a, b) => a.sv.localeCompare(b.sv, 'sv'));
+      this.hues = new Map(cons.map((x, k) => [x.index, k % 7]));
+    }
+    return this.hues.get(c.index);
   }
 
   /** Marks the neighbours on offer that are below the horizon now (the sky turns, so this runs every second). */

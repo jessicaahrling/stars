@@ -135,5 +135,7 @@ export class InfoCard {
       this.root.replaceChildren(...card.childNodes);
     }
     this.root.hidden = false;
+    // Fitted at once, so that its first frame already keeps clear of the game's panel.
+    app.fitCard?.();
   }
 }

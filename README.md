@@ -98,8 +98,15 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   björnen och Cassiopeja. Herkules är uppe kl. 22 en månad i Stockholm men inte i Göteborg
   och väntar därför till nästa steg. Listan kan visa bara vinterhimlen.
 - **Design:** knappen "Design" i övre raden byter utseende på knappar och paneler.
-  Förutom det nuvarande finns fem designer i stil med äldre NASA-gränssnitt: Mission
-  Control 1969, Apollo DSKY, Bärnstensskärm, NASA 1975 och Checklista. Valet sparas.
+  Från början används **Lekfull**, inspirerad av jonasgeografi.se: djupt rymdblått, tjocka
+  rundade knappar i fet stil, en gul huvudknapp som ser ut att gå att trycka ner, glada
+  pastellfärgade knappar (varje knapp i raden längst ner har sin färg, ifylld när den är på,
+  och grannarna att lägga till i Upptäck får var sin), runda ikonknappar med blå ring och
+  vita pratbubblor med mörk text för det appen säger: ledtråden i Upptäck, frågan i Träna
+  och meddelandena. Paneler och infokort är mörkblå, som menyerna i ett spel, så att inget
+  stort lyser upp natthimlen. Den tidigare designen finns kvar som Mjukt glas, och dessutom
+  fem i stil med äldre NASA-gränssnitt: Mission Control 1969, Apollo DSKY, Bärnstensskärm,
+  NASA 1975 och Checklista. Valet sparas.
 - **Infokort:** välj en stjärnbild i listan så vänder sig vyn dit och ett kort visar var
   den står nu, när den går upp, står högst och går ner, om den är cirkumpolär, vilken
   månad den står högst på kvällen och dess ljusstarkaste stjärna.

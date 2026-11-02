@@ -1303,11 +1303,11 @@ try {
   // "Design": a list of interface designs. Each one is put on the page when chosen, keeps
   // the layout in one piece on a desktop and a phone, and is remembered.
   const themeIds = await phone.evaluate(() => [...document.querySelectorAll('#theme-list input')].map((i) => i.value));
-  assert.deepEqual(themeIds, ['glas', 'mcc', 'dsky', 'crt', 'nasa75', 'checklista']);
+  assert.deepEqual(themeIds, ['lekfull', 'glas', 'mcc', 'dsky', 'crt', 'nasa75', 'checklista']);
   for (const [page, kind] of [[await openPage({ width: 1280, height: 800 }, { discover: true }), 'desktop'], [phone, 'phone']]) {
     await page.click('#btn-theme');
     assert.equal(await page.isVisible('#panel-theme'), true);
-    assert.equal(await page.isChecked('#theme-list input[value="glas"]'), true, 'the current design is chosen at first');
+    assert.equal(await page.isChecked('#theme-list input[value="lekfull"]'), true, 'the playful design is chosen at first');
     for (const themeId of themeIds) {
       await page.click(`#theme-list input[value="${themeId}"]`);
       const state = await page.evaluate(() => ({
@@ -1363,6 +1363,17 @@ try {
   assert.equal(await phone.evaluate(() => document.documentElement.dataset.theme), 'crt');
   await phone.click('#btn-theme');
   assert.equal(await phone.isChecked('#theme-list input[value="crt"]'), true);
+  // Saved before the playful design came, the glass design was only the default, and the
+  // new default takes its place; chosen since, it stays.
+  for (const [saved, shown] of [[{ theme: 'glas' }, 'lekfull'], [{ theme: 'glas', themes: 2 }, 'glas']]) {
+    await phone.evaluate((s) => {
+      clearTimeout(window.stjarnhimlen.saveTimer);
+      localStorage.setItem('stjarnhimlen:v1', JSON.stringify(s));
+    }, saved);
+    await phone.reload();
+    await phone.waitForFunction(() => window.stjarnhimlen);
+    assert.equal(await phone.evaluate(() => document.documentElement.dataset.theme), shown, JSON.stringify(saved));
+  }
 
   assert.deepEqual(errors, [], 'no errors in the console');
   console.log('e2e smoke: ok');
