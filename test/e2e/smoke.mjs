@@ -1161,8 +1161,8 @@ try {
   await quiz.waitForFunction(() => window.stjarnhimlen);
   assert.equal(await quiz.getAttribute('#train-goal-winter', 'aria-pressed'), 'true');
   assert.match(await quiz.textContent('#train-count'), /^0 av 34$/);
-  // With every group of the winter sky learnt there is no group to draw round: "Gränser"
-  // rests at the bottom and is gone from the panel, and G does nothing.
+  // With every group of the winter sky learnt every card is a repetition, and the group
+  // marked is the card's own: its boundary is drawn, and "Gränser" and G turn it off and on.
   const allDone = await quiz.evaluate(() => {
     const a = window.stjarnhimlen;
     a.training.group = -1;
@@ -1172,10 +1172,15 @@ try {
       a.training.namedAt -= 1000;
       a.leaveTrainingGroup();
     }
+    const own = a.chunks.indexOf(a.chunkOf.get(a.training.card));
     const bar = document.querySelector('[data-layer="bounds"]');
-    return [a.training.group, a.trainingOutline(), bar.disabled, bar.getAttribute('aria-pressed'), document.getElementById('btn-train-bounds').hidden, document.getElementById('train-group').textContent];
+    const line = document.getElementById('train-group').textContent;
+    return [a.training.group, a.trainingOutline() === a.groupOutlines.get(own), bar.disabled, bar.getAttribute('aria-pressed'), document.getElementById('btn-train-bounds').hidden,
+      line.trim() === `Repetition från grupp ${own + 1} av 28` || line];
   });
-  assert.deepEqual(allDone, [-1, null, true, 'false', true, 'Alla grupper är klara · nu repeterar du']);
+  assert.deepEqual(allDone, [-1, true, false, 'true', false, true]);
+  await quiz.keyboard.press('g');
+  assert.equal(await quiz.evaluate(() => window.stjarnhimlen.training.showBounds), false);
   await quiz.keyboard.press('g');
   assert.equal(await quiz.evaluate(() => window.stjarnhimlen.training.showBounds), true);
   // Once the winter sky is known, the progress moves on to the rest of Sweden, and then to the rest.
@@ -1204,6 +1209,25 @@ try {
     return [card, document.getElementById('train-count').textContent, document.getElementById('train-of').textContent];
   });
   assert.deepEqual(missed, ['Jungfrun och korpen som ljög: Vir', '33 av 59', 'kan du av dem som syns från Sverige · 0 permanent · 37 i spel']);
+  // A card repeated from a group learnt before marks that group: the boundary goes round
+  // it, the panel says so and the overview picks it out as "repeteras nu", while the group
+  // being learnt stays "tränas nu". The rest of its group is not drawn round the card, and
+  // the group's name and count, which could give the answer, wait for the name.
+  const repeated = await quiz.evaluate(() => {
+    const a = window.stjarnhimlen;
+    const line = () => document.getElementById('train-group').textContent.trim();
+    a.nextTrainingCard({ again: a.catalog.byId.get('Cas').index, instant: true });
+    a.groupsPanel.toggle(true);
+    const rows = [...document.querySelectorAll('#group-list li:not(.group-stage)')];
+    const state = (name) => rows.find((li) => li.querySelector('strong').textContent.endsWith(name)).querySelector('.state').textContent;
+    const out = [line(), document.getElementById('train-prompt').textContent, a.trainingOutline() === a.groupOutlines.get(1), a.trainingContext().length,
+      state('Perseus räddar Andromeda'), state('Jungfrun och korpen som ljög'), document.querySelector('#group-list li.is-selected strong').textContent];
+    a.groupsPanel.toggle(false);
+    a.revealTraining();
+    return [...out, line()];
+  });
+  assert.deepEqual(repeated, ['Repetition från grupp 2 av 28', 'Repetition: vilken stjärnbild är det här?', true, 0, 'repeteras nu', 'tränas nu', '2. Perseus räddar Andromeda',
+    'Repetition från grupp 2 av 28: Perseus räddar Andromeda · 3 av 4 kan du']);
   // One seen only further south in Sweden says so.
   await quiz.evaluate(() => window.stjarnhimlen.nextTrainingCard({ again: window.stjarnhimlen.catalog.byId.get('Mic').index, instant: true }));
   assert.match(await quiz.textContent('#train-prompt'), /Den går aldrig upp från Stockholm, bara längre söderut i Sverige/);

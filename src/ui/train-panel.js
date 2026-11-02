@@ -120,15 +120,19 @@ export class TrainPanel {
     this.restart.textContent = this.confirming ? 'Säker? Tryck igen' : 'Börja om';
     this.restart.disabled = t.cards.size === 0;
 
-    // The group being learnt, or the one shown whole, and how many of it are known: this
-    // time round while it is learnt.
+    // The group the sky marks, and how many of it are known: this time round while it is
+    // learnt; in all when it is shown whole or a card of it, learnt before, is repeated.
     const learning = app.chunks[t.group];
     const gk = app.trainingGroupShown();
     const shownGroup = app.chunks[gk];
     if (shownGroup) {
-      const known = (i) => t.cards.get(i)?.level >= 1 && (t.view || t.groupSeen.has(i));
-      this.groupName.textContent = `Grupp ${gk + 1} av ${app.chunks.length}: ${shownGroup.name}`;
-      this.groupCount.textContent = `· ${shownGroup.members.filter(known).length} av ${shownGroup.members.length} kan du`;
+      const repeated = !t.view && gk !== t.group;
+      const known = (i) => t.cards.get(i)?.level >= 1 && (t.view || repeated || t.groupSeen.has(i));
+      // Repeated, the group's name often says the answer ("Jägaren Orion"), and its count
+      // which one was missed, so both wait for the card to be named.
+      const veiled = repeated && t.step < 3;
+      this.groupName.textContent = `${repeated ? 'Repetition från grupp' : 'Grupp'} ${gk + 1} av ${app.chunks.length}${veiled ? '' : `: ${shownGroup.name}`}`;
+      this.groupCount.textContent = veiled ? '' : `· ${shownGroup.members.filter(known).length} av ${shownGroup.members.length} kan du`;
     } else {
       this.groupName.textContent = 'Alla grupper är klara';
       this.groupCount.textContent = '· nu repeterar du';

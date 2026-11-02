@@ -55,7 +55,10 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   Gränsen runt gruppen, ytterkanten av dess stjärnbilders gränser tillsammans, ritas hela
   tiden man är i den, i alla steg; den säger inget mer än panelen gör, men visar var på
   himlen gruppen ligger. **Gränser** i panelen (eller i raden längst ner, eller tangenten
-  `G`) stänger av och sätter på den. Panelen visar vilken grupp man är på och hur många i den man kan, och
+  `G`) stänger av och sätter på den. När en stjärnbild från en tidigare grupp repeteras är
+  det i stället den gruppen som markeras: gränsen går runt den, panelen säger "Repetition
+  från grupp …" (gruppens namn först när svaret visas, eftersom namnet ofta avslöjar det)
+  och i överblicken är det den raden som är markerad, med "repeteras nu". Panelen visar vilken grupp man är på och hur många i den man kan, och
   var tredje kort är en repetition från en tidigare grupp när någon väntar. När namnet
   visas står under "Om …" varför gruppen hör ihop. Knappen **Grupper** öppnar en överblick
   över alla 28 grupper, steg för steg, med hur långt man kommit i varje, och där kan man

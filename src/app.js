@@ -762,7 +762,7 @@ export class App {
   toggleTrainingView(part) {
     const t = this.training;
     if (part === 'bounds') {
-      // With every group learnt there is nothing to draw round.
+      // With no card and no group there is nothing to draw round.
       if (!this.chunks[this.trainingGroupShown()]) return;
       t.showBounds = !t.showBounds;
     } else if (t.view) return;
@@ -775,16 +775,22 @@ export class App {
     this.saveSoon();
   }
 
-  /** The group shown whole, or else the one being learnt: an index into chunks, or -1. */
+  /**
+   * The group the sky marks: the one shown whole, or else the card's own, so that a card
+   * repeated from a group learnt before marks that group; with no card, the one being
+   * learnt. An index into chunks, or -1.
+   */
   trainingGroupShown() {
     const t = this.training;
-    return t.view ? t.view.group : t.group;
+    if (t.view) return t.view.group;
+    const own = this.chunkOf.get(t.card);
+    return own ? this.chunks.indexOf(own) : t.group;
   }
 
   /**
-   * The boundary drawn round the group being learnt, or the one shown whole: lines of
-   * J2000 unit vectors, or null when turned off or every group is learnt. Worked out once
-   * for each group.
+   * The boundary drawn round the group the sky marks (see trainingGroupShown): lines of
+   * J2000 unit vectors, or null when turned off or there is no group. Worked out once for
+   * each group.
    */
   trainingOutline() {
     const t = this.training;
@@ -1170,7 +1176,7 @@ export class App {
 
   syncControls() {
     // While training, the cards decide on lines, names and drawings, and "Gränser" turns
-    // the boundary round the group on and off; with every group learnt, it rests too.
+    // the boundary round the group on and off; with no group to mark, it rests too.
     const training = this.training.on;
     const hasGroup = training && Boolean(this.chunks[this.trainingGroupShown()]);
     for (const b of this.toggleButtons) {
@@ -1180,7 +1186,7 @@ export class App {
       b.disabled = byCards;
       b.setAttribute('aria-pressed', String(group ? this.training.showBounds : !byCards && this.layerPressed(b.dataset.layer)));
       if (b.dataset.title === undefined) b.dataset.title = b.title;
-      b.title = group ? 'Gränsen runt gruppen du tränar på (tangent G)' : byCards ? 'Styrs av Träna just nu' : b.dataset.title;
+      b.title = group ? 'Gränsen runt den markerade gruppen (tangent G)' : byCards ? 'Styrs av Träna just nu' : b.dataset.title;
     }
     // Marks on constellations still to be discovered are kept but not counted.
     let marks = 0;

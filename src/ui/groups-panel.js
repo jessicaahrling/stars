@@ -7,8 +7,8 @@ const STAGE_TITLES = ['Vinterhimlen', 'Resten av Sverige', 'Resten av himlen'];
 
 export class GroupsPanel {
   /**
-   * @param {object} app  see App: catalog, chunks, training, trainingGroup, chooseTrainingGroup,
-   *   closeList, closeTheme, closeWhen, layoutChanged
+   * @param {object} app  see App: catalog, chunks, training, trainingGroup, trainingGroupShown,
+   *   chooseTrainingGroup, closeList, closeTheme, closeWhen, layoutChanged
    * @param {(id: string) => HTMLElement} $
    */
   constructor(app, $) {
@@ -63,23 +63,29 @@ export class GroupsPanel {
       this.app.closeTheme();
       this.app.closeWhen();
       this.render();
-      this.rows[this.app.training.group]?.li.scrollIntoView({ block: 'nearest' });
+      this.rows[this.app.trainingGroupShown()]?.li.scrollIntoView({ block: 'nearest' });
     }
     this.app.layoutChanged();
     if (within && this.app.training.on) this.app.trainPanel.focusCard();
   }
 
-  /** Each group's state: being learnt now, learnt, how many of it are known, or not begun. */
+  /**
+   * Each group's state: being learnt now, a card of it being repeated now, learnt, how many
+   * of it are known, or not begun. The group marked on the sky is the one picked out: the
+   * one being learnt, or the one a card is repeated from, or the one shown whole.
+   */
   render() {
     if (!this.open) return;
-    const { cards, group } = this.app.training;
+    const { cards, group, view } = this.app.training;
+    const marked = this.app.trainingGroupShown();
+    const repeated = !view && marked !== group ? marked : -1;
     this.rows.forEach((row, k) => {
       const known = row.members.filter((i) => cards.get(i)?.level >= 1).length;
       const begun = row.members.some((i) => cards.get(i)?.n > 0);
-      row.li.classList.toggle('is-selected', k === group);
-      if (k === group) row.pick.setAttribute('aria-current', 'true');
+      row.li.classList.toggle('is-selected', k === marked);
+      if (k === marked) row.pick.setAttribute('aria-current', 'true');
       else row.pick.removeAttribute('aria-current');
-      row.state.textContent = k === group ? 'tränas nu' : groupDone(cards, row.members) ? 'kan du'
+      row.state.textContent = k === group ? 'tränas nu' : k === repeated ? 'repeteras nu' : groupDone(cards, row.members) ? 'kan du'
         : begun ? `${known} av ${row.members.length}` : '';
     });
   }
