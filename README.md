@@ -65,6 +65,17 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   välja vilken grupp man vill träna på nu (en grupp man redan kan går man igenom en gång
   till) och hur långt man vill gå: bara vinterhimlen (**Vinter**), hela Sverige
   (**Sverige**) eller alla 88 (**Alla**).
+  **Milstolpar:** när alla grupper i vinterhimlen är klara, sedan alla i den svenska himlen
+  och sist alla 88, firas det: hela steget visas tillsammans på himlen med linjer och namn
+  och gränsen runt det, det regnar konfetti (inte om man bett om mindre rörelse), och
+  panelen säger vad man nu kan och vad som är nästa steg. Stannade målet vid steget kan man
+  gå vidare med en knapptryckning. Varje milstolpe firas en gång och står sedan som ett
+  märke under förloppet i Träna, och i överblicken står steget som klart. Därifrån, eller
+  direkt från firandet, kan man **öva på** vinterhimlen, svenska himlen eller hela himlen:
+  en runda där varje stjärnbild i steget kommer en gång i blandad ordning och en miss kommer
+  tillbaka efter tre andra. Svaren räknas som vanligt, och rundan slutar med hur många man
+  kunde på första försöket (utan en enda miss blir det konfetti igen). **Sluta öva** går
+  tillbaka till gruppen man lär sig.
   Vilan räknas i antal visade kort: ett fel kommer tillbaka efter två andra, "kan för
   tillfället" efter 6, sedan 15, 35 och 80 kort, och "kan permanent" först efter 120 kort.
   Mellan sessionerna kommer korten också tillbaka efter 1, 3, 7 eller 21 dagar (45 dagar

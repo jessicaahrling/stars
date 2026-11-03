@@ -204,6 +204,12 @@ input[type="range"] { accent-color: var(--yellow); }
 .panel-train .discover-body { padding: 5px; margin: -5px; }
 .train-story summary:focus-visible { outline-offset: -3px; }
 
+/* Milestones reached: yellow badges, like stickers earned. */
+.train-milestones { gap: 4px 6px; margin: 0; }
+.train-milestones .milestone { padding: 1px 9px; border-radius: 999px; background: var(--yellow); color: var(--on-bright);
+  font-weight: 900; letter-spacing: 0.01em; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45); }
+.group-stage-state { color: var(--yellow); font-weight: 900; }
+
 /* Training: the name, once shown, in the title's yellow. */
 .train-group b { color: var(--sky-blue); font-weight: 800; }
 .train-name { font-weight: 900; color: var(--yellow); letter-spacing: 0.01em; text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5); }

@@ -2,12 +2,20 @@
 // panel uses the Upptäck panel's classes, so that every design styles both alike.
 import { visibilityClass } from '../astro/visibility.js';
 import { STORIES } from '../data/stories-sv.js';
+import { STAGES } from '../sky/curriculum.js';
 
 /** "A, B och C". */
 const listed = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} och ${names.at(-1)}` : names.join(''));
 
 /** How the progress names each step. */
 const AMONG = { winter: 'i vinterhimlen', sweden: 'av dem som syns från Sverige', all: 'på hela himlen' };
+
+/** How the milestones, the steps learnt in full, are spoken of. */
+export const MILESTONE = {
+  winter: { badge: 'Vinterhimlen', whole: 'hela vinterhimlen', which: 'som syns en vinterkväll kl. 22', practice: 'Öva på vinterhimlen', next: 'resten av Sverige' },
+  sweden: { badge: 'Svenska himlen', whole: 'hela den svenska himlen', which: 'som syns från Sverige', practice: 'Öva på svenska himlen', next: 'resten av himlen' },
+  all: { badge: 'Hela himlen', whole: 'hela himlen', which: 'på hela himlen', practice: 'Öva på hela himlen' },
+};
 
 export class TrainPanel {
   /**
@@ -30,6 +38,11 @@ export class TrainPanel {
     this.storyGroup = $('train-story-group');
     this.why = $('train-group-why');
     this.groupText = $('train-group-text');
+    this.milestones = $('train-milestones');
+    this.practiceStop = $('btn-train-practice-stop');
+    this.practiceStop.addEventListener('click', () => app.stopPractice());
+    this.nextGoal = $('btn-train-next-goal');
+    this.nextGoal.addEventListener('click', () => app.setTrainingGoal(this.nextGoal.dataset.goal));
     for (const [goal, b] of Object.entries(this.goals)) b.addEventListener('click', () => app.setTrainingGoal(goal));
     this.prompt = $('train-prompt');
     this.answer = $('train-answer');
@@ -120,12 +133,52 @@ export class TrainPanel {
     this.restart.textContent = this.confirming ? 'Säker? Tryck igen' : 'Börja om';
     this.restart.disabled = t.cards.size === 0;
 
+    // The milestones reached, the steps learnt in full, as badges.
+    const reached = Object.keys(MILESTONE).filter((id) => t.milestones.has(id));
+    this.milestones.hidden = !reached.length;
+    const badges = reached.map((id) => `★ ${MILESTONE[id].badge}`).join('   ');
+    if (this.milestones.dataset.text !== badges) {
+      this.milestones.dataset.text = badges;
+      this.milestones.replaceChildren(...reached.map((id) => {
+        const badge = document.createElement('span');
+        badge.className = 'milestone';
+        badge.textContent = `★ ${MILESTONE[id].badge}`;
+        badge.title = `Milstolpe: du kan ${MILESTONE[id].whole}`;
+        return badge;
+      }));
+    }
+    const practice = t.practice;
+    this.practiceStop.hidden = !practice || Boolean(t.view);
+    // Every group within the goal learnt: the next step is on offer for as long as the learner stays.
+    const nextGoal = !t.view && !practice ? app.nextGoal() : null;
+    this.nextGoal.hidden = !nextGoal;
+    if (nextGoal) {
+      const from = STAGES.find((st) => st.id === t.goal).id;
+      this.nextGoal.textContent = `Vidare till ${MILESTONE[from].next}`;
+      this.nextGoal.dataset.goal = nextGoal;
+    }
+    this.restart.hidden = Boolean(practice);
+
     // The group the sky marks, and how many of it are known: this time round while it is
-    // learnt; in all when it is shown whole or a card of it, learnt before, is repeated.
+    // learnt; in all when it is shown whole or a card of it, learnt before, is repeated. A
+    // whole step shown, or a practice round over one, says so instead.
     const learning = app.chunks[t.group];
     const gk = app.trainingGroupShown();
     const shownGroup = app.chunks[gk];
-    if (shownGroup) {
+    const stageShown = t.view && t.view.group < 0 ? t.view.stage : null;
+    // A whole step shown keeps its words about what comes next, on a phone too.
+    this.root.dataset.view = stageShown ? 'stage' : '';
+    const stageCount = (id) => app.stageMembers(id).length;
+    if (stageShown && t.view.kind === 'milestone') {
+      this.groupName.textContent = `★ Milstolpe: ${MILESTONE[stageShown].badge}`;
+      this.groupCount.textContent = `· ${stageCount(stageShown)} av ${stageCount(stageShown)} kan du`;
+    } else if (stageShown) {
+      this.groupName.textContent = `Övning klar: ${MILESTONE[stageShown].badge}`;
+      this.groupCount.textContent = `· ${practice.total - practice.missed.size} av ${practice.total} rätt direkt`;
+    } else if (practice) {
+      this.groupName.textContent = `Övning: ${MILESTONE[practice.stage].badge}`;
+      this.groupCount.textContent = `· ${practice.total - practice.queue.length} av ${practice.total} klara`;
+    } else if (shownGroup) {
       const repeated = !t.view && gk !== t.group;
       const known = (i) => t.cards.get(i)?.level >= 1 && (t.view || repeated || t.groupSeen.has(i));
       // Repeated, the group's name often says the answer ("Jägaren Orion"), and its count
@@ -144,17 +197,39 @@ export class TrainPanel {
     let prompt;
     const group = c && app.chunkOf.get(t.card);
     // A group shown whole: its members together on the sky, and why they belong together.
+    // A milestone: the whole step together, and what comes next.
     this.why.hidden = !t.view;
-    if (t.view) {
+    if (stageShown && t.view.kind === 'milestone') {
+      const m = MILESTONE[stageShown];
+      const n = stageCount(stageShown);
+      prompt = stageShown === 'all' ? `Hurra! Du kan alla ${n} stjärnbilder på hela himlen. Det var den sista milstolpen!`
+        : `Hurra, en milstolpe! Du kan ${m.whole}: alla ${n} stjärnbilder ${m.which}. Här är de tillsammans.`;
+      const next = app.milestoneNextGoal(stageShown);
+      const upTo = (id) => STAGES.find((st) => st.id === id).upTo;
+      // Said only when the next step is still to learn (old progress can bring milestones in a row).
+      const nextStage = STAGES[STAGES.findIndex((st) => st.id === stageShown) + 1];
+      const nextOpen = nextStage && !app.stageIsLearnt(nextStage.id);
+      const goesOn = m.next && nextOpen && upTo(t.goal) > upTo(stageShown) ? ` Nu fortsätter du med ${m.next}.` : '';
+      const practiceWhenever = `Du kan ${m.practice.toLowerCase()} när du vill, här eller under Grupper.`;
+      this.why.textContent = next && nextOpen ? `Nästa steg är ${m.next}, ${stageCount(next) - n} stjärnbilder till. ${practiceWhenever}`
+        : `${practiceWhenever}${goesOn}`;
+    } else if (stageShown) {
+      const m = MILESTONE[stageShown];
+      const right = practice.total - practice.missed.size;
+      prompt = right === practice.total ? `Perfekt! Du kunde ${m.whole} på första försöket, alla ${practice.total}.`
+        : `Bra övat! Du har gått igenom ${m.whole}: ${right} av ${practice.total} kunde du på första försöket. ${practice.missed.size === 1 ? 'Den' : 'De'} du missade kommer tillbaka snart.`;
+      this.why.hidden = true;
+    } else if (t.view) {
       const names = listed(shownGroup.members.map((i) => app.catalog.constellations[i].sv));
       prompt = t.view.kind === 'done' ? `Du kan gruppen ”${shownGroup.name}”! Så här ligger de tillsammans: ${names}.`
         : `Här är gruppen ”${shownGroup.name}”: ${names}, tillsammans på himlen.`;
       this.why.textContent = shownGroup.reason;
     } else if (!c) prompt = 'Det finns inga stjärnbilder att träna på.';
     else if (t.step === 1) {
-      prompt = learning && !learning.members.includes(t.card) ? 'Repetition: vilken stjärnbild är det här?'
-        : isNew ? 'En ny stjärnbild! Titta på stjärnorna. Vet du vilken det är?' : 'Vilken stjärnbild är det här?';
-      if (p.done) prompt = `Du kan alla ${p.goal} ${AMONG[t.goal]}! Fortsätt att repetera. ${prompt}`;
+      prompt = practice ? 'Vilken stjärnbild är det här?'
+        : learning && !learning.members.includes(t.card) ? 'Repetition: vilken stjärnbild är det här?'
+          : isNew ? 'En ny stjärnbild! Titta på stjärnorna. Vet du vilken det är?' : 'Vilken stjärnbild är det här?';
+      if (p.done && !practice) prompt = `Du kan alla ${p.goal} ${AMONG[t.goal]}! Fortsätt att repetera. ${prompt}`;
       if (t.below) {
         const never = visibilityClass(c.figureDecs, app.view.lat) === 'never';
         prompt += app.stages[t.card] === 3 ? ' Den går aldrig upp över horisonten i Sverige, så marken är genomskinlig.'
@@ -193,14 +268,14 @@ export class TrainPanel {
     this.linesButton.setAttribute('aria-pressed', String(t.showLines));
     this.artButton.setAttribute('aria-pressed', String(t.showArt));
     this.boundsButton.setAttribute('aria-pressed', String(t.showBounds));
-    // Every group learnt, there is no group to draw round.
-    this.boundsButton.hidden = !shownGroup;
+    // With no group and no step shown, there is nothing to draw round.
+    this.boundsButton.hidden = app.trainingOutlineKey() === null;
     if (c) {
       this.name.textContent = c.sv;
       this.latin.textContent = c.la;
     }
 
-    const key = t.view ? `view:${t.view.group}:${t.view.kind}` : c ? `${t.card}:${t.step}` : '';
+    const key = t.view ? `view:${t.view.group}:${t.view.stage}:${t.view.kind}:${t.goal}` : c ? `${t.card}:${t.step}` : '';
     if (key === this.actionsKey) return;
     this.actionsKey = key;
     const focused = this.actions.contains(active) || active === this.answer;
@@ -213,7 +288,13 @@ export class TrainPanel {
       b.addEventListener('click', onClick);
       return b;
     };
-    const buttons = t.view ? [button('Fortsätt', () => app.leaveTrainingGroup(), { primary: true, title: 'Mellanslag, eller tryck på himlen' })]
+    const goOn = (text) => button(text, () => app.leaveTrainingGroup(), { primary: true, title: 'Mellanslag, eller tryck på himlen' });
+    const next = stageShown && t.view.kind === 'milestone' ? app.milestoneNextGoal(stageShown) : null;
+    const buttons = stageShown ? [
+      goOn(next ? `Vidare till ${MILESTONE[stageShown].next}` : 'Fortsätt'),
+      button(t.view.kind === 'milestone' ? MILESTONE[stageShown].practice : 'Öva en gång till', () => app.startPractice(stageShown)),
+    ]
+      : t.view ? [goOn('Fortsätt')]
       : !c ? []
         : t.step === 1 ? [
         button('Visa linjerna', () => app.advanceTraining(), { primary: true, title: 'Mellanslag, eller tryck på himlen' }),
@@ -221,7 +302,9 @@ export class TrainPanel {
       ]
         : t.step === 2 ? [button('Visa svaret', () => app.advanceTraining(), { primary: true, title: 'Mellanslag, eller tryck på himlen' })]
           : [
-            button('Fel', () => app.answerTraining('again'), { title: 'Tangent 1: kommer tillbaka efter två andra' }),
+            button('Fel', () => app.answerTraining('again'), {
+              title: practice ? 'Tangent 1: kommer tillbaka efter tre andra' : 'Tangent 1: kommer tillbaka efter två andra',
+            }),
             button('Kan för tillfället', () => app.answerTraining('now'), {
               primary: true,
               title: 'Tangent 2, mellanslag eller tryck på himlen: räknas som kunnad och kommer tillbaka efter en stund, sedan allt mer sällan',

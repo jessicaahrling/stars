@@ -71,6 +71,39 @@ export function groupDone(cards, group, seen) {
   return group.every((i) => cards.get(i)?.level >= 1 && (!seen || seen.has(i)));
 }
 
+/**
+ * Whether every group of the steps up to `upTo` (1 the winter sky, 2 Sweden's, 3 the whole
+ * sky) is learnt, each member known: a milestone reached.
+ * @param {Map<number, Card>} cards
+ * @param {{stage: number, members: number[]}[]} chunks
+ * @param {number} upTo
+ */
+export function stageLearnt(cards, chunks, upTo) {
+  const groups = chunks.filter((ch) => ch.stage <= upTo);
+  return groups.length > 0 && groups.every((ch) => groupDone(cards, ch.members));
+}
+
+/** A practice round over a step learnt: every constellation of it once, in a shuffled order. */
+export function practiceRound(members, random = Math.random) {
+  const queue = [...members];
+  for (let i = queue.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [queue[i], queue[j]] = [queue[j], queue[i]];
+  }
+  return queue;
+}
+
+/** How many others come before a card missed in a practice round comes back. */
+export const PRACTICE_AGAIN_AFTER = 3;
+
+/** The round after its first card is answered: done with, or, missed, back a little later. */
+export function afterPractice(queue, answer) {
+  const [card, ...rest] = queue;
+  if (answer !== 'again') return rest;
+  const at = Math.min(PRACTICE_AGAIN_AFTER, rest.length);
+  return [...rest.slice(0, at), card, ...rest.slice(at)];
+}
+
 /** Brings a group into play: its members not yet in it come in as new cards. */
 export function takeUp(cards, group, turn) {
   for (const i of group) if (!cards.has(i)) cards.set(i, { level: 0, dueTurn: turn, dueAt: null, n: 0 });

@@ -179,6 +179,17 @@
     .train-actions { flex: none; }
     .train-actions .chip { min-height: 38px; padding: 0 14px; font-size: 14px; }
     .train-view { display: flex; flex-wrap: wrap; gap: 6px; }
+    /* A step's heading: its name, how far it has come (a milestone once learnt in full) and,
+       then, a button to practise it as a whole. */
+    .group-stage { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+    .group-stage-name { flex: 1; }
+    .group-stage-state { color: var(--gold); }
+    .group-stage-state:empty { display: none; }
+    .group-practice { flex-basis: 100%; justify-content: center; min-height: 34px; margin-top: 4px; text-transform: none;
+      letter-spacing: 0; font-size: 13px; }
+    /* The milestones reached, as small badges under the progress. */
+    .train-milestones { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: -2px 0 0; font-size: 12px;
+      letter-spacing: 0.04em; color: var(--gold); }
     .group-stage { padding: 12px 10px 4px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
       color: var(--ink-3); }
     .group-members { font-size: 13px; color: var(--ink-3); }
@@ -251,10 +262,15 @@
       .train-name { font-size: 21px; }
       .discover-next.train-actions { flex-wrap: wrap; overflow: visible; }
       /* Named, the card needs the sky more than the choice of goal and the counts. */
-      .panel-train[data-step="3"] #train-of, .panel-train[data-step="0"] #train-of { display: none; }
+      .panel-train[data-step="3"] #train-of, .panel-train[data-step="0"] #train-of,
+      .panel-train[data-step="3"] #train-milestones { display: none; }
       /* Shown whole, the group needs the sky; why it belongs together is in each card's story. */
-      .panel-train[data-step="0"] #train-group-why { display: none; }
+      .panel-train[data-step="0"]:not([data-view="stage"]) #train-group-why { display: none; }
       .discover-next::-webkit-scrollbar { display: none; }
+    }
+    /* Low screens: the milestones reached give way to the card, except when a step is shown. */
+    @media (max-height: 480px) {
+      .panel-train:not([data-step="0"]) #train-milestones { display: none; }
     }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
@@ -373,6 +389,7 @@
       <button id="btn-train-bounds" type="button" class="chip toggle train-bounds" aria-pressed="true" title="Tangent G: gränsen runt den markerade gruppen">Gränser</button>
     </div>
     <div id="train-meter" class="meter" role="progressbar" aria-label="Stjärnbilder du kan" aria-valuemin="0"><span id="train-bar"></span></div>
+    <p id="train-milestones" class="train-milestones" aria-label="Milstolpar" hidden></p>
     <p id="train-group" class="discover-hint train-group"><b id="train-group-name"></b> <span id="train-group-count"></span></p>
     <div class="discover-body">
       <p id="train-prompt" class="discover-hint" aria-live="polite"></p>
@@ -394,6 +411,8 @@
       </details>
       <div class="discover-foot">
         <button id="btn-train-groups" type="button" class="chip" aria-expanded="false" aria-controls="panel-groups">Grupper</button>
+        <button id="btn-train-next-goal" type="button" class="chip primary" hidden></button>
+        <button id="btn-train-practice-stop" type="button" class="chip" hidden>Sluta öva</button>
         <button id="btn-train-restart" type="button" class="chip">Börja om</button>
         <button id="btn-train-exit" type="button" class="chip">Sluta träna</button>
       </div>

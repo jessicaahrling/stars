@@ -1113,7 +1113,7 @@ try {
   // "Grupper": an overview of all 28 groups, step by step, and a way to take one up now.
   await quiz.click('#btn-train-groups');
   assert.equal(await quiz.isVisible('#panel-groups'), true);
-  const groupRows = await quiz.$$eval('#group-list li', (els) => els.map((li) => (li.classList.contains('group-stage') ? `# ${li.textContent}`
+  const groupRows = await quiz.$$eval('#group-list li', (els) => els.map((li) => (li.classList.contains('group-stage') ? `# ${li.querySelector('.group-stage-name').textContent}`
     : `${li.querySelector('strong').textContent}|${li.querySelector('.state').textContent}`)));
   assert.equal(groupRows.filter((r) => !r.startsWith('#')).length, 28);
   assert.deepEqual(groupRows.filter((r) => r.startsWith('#')), ['# 1. Vinterhimlen · 10 grupper', '# 2. Resten av Sverige · 8 grupper', '# 3. Resten av himlen · 10 grupper']);
@@ -1161,8 +1161,87 @@ try {
   await quiz.waitForFunction(() => window.stjarnhimlen);
   assert.equal(await quiz.getAttribute('#train-goal-winter', 'aria-pressed'), 'true');
   assert.match(await quiz.textContent('#train-count'), /^0 av 34$/);
+  // With every group of the winter sky learnt, a milestone: the whole winter sky together,
+  // with its lines, the names that find room and the boundary round it, confetti, a badge
+  // that stays, and the way on and a practice round over it on offer. It comes once.
+  const milestone = await quiz.evaluate(() => {
+    const a = window.stjarnhimlen;
+    a.training.group = -1;
+    a.stages.forEach((st, i) => { if (st === 1) a.training.cards.set(i, { level: 1, dueTurn: 1000, dueAt: null, n: 1 }); });
+    a.nextTrainingCard({ instant: true });
+    const v = a.training.view;
+    return {
+      view: v && `${v.kind}:${v.stage}`,
+      line: document.getElementById('train-group').textContent.trim(),
+      prompt: document.getElementById('train-prompt').textContent,
+      actions: [...document.querySelectorAll('#train-actions button')].map((b) => b.textContent),
+      badges: document.getElementById('train-milestones').textContent,
+      confetti: Boolean(document.querySelector('canvas.confetti')),
+      outlined: a.trainingOutline() === a.groupOutlines.get('winter') && a.trainingOutline().length > 0,
+      saved: [...a.training.milestones],
+    };
+  });
+  assert.deepEqual(milestone, {
+    view: 'milestone:winter', line: '★ Milstolpe: Vinterhimlen · 34 av 34 kan du',
+    prompt: 'Hurra, en milstolpe! Du kan hela vinterhimlen: alla 34 stjärnbilder som syns en vinterkväll kl. 22. Här är de tillsammans.',
+    actions: ['Vidare till resten av Sverige', 'Öva på vinterhimlen'], badges: '★ Vinterhimlen', confetti: true, outlined: true, saved: ['winter'],
+  });
+  const wholeSky = await quizParts();
+  assert.deepEqual([wholeSky.segments.length, wholeSky.art.length], [34, 0], 'every one of the winter sky with its lines, no drawings');
+  assert.ok(wholeSky.names.length >= 12 && wholeSky.overlaps === 0, `names that find room, none on another (${wholeSky.names.length})`);
+  // In the overview the step is done, and can be practised as a whole from there.
+  await quiz.click('#btn-train-groups');
+  const stageHeads = () => quiz.$$eval('#group-list .group-stage', (els) => els.map((h) => `${h.querySelector('.group-stage-state').textContent}|${h.querySelector('.group-practice').hidden ? '' : h.querySelector('.group-practice').textContent}`));
+  assert.deepEqual(await stageHeads(), ['★ klar|Öva på vinterhimlen', '|', '|']);
+  await quiz.click('#group-list .group-practice:not([hidden])');
+  // A practice round: each of the winter sky once, shuffled; a miss comes back after three others.
+  const practiceState = () => quiz.evaluate(() => {
+    const a = window.stjarnhimlen;
+    const p = a.training.practice;
+    return {
+      practice: p && `${p.stage} ${p.total - p.queue.length}/${p.total}`, view: a.training.view?.kind ?? null,
+      line: document.getElementById('train-group').textContent.trim(), stop: !document.getElementById('btn-train-practice-stop').hidden,
+      restart: !document.getElementById('btn-train-restart').hidden, overview: !document.getElementById('panel-groups').hidden,
+    };
+  });
+  assert.deepEqual(await practiceState(), { practice: 'winter 0/34', view: null, line: 'Övning: Vinterhimlen · 0 av 34 klara', stop: true, restart: false, overview: false });
+  assert.equal(await quiz.textContent('#train-prompt'), 'Vilken stjärnbild är det här?');
+  const firstInRound = await quiz.evaluate(() => window.stjarnhimlen.training.card);
+  await quiz.click('#train-actions button:has-text("Visa svaret")');
+  await quiz.click('#train-actions button:has-text("Fel")');
+  assert.equal(await quiz.evaluate(() => window.stjarnhimlen.training.practice.queue[3]), firstInRound, 'the miss comes back after three others');
+  await quiz.click('#train-actions button:has-text("Visa svaret")');
+  await quiz.click('#train-actions button:has-text("Kan för tillfället")');
+  assert.equal((await practiceState()).line, 'Övning: Vinterhimlen · 1 av 34 klara');
+  // "Sluta öva" ends it; a whole round without a miss is celebrated too.
+  await quiz.click('#btn-train-practice-stop');
+  assert.deepEqual((await practiceState()).practice, null);
+  const round = await quiz.evaluate(() => {
+    const a = window.stjarnhimlen;
+    document.querySelector('canvas.confetti')?.remove();
+    a.startPractice('winter');
+    let answers = 0;
+    while (a.training.practice && !a.training.view && answers < 100) {
+      a.revealTraining();
+      a.answerTraining('now');
+      answers++;
+    }
+    return {
+      answers, view: `${a.training.view.kind}:${a.training.view.stage}`, line: document.getElementById('train-group').textContent.trim(),
+      prompt: document.getElementById('train-prompt').textContent, confetti: Boolean(document.querySelector('canvas.confetti')),
+      actions: [...document.querySelectorAll('#train-actions button')].map((b) => b.textContent),
+    };
+  });
+  assert.deepEqual(round, {
+    answers: 34, view: 'practiced:winter', line: 'Övning klar: Vinterhimlen · 34 av 34 rätt direkt',
+    prompt: 'Perfekt! Du kunde hela vinterhimlen på första försöket, alla 34.', confetti: true, actions: ['Fortsätt', 'Öva en gång till'],
+  });
+  await passGroup(quiz);
+  assert.equal((await practiceState()).practice, null);
+
   // With every group of the winter sky learnt every card is a repetition, and the group
   // marked is the card's own: its boundary is drawn, and "Gränser" and G turn it off and on.
+  // The milestone is not celebrated again.
   const allDone = await quiz.evaluate(() => {
     const a = window.stjarnhimlen;
     a.training.group = -1;
@@ -1179,6 +1258,8 @@ try {
       line.trim() === `Repetition från grupp ${own + 1} av 28` || line];
   });
   assert.deepEqual(allDone, [-1, true, false, 'true', false, true]);
+  // The goal stopped at the winter sky: the next step stays on offer.
+  assert.equal(await quiz.evaluate(() => { const b = document.getElementById('btn-train-next-goal'); return b.hidden ? '' : b.textContent; }), 'Vidare till resten av Sverige');
   await quiz.keyboard.press('g');
   assert.equal(await quiz.evaluate(() => window.stjarnhimlen.training.showBounds), false);
   await quiz.keyboard.press('g');

@@ -15,13 +15,16 @@ import { groupOutline } from './sky/group-outline.js';
 import { findNeighbours } from './sky/neighbours.js';
 import { winterOf } from './sky/winter.js';
 import { chunksOf, STAGES, stagesOf } from './sky/curriculum.js';
-import { grade, groupToLearn, isDue, nextCard, NOW_AFTER, PERMANENT, takeUp, trainingProgress } from './sky/training.js';
+import {
+  afterPractice, grade, groupToLearn, isDue, nextCard, NOW_AFTER, PERMANENT, practiceRound, stageLearnt, takeUp, trainingProgress,
+} from './sky/training.js';
 import { DEFAULT_FOV, MAX_FOV, MIN_FOV, SkyView } from './sky/view.js';
 import { DiscoverPanel } from './ui/discover-panel.js';
 import { ThemePanel } from './ui/theme-panel.js';
 import { TrainPanel } from './ui/train-panel.js';
 import { GroupsPanel } from './ui/groups-panel.js';
 import { applyTheme, DEFAULT_THEME, THEMES } from './ui/themes.js';
+import { celebrate } from './ui/confetti.js';
 import { InfoCard } from './ui/info-card.js';
 import { attachSkyInput } from './ui/input.js';
 import { ListPanel } from './ui/list-panel.js';
@@ -169,6 +172,25 @@ export class App {
     this.training.view = null;
     /** The group last shown whole as it was taken up, so that it is not shown again before its first card. */
     this.training.introduced = -1;
+    /** The steps learnt in full ('winter', 'sweden', 'all'): each milestone is celebrated once. */
+    this.training.milestones = new Set((Array.isArray(tr.milestones) ? tr.milestones : []).filter((id) => STAGES.some((st) => st.id === id)));
+    /**
+     * A practice round over a step learnt, or null: the step, the cards still to come (the
+     * first is shown; a miss comes back a little later), how many it began with, and those
+     * missed on the way.
+     */
+    this.training.practice = null;
+    const pr = tr.practice && typeof tr.practice === 'object' ? tr.practice : null;
+    if (pr && this.training.milestones.has(pr.stage) && Array.isArray(pr.queue)) {
+      const indices = (list) => (Array.isArray(list) ? list : []).map((id) => this.catalog.byId.get(id)?.index).filter((i) => i !== undefined);
+      const queue = indices(pr.queue);
+      if (queue.length) {
+        this.training.practice = {
+          stage: pr.stage, queue, total: Number.isInteger(pr.total) && pr.total >= queue.length ? pr.total : queue.length,
+          missed: new Set(indices(pr.missed)),
+        };
+      }
+    }
     this.reveal = null;
     this.discoveryInfo = null;
     /** The constellation found last, named in the panel and on the sky until the next find. */
@@ -530,8 +552,8 @@ export class App {
     this.closeList();
     this.closeGroups();
     if (on) {
-      // A group shown whole when training was left is shown again.
-      if (t.view) this.showTrainingGroup(t.view.group, t.view.kind);
+      // A group or step shown whole when training was left is shown again.
+      if (t.view) this.showTrainingView(t.view);
       else this.nextTrainingCard({ again: t.card });
     } else {
       const wasBelow = t.below;
@@ -555,7 +577,7 @@ export class App {
     if (t.on && t.view) {
       this.anim = null;
       this.trainingChanged();
-      this.flyTo(this.chunks[t.view.group].members, { instant: true, atLeast: TRAIN_FOV });
+      this.flyTo(this.viewCamera(t.view), { instant: true, atLeast: TRAIN_FOV });
       return;
     }
     if (!t.on || t.card < 0) return;
@@ -628,6 +650,8 @@ export class App {
   chooseTrainingGroup(k) {
     const t = this.training;
     if (!this.chunks[k]) return;
+    // Taking up a group ends a practice round.
+    t.practice = null;
     if (k !== t.group) {
       t.group = k;
       t.groupSeen = new Set();
@@ -641,24 +665,121 @@ export class App {
    * has just been learnt ('done'), and when it is come to for the first time or chosen in
    * the overview ('intro'). A tap, Space or the button goes on.
    */
-  showTrainingGroup(k, kind, { instant = false } = {}) {
+  showTrainingGroup(k, kind, options) {
+    this.showTrainingView({ group: k, kind }, options);
+  }
+
+  /**
+   * Shows constellations together on the sky between cards: a group ({group, kind: 'done' |
+   * 'intro'}), or every one of a step learnt ({group: -1, stage, kind: 'milestone' when the
+   * step has just been learnt in full, 'practiced' after a practice round over it}).
+   */
+  showTrainingView(view, { instant = false } = {}) {
     const t = this.training;
-    t.view = { group: k, kind };
-    if (kind === 'intro') t.introduced = k;
+    t.view = view;
+    if (view.kind === 'intro') t.introduced = view.group;
     t.step = 0;
     t.namedAt = performance.now();
     this.trainingChanged();
-    this.flyTo(this.chunks[k].members, { instant, atLeast: TRAIN_FOV });
+    this.flyTo(this.viewCamera(view), { instant, atLeast: TRAIN_FOV });
     this.saveSoon();
+  }
+
+  /** The constellations of the steps as far as a milestone ('winter', 'sweden' or 'all'). */
+  stageMembers(stage) {
+    return this.catalog.constellations.filter((c) => this.inScope(c.index, stage)).map((c) => c.index);
+  }
+
+  /** What a view shows together: a group's members, or every constellation of a step. */
+  viewMembers(view) {
+    return view.group >= 0 ? this.chunks[view.group].members : this.stageMembers(view.stage);
+  }
+
+  /** What the camera frames for a view: the whole sky is framed by the part of it that is up. */
+  viewCamera(view) {
+    const members = this.viewMembers(view);
+    if (view.group >= 0 || view.stage !== 'all') return members;
+    this.view.timeMs = this.now();
+    this.view.update();
+    const up = members.filter((i) => this.view.altOf(this.catalog.constellations[i].centerVec) > 0);
+    return up.length ? up : members;
+  }
+
+  /** The first step learnt in full that has not been celebrated yet ('winter', 'sweden', 'all'), or null. */
+  newMilestone() {
+    const t = this.training;
+    return STAGES.find((st) => !t.milestones.has(st.id) && stageLearnt(t.cards, this.chunks, st.upTo))?.id ?? null;
+  }
+
+  /** A step learnt in full: shown whole, celebrated, and remembered so that it is celebrated once. */
+  showMilestone(stage, { instant = false } = {}) {
+    this.training.milestones.add(stage);
+    this.showTrainingView({ group: -1, stage, kind: 'milestone' }, { instant });
+    celebrate(this.doc, { big: stage === 'all' });
+  }
+
+  /** Whether every group of a step, and of the steps before it, is learnt now. */
+  stageIsLearnt(stage) {
+    return stageLearnt(this.training.cards, this.chunks, STAGES.find((st) => st.id === stage).upTo);
+  }
+
+  /**
+   * The step to go on to once every group within the goal is learnt and the goal stops short
+   * of the whole sky, or null: offered for as long as the learner stays with repetitions.
+   */
+  nextGoal() {
+    const t = this.training;
+    const k = STAGES.findIndex((st) => st.id === t.goal);
+    return t.group < 0 && STAGES[k + 1] && t.milestones.has(t.goal) ? STAGES[k + 1].id : null;
+  }
+
+  /** The step to go on to after a milestone, when the goal stopped there, or null. */
+  milestoneNextGoal(stage) {
+    const k = STAGES.findIndex((st) => st.id === stage);
+    return this.training.goal === stage && STAGES[k + 1] ? STAGES[k + 1].id : null;
+  }
+
+  /**
+   * A round through every constellation of a step learnt ('winter', 'sweden' or 'all'),
+   * each once in a shuffled order, a miss coming back a little later, whatever group is
+   * being learnt. The answers count as any others.
+   */
+  startPractice(stage) {
+    const t = this.training;
+    if (!t.milestones.has(stage)) return;
+    const queue = practiceRound(this.stageMembers(stage));
+    t.practice = { stage, queue, total: queue.length, missed: new Set() };
+    t.view = null;
+    this.groupsPanel.toggle(false);
+    if (t.on) this.nextTrainingCard();
+    else this.setTraining(true);
+  }
+
+  /** Ends a practice round before its end; the learning goes on where it was. */
+  stopPractice() {
+    if (!this.training.practice) return;
+    this.training.practice = null;
+    this.nextTrainingCard();
   }
 
   /** Goes on from a group shown whole: after an introduction with its first card not yet answered. */
   leaveTrainingGroup() {
     const t = this.training;
     if (!t.view || performance.now() - t.namedAt < SECOND_TAP_MS) return;
-    const { group, kind } = t.view;
+    const { group, kind, stage } = t.view;
     t.view = null;
-    if (kind === 'done') {
+    if (kind === 'milestone') {
+      // On to the next step when the goal stopped at this one.
+      const next = this.milestoneNextGoal(stage);
+      if (next) {
+        t.goal = next;
+        this.groupsPanel.render();
+      }
+      this.nextTrainingCard();
+      return;
+    }
+    if (kind === 'practiced') t.practice = null;
+    if (kind === 'done' || kind === 'practiced') {
       this.nextTrainingCard();
       return;
     }
@@ -697,11 +818,31 @@ export class App {
   nextTrainingCard({ instant = false, again = -1, intro = true } = {}) {
     const t = this.training;
     t.view = null;
+    // A practice round goes through its cards, and ends with the step shown whole.
+    if (t.practice) {
+      const p = t.practice;
+      if (!p.queue.length) {
+        this.showTrainingView({ group: -1, stage: p.stage, kind: 'practiced' }, { instant });
+        return;
+      }
+      t.card = p.queue[0];
+      t.step = 1;
+      this.trainingChanged();
+      this.flyTo(t.card, { instant, fov: TRAIN_FOV });
+      this.saveSoon();
+      return;
+    }
     const before = t.group;
     const k = this.trainingGroup();
     // A group just learnt is shown whole, and so is one come to for the first time.
     if (before >= 0 && k !== before) {
       this.showTrainingGroup(before, 'done', { instant });
+      return;
+    }
+    // A step learnt in full is a milestone: after its last group, the whole step together.
+    const milestone = this.newMilestone();
+    if (milestone) {
+      this.showMilestone(milestone, { instant });
       return;
     }
     if (intro && k >= 0 && k !== t.introduced && !this.chunks[k].members.some((i) => t.cards.get(i)?.n > 0)) {
@@ -759,7 +900,15 @@ export class App {
     if (!t.on || t.view || t.card < 0) return;
     t.cards.set(t.card, grade(t.cards.get(t.card), answer, t.turn, Date.now()));
     t.turn++;
+    // An answer counts for the group being learnt whether it came in a practice round or not.
     if (this.chunks[t.group]?.members.includes(t.card)) t.groupSeen.add(t.card);
+    const p = t.practice;
+    if (p && p.queue[0] === t.card) {
+      if (answer === 'again') p.missed.add(t.card);
+      p.queue = afterPractice(p.queue, answer);
+      // A round gone through without a miss is celebrated as it ends, once.
+      if (!p.queue.length && !p.missed.size) celebrate(this.doc);
+    }
     this.nextTrainingCard();
   }
 
@@ -772,7 +921,7 @@ export class App {
     const t = this.training;
     if (part === 'bounds') {
       // With no card and no group there is nothing to draw round.
-      if (!this.chunks[this.trainingGroupShown()]) return;
+      if (this.trainingOutlineKey() === null) return;
       t.showBounds = !t.showBounds;
     } else if (t.view) return;
     else if (part === 'lines') t.showLines = !t.showLines;
@@ -803,10 +952,25 @@ export class App {
    */
   trainingOutline() {
     const t = this.training;
+    const key = this.trainingOutlineKey();
+    if (!t.on || !t.showBounds || key === null) return null;
+    if (!this.groupOutlines.has(key)) {
+      const members = typeof key === 'number' ? this.chunks[key].members : this.stageMembers(key);
+      this.groupOutlines.set(key, groupOutline(this.catalog.constellations, members));
+    }
+    return this.groupOutlines.get(key);
+  }
+
+  /**
+   * What the boundary goes round: the index of the group the sky marks, a step's id while
+   * the step is shown whole (the part of the sky learnt), or null when there is nothing.
+   */
+  trainingOutlineKey() {
+    const t = this.training;
+    // The whole sky has nothing round it.
+    if (t.view && t.view.group < 0) return t.view.stage === 'all' ? null : t.view.stage;
     const k = this.trainingGroupShown();
-    if (!t.on || !t.showBounds || !this.chunks[k]) return null;
-    if (!this.groupOutlines.has(k)) this.groupOutlines.set(k, groupOutline(this.catalog.constellations, this.chunks[k].members));
-    return this.groupOutlines.get(k);
+    return this.chunks[k] ? k : null;
   }
 
   setTrainingStory(open) {
@@ -823,6 +987,8 @@ export class App {
     this.training.group = -1;
     this.training.groupSeen = new Set();
     this.training.view = null;
+    this.training.milestones.clear();
+    this.training.practice = null;
     this.nextTrainingCard();
   }
 
@@ -831,7 +997,7 @@ export class App {
     const t = this.training;
     t.stars = null;
     t.below = false;
-    const shown = !t.on ? [] : t.view ? this.chunks[t.view.group].members : t.card >= 0 ? [t.card] : [];
+    const shown = !t.on ? [] : t.view ? this.viewMembers(t.view) : t.card >= 0 ? [t.card] : [];
     if (shown.length) {
       const { catalog } = this;
       // The card's stars, and those of its group's members already known, stand out.
@@ -1188,7 +1354,7 @@ export class App {
     // While training, the cards decide on lines, names and drawings, and "Gränser" turns
     // the boundary round the group on and off; with no group to mark, it rests too.
     const training = this.training.on;
-    const hasGroup = training && Boolean(this.chunks[this.trainingGroupShown()]);
+    const hasGroup = training && this.trainingOutlineKey() !== null;
     for (const b of this.toggleButtons) {
       const isBounds = b.dataset.layer === 'bounds';
       const group = hasGroup && isBounds;
@@ -1279,6 +1445,13 @@ export class App {
           goal: this.training.goal,
           group: this.chunks[this.training.group]?.name ?? null,
           seen: [...this.training.groupSeen].map((i) => this.catalog.constellations[i].id),
+          milestones: [...this.training.milestones],
+          practice: this.training.practice && {
+            stage: this.training.practice.stage,
+            queue: this.training.practice.queue.map((i) => this.catalog.constellations[i].id),
+            total: this.training.practice.total,
+            missed: [...this.training.practice.missed].map((i) => this.catalog.constellations[i].id),
+          },
           cards: [...this.training.cards].map(([i, c]) => [this.catalog.constellations[i].id, c.level, c.dueTurn, c.dueAt, c.n]),
         },
       });
@@ -1366,8 +1539,9 @@ export class App {
     v.update();
     // While training, the sky shows the card and nothing else: no marks, tints or hover.
     const t = this.training;
-    // A whole group shown together: every member with its lines, drawing and name.
-    const together = t.on && t.view ? this.chunks[t.view.group].members : null;
+    // A whole group shown together: every member with its lines, drawing and name. A whole
+    // step: lines and names, without the drawings, and the names that find no room left out.
+    const together = t.on && t.view ? this.viewMembers(t.view) : null;
     const quiz = together ? {
       target: together[0],
       targets: together,
@@ -1375,7 +1549,8 @@ export class App {
       step: 3,
       stars: t.stars,
       lines: true,
-      art: true,
+      art: t.view.group >= 0,
+      crowd: t.view.group < 0,
       outline: this.trainingOutline(),
     } : t.on && t.card >= 0 ? {
       target: t.card,

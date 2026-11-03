@@ -142,11 +142,16 @@ export class HudLayer {
     }
   }
 
-  /** The training card's name once it is revealed, or the names of a group shown together. */
+  /**
+   * The training card's name once it is revealed, or the names of a group shown together,
+   * or of a whole step (quiz.crowd: smaller, and a name that finds no room is left out).
+   */
   drawQuizName(view, st) {
     const { ctx, pt } = this;
-    const font = `600 16px ${this.fontFamily}`;
-    const spacing = 16 * 0.18;
+    const crowd = Boolean(st.quiz.crowd);
+    const size = crowd ? 13 : 16;
+    const font = `600 ${size}px ${this.fontFamily}`;
+    const spacing = size * 0.18;
     // A group's names keep clear of each other and inside the screen: one that would run
     // into another moves a line up or down, and none is left out.
     const taken = st.avoid ? [...st.avoid] : [];
@@ -158,12 +163,16 @@ export class HudLayer {
         ctx.font = font;
         if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacing.toFixed(1)}px`;
         const half = ctx.measureText(text).width / 2 + 4;
+        // In a crowd a name off the screen's edge is left out rather than pulled in over
+        // another figure, and one moves no further than a line.
+        if (crowd && (pt.x < half || pt.x > view.width - half)) continue;
         pt.x = Math.min(Math.max(pt.x, half), view.width - half);
         const y0 = pt.y;
-        const clear = [0, 22, -22, 44, -44].some((dy) => {
+        const clear = (crowd ? [0, 18, -18] : [0, 22, -22, 44, -44]).some((dy) => {
           pt.y = y0 + dy;
-          return !this.covered(text, font, spacing, 16, taken);
+          return !this.covered(text, font, spacing, size, taken);
         });
+        if (!clear && crowd) continue;
         if (!clear) pt.y = y0;
         this.label(text, pt.x, pt.y, font, SELECT_COLOR.hex, spacing, true);
       }
