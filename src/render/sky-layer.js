@@ -63,7 +63,8 @@ export class SkyLayer {
   /**
    * @param {import('../sky/view.js').SkyView} view
    * @param {object} st  render state: layers, marks (Map index -> colour index),
-   *   selected, hover, groundOpaque, artShown(index), anyArt, and reveal while
+   *   selected, hover, groundOpaque, artShown(index), anyArt, groupBounds (lines round the
+   *   groups found so far, while discovering with the groups' boundaries chosen, else null), and reveal while
    *   discovering the sky: {con: Uint8Array per constellation (1 found, 2 can be added
    *   next, 0 hidden), stars: Uint8Array per star (1 shown)}, otherwise null; recent (the
    *   constellation found last) and avoid (screen boxes names keep clear of) are for the HUD;
@@ -90,8 +91,15 @@ export class SkyLayer {
     const found = (c) => !rv || rv.con[c.index] === 1;
 
     // Boundaries (while training only the one round the group: a constellation's own
-    // would give the answer away)
-    if (st.layers.bounds && !st.quiz) {
+    // would give the answer away). While discovering they can go round each group instead.
+    if (st.layers.bounds && !st.quiz && st.groupBounds) {
+      ctx.setLineDash([6, 5]);
+      ctx.lineWidth = 1.3;
+      ctx.strokeStyle = SKY.groupBound;
+      ctx.beginPath();
+      this.tracePolyline(view, st.groupBounds, false);
+      ctx.stroke();
+    } else if (st.layers.bounds && !st.quiz) {
       ctx.setLineDash([3, 4]);
       ctx.lineWidth = 1;
       ctx.strokeStyle = SKY.bound;

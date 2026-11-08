@@ -122,6 +122,9 @@
 .panel .chip:not(.primary):not(.toggle)[aria-expanded="true"] { background: var(--sky-blue); border-color: var(--sky-blue);
   color: var(--on-bright); }
 .panel .chip[aria-pressed="true"] .muted { color: rgba(8, 19, 31, 0.8); }
+/* A chosen one stays chosen under the pointer (and after a tap, where hover lingers). */
+.panel .chip:not(.primary):not(.toggle)[aria-pressed="true"]:not(:disabled):hover { background: #84d0ff; border-color: #84d0ff;
+  color: var(--on-bright); }
 /* Switches in a panel (lines, drawing, boundary) stay quiet beside the answers: a dark
    button with its colour in the marker and the rim. */
 .panel .toggle { background: transparent; border-color: var(--ring-soft); color: var(--ink-2); box-shadow: none; }

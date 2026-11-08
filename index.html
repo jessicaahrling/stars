@@ -168,6 +168,10 @@
     .discover-next .state:empty, .panel-groups .state:empty { display: none; }
     .discover-next .chip.below { color: var(--ink-2); border-style: dashed; }
     .discover-foot { display: flex; flex-wrap: wrap; gap: 6px; }
+    /* Which boundaries Upptäck draws: none, each constellation's or each group's. */
+    .discover-bounds { align-items: center; gap: 4px; }
+    .discover-bounds .seg-label { font-size: 12px; color: var(--ink-2); margin-right: 2px; }
+    .discover-bounds .chip { min-height: 30px; padding: 0 8px; font-size: 12px; }
     .discover-foot .chip { min-height: 32px; padding: 0 11px; font-size: 12px; color: var(--ink-2); }
     .discover-foot .chip.primary { color: #1b1406; }
     .discover-foot .chip:disabled { opacity: 0.45; cursor: default; }
@@ -389,6 +393,12 @@
     <div id="discover-body" class="discover-body">
       <p id="discover-hint" class="discover-hint" aria-live="polite"></p>
       <div id="discover-next" class="discover-next" role="group" aria-label="Grannar att lägga till"></div>
+      <div class="seg discover-bounds" role="group" aria-label="Gränser">
+        <span class="seg-label" aria-hidden="true">Gränser:</span>
+        <button id="discover-bounds-none" type="button" class="chip" aria-pressed="false">Inga</button>
+        <button id="discover-bounds-constellation" type="button" class="chip" aria-pressed="false" title="Gränsen runt varje stjärnbild">Stjärnbilder</button>
+        <button id="discover-bounds-group" type="button" class="chip" aria-pressed="false" title="Gränsen runt varje grupp av stjärnbilder som hör ihop, så långt du har upptäckt den">Grupper</button>
+      </div>
       <div class="discover-foot">
         <button id="btn-discover-rest" type="button" class="chip primary" hidden></button>
         <button id="btn-discover-restart" type="button" class="chip">Börja om</button>

@@ -517,6 +517,25 @@ try {
   assert.equal(await sky.textContent('#toast'), 'Tog bort 1 markering');
   assert.deepEqual(await sky.evaluate(() => [...window.stjarnhimlen.marks.keys()].map((i) => window.stjarnhimlen.catalog.constellations[i].id)), ['Ori']);
   await sky.click('#btn-list-close');
+  // Upptäck draws each constellation's boundary, or each group's instead (the line round the
+  // members of a group found so far), or none.
+  const boundsChoice = () => sky.$$eval('.discover-bounds .chip', (els) => els.map((el) => `${el.textContent}:${el.getAttribute('aria-pressed')}`));
+  assert.deepEqual(await boundsChoice(), ['Inga:false', 'Stjärnbilder:true', 'Grupper:false']);
+  await sky.click('#discover-bounds-group');
+  assert.deepEqual(await boundsChoice(), ['Inga:false', 'Stjärnbilder:false', 'Grupper:true']);
+  const grouped = await drawnParts();
+  assert.ok(!grouped.outlines.includes('UMa'), 'no boundary of its own round Ursa Major');
+  assert.deepEqual(await sky.evaluate(() => {
+    const a = window.stjarnhimlen;
+    const lines = a.discoverGroupOutlines();
+    // Found so far: Ursa Major alone, so its group's line goes all the way round it.
+    const first = lines[0];
+    return [lines.length, Math.hypot(...first[0].map((x, k) => x - first.at(-1)[k])) < 1e-6];
+  }), [1, true]);
+  await sky.click('#discover-bounds-none');
+  assert.deepEqual([await boundsChoice(), await sky.getAttribute('[data-layer="bounds"]', 'aria-pressed')], [['Inga:true', 'Stjärnbilder:false', 'Grupper:false'], 'false']);
+  await sky.click('#discover-bounds-constellation');
+  assert.equal(await sky.getAttribute('[data-layer="bounds"]', 'aria-pressed'), 'true');
   await sky.evaluate(() => {
     const a = window.stjarnhimlen;
     a.marks.clear();

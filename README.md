@@ -26,7 +26,10 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   horisonten just nu står som "nere" i panelen, och "Fortsätt med resten av himlen" gör
   marken genomskinlig eftersom de stjärnbilderna aldrig går upp här. Panelen kan fällas
   ihop. "Visa hela himlen" visar allt igen och knappen "Upptäck" går tillbaka dit man var.
-  "Börja om" tar två tryck.
+  "Börja om" tar två tryck. Under **Gränser** i panelen väljer man vilka gränser som ritas:
+  **Inga**, runt varje **stjärnbild** eller runt varje **grupp** (samma 28 grupper som i
+  Träna), och då går gränsen runt de stjärnbilder i gruppen man har hittat hittills, så att
+  den växer med upptäckterna.
 - **Överblick:** himlen att titta på, med en enkel panel. **Bilder** slår på och av alla
   bilder på en gång, och man väljer vilka stjärnbilder som visas: **Vinterhimlen**, de som
   **syns från** orten eller **Alla**. Valet är detsamma som listans filter, så listan och

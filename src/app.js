@@ -103,6 +103,8 @@ export class App {
       on: disc.on !== false,
       all: disc.all === true,
       collapsed: disc.collapsed === true,
+      // The boundaries drawn while discovering: each constellation's, or each group's.
+      boundsBy: disc.boundsBy === 'group' ? 'group' : 'constellation',
       // Whether "Fortsätt med resten av himlen" turned on see-through ground (a restart turns it off again).
       autoSeeThrough: disc.autoSeeThrough === true,
       found: new Set(),
@@ -562,6 +564,48 @@ export class App {
       this.showToast(`${c.sv} är ${state === 'down' ? 'under' : 'delvis under'} horisonten just nu. Slå på Se genom marken för att se ${c.plural ? 'dem' : 'den'}.`);
     }
     this.saveSoon();
+  }
+
+  /**
+   * Which boundaries Upptäck draws: 'none', each constellation's ('constellation') or each
+   * group's ('group', round the members of it found so far). The first is the layer
+   * "Gränser" turned off; the others turn it on.
+   */
+  setDiscoverBounds(choice) {
+    if (choice === 'none') {
+      this.setLayer('bounds', false);
+      return;
+    }
+    if (choice !== 'constellation' && choice !== 'group') return;
+    this.discovery.boundsBy = choice;
+    if (this.layers.bounds) {
+      this.discoverPanel.render();
+      this.invalidate();
+      this.saveSoon();
+    } else this.setLayer('bounds', true);
+  }
+
+  /** What "Gränser" draws in Upptäck now: 'none', 'constellation' or 'group'. */
+  discoverBounds() {
+    return this.layers.bounds ? this.discovery.boundsBy : 'none';
+  }
+
+  /**
+   * While discovering with the groups' boundaries chosen: the boundary round the members of
+   * each group found so far, as lines of unit vectors; otherwise null. Each is worked out
+   * once for the members it has.
+   */
+  discoverGroupOutlines() {
+    if (!this.discovering || !this.layers.bounds || this.discovery.boundsBy !== 'group') return null;
+    const lines = [];
+    this.chunks.forEach((ch, k) => {
+      const found = ch.members.filter((i) => this.discovery.found.has(i));
+      if (!found.length) return;
+      const key = `found:${k}:${found.join(',')}`;
+      if (!this.groupOutlines.has(key)) this.groupOutlines.set(key, groupOutline(this.catalog.constellations, found));
+      lines.push(...this.groupOutlines.get(key));
+    });
+    return lines;
   }
 
   /** Goes on from the constellations seen from here to the rest of the sky, which never rise here. */
@@ -1499,6 +1543,7 @@ export class App {
           on: this.discovery.on,
           all: this.discovery.all,
           collapsed: this.discovery.collapsed,
+          boundsBy: this.discovery.boundsBy,
           autoSeeThrough: this.discovery.autoSeeThrough,
           found: [...this.discovery.found].map((i) => this.catalog.constellations[i].id),
         },
@@ -1675,6 +1720,7 @@ export class App {
       artShown: (i) => this.isFound(i) && this.artShown(i),
       anyArt: this.anyArtShown(),
       reveal: this.reveal,
+      groupBounds: this.discoverGroupOutlines(),
       recent: this.reveal ? this.lastFound : -1,
       avoid: this.labelObstacles(),
       quiz: null,

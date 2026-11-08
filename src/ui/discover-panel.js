@@ -40,6 +40,9 @@ export class DiscoverPanel {
       this.next.querySelector('button')?.focus();
     });
     this.restart.addEventListener('click', () => this.onRestart());
+    // Which boundaries to draw: none, each constellation's or each group's.
+    this.bounds = Object.fromEntries(['none', 'constellation', 'group'].map((k) => [k, $(`discover-bounds-${k}`)]));
+    for (const [k, b] of Object.entries(this.bounds)) b.addEventListener('click', () => app.setDiscoverBounds(k));
   }
 
   /** Restarting throws the progress away, so it takes a second press to confirm. */
@@ -93,6 +96,8 @@ export class DiscoverPanel {
     this.rest.hidden = !(info.done && !d.all && left);
     this.rest.textContent = `Fortsätt med resten av himlen (${left} till)`;
     this.restart.textContent = this.confirming ? 'Säker? Tryck igen' : 'Börja om';
+    const bounds = app.discoverBounds();
+    for (const [k, b] of Object.entries(this.bounds)) b.setAttribute('aria-pressed', String(k === bounds));
     this.restart.disabled = d.found.size === 1 && !d.all;
 
     const key = info.next.join(',');
