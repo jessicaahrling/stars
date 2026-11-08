@@ -1,18 +1,21 @@
 # Färgbilder, test
 
 Five test drawings in the style of the star maps in the chapter "En rymdresa": cartoon
-figures built straight on the stick-figure lines, in flat colours with dark outlines, as
+figures that follow the stick-figure lines exactly, in flat colours with dark outlines, as
 vector graphics in the same frame as the line drawings in `art/` (10 units = 1 degree,
-x west/right, y south/down; see `art/STYLE.md`). Every figure star sits on the part of the
-figure it belongs to:
+x west/right, y south/down; see `art/STYLE.md`). The outlines are polygons with their
+corners at the stars, so that every line is an edge of the figure, and limbs and tails are
+straight strips along the lines with their joints at the stars. Only details inside the
+figure (faces, manes, stripes) are drawn freely.
 
 - **UMi, Lilla björnen:** a little bear hanging upside down by its tail; the bowl is its
   body (paws on η and Kochab, head by Pherkad), the handle its tail, Polstjärnan the tip.
 - **Aur, Kusken:** the coachman lets his horse wear his party hat. The hexagon is the
-  horse's head (nostril at Hassaleh, chin at Elnath), the triangle Menkalinan–δ–Capella
-  the hat, and a tiny singer on ε–ζ sings a cappella by Capella.
-- **Leo, Lejonet:** a proud lion walking west, its head in the Sickle (brow at Rasalas,
-  nose at Algenubi), Denebola the tuft of its tail and Regulus the paw on the rule book.
+  horse's head (nostril by Hassaleh, mouth by Elnath), the triangle Menkalinan–δ–Capella
+  the hat, Capella–ε–ζ an ear, and a tiny singer sings a cappella by Capella.
+- **Leo, Lejonet:** a proud lion walking west: the body Regulus–η–Algieba–Zosma–Chertan,
+  the tail the triangle Zosma–Denebola–Chertan with its tuft at Denebola, the mane and face
+  along the Sickle (brow at Rasalas, nose at Algenubi), Regulus the paw on the rule book.
 - **Gem, Tvillingarna:** two twins in green suits, heads at Castor (the pastor) and Pollux
   (allergic to pollen), their limbs along the lines.
 - **Boo, Björnvaktaren:** the bear keeper with a big nose and moustache: the kite is his

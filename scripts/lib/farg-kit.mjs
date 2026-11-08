@@ -61,6 +61,32 @@ export function tube(points, w0, w1 = w0) {
   return smooth(ring.filter((_, i) => i % 2 === 0 || i === left.length), true);
 }
 
+/**
+ * A straight-sided strip along a polyline, for limbs and tails that follow the lines
+ * exactly: sharp (mitred) joints at the stars, square ends; half-widths per point (one
+ * number for all).
+ */
+export function strip(points, widths) {
+  const w = (i) => (Array.isArray(widths) ? widths[i] : widths) / 2;
+  const n = points.length;
+  const dir = (i) => norm(sub(points[i + 1], points[i]));
+  const left = [], right = [];
+  for (let i = 0; i < n; i++) {
+    const d1 = dir(Math.max(0, i - 1));
+    const d2 = dir(Math.min(n - 2, i));
+    const n1 = [-d1[1], d1[0]], n2 = [-d2[1], d2[0]];
+    let m = norm(add(n1, n2));
+    const cos = Math.max(0.35, m[0] * n2[0] + m[1] * n2[1]);
+    m = mul(m, w(i) / cos);
+    left.push(add(points[i], m));
+    right.push(sub(points[i], m));
+  }
+  return poly([...left, ...right.reverse()]);
+}
+
+/** A point part of the way from a to b (t from 0 to 1). */
+export const on = (a, b, t) => lerp(a, b, t);
+
 export function ellipse(cx, cy, rx, ry = rx, rot = 0) {
   const pts = [];
   for (let k = 0; k < 8; k++) {
