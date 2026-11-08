@@ -97,6 +97,8 @@
 /* Yellow is kept for the main button; the row has the other colours. */
 #btn-discover { --c: #06d6a0; }
 #btn-train { --c: #f4a261; }
+#btn-overview { --c: #7fd6ff; }
+#overview-art { --c: #ef7674; }
 [data-layer="lines"], #btn-train-lines { --c: #74b9ff; }
 [data-layer="figureStarsOnly"] { --c: #b39ddb; }
 [data-layer="art"], #btn-train-art { --c: #ef7674; }
@@ -177,7 +179,7 @@ input[type="range"] { accent-color: var(--yellow); }
 .discover-head .icon-btn { border-width: 2px; }
 
 /* What the app says to the learner is a speech bubble: white, dark type, heavy. */
-#discover-hint, #train-prompt { background: var(--bubble); color: var(--bubble-ink); font-weight: 700;
+#discover-hint, #train-prompt, #overview-hint { background: var(--bubble); color: var(--bubble-ink); font-weight: 700;
   padding: 7px 11px; border-radius: 14px; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); }
 #discover-hint:empty { display: none; }
 
@@ -267,6 +269,10 @@ input[type="range"] { accent-color: var(--yellow); }
   .bar-top .chip { padding: 0 8px; font-size: 13px; }
   .brand svg { width: 30px; }
 }
+/* Narrow phones: the three games fit beside the zoom buttons; filled when on, no marker. */
+@media (max-width: 420px) {
+  #btn-discover::before, #btn-train::before, #btn-overview::before { display: none; }
+}
 /* Small phones with marks counted: the logo gives way to the badge. */
 @media (max-width: 380px) {
   .bar-top:has(#mark-count:not([hidden])) .brand { display: none; }
@@ -280,7 +286,7 @@ input[type="range"] { accent-color: var(--yellow); }
 }
 /* Low screens (a phone on its side): smaller bubbles and bar, and always a row of neighbours. */
 @media (max-height: 480px) {
-  #discover-hint, #train-prompt { padding: 4px 9px; font-size: 13px; }
+  #discover-hint, #train-prompt, #overview-hint { padding: 4px 9px; font-size: 13px; }
   .meter { height: 5px; }
   #discover-next { min-height: 46px; }
 }

@@ -27,6 +27,13 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   marken genomskinlig eftersom de stjärnbilderna aldrig går upp här. Panelen kan fällas
   ihop. "Visa hela himlen" visar allt igen och knappen "Upptäck" går tillbaka dit man var.
   "Börja om" tar två tryck.
+- **Överblick:** himlen att titta på, med en enkel panel. **Bilder** slår på och av alla
+  bilder på en gång, och man väljer vilka stjärnbilder som visas: **Vinterhimlen**, de som
+  **syns från** orten eller **Alla**. Valet är detsamma som listans filter, så listan och
+  himlen visar samma stjärnbilder. Ett tryck på en stjärnbild öppnar dess kort, med fakta
+  och berättelse, och ett tryck till eller på himlen runt om stänger det. Trycker man på en
+  som inte är med säger appen varför. Överblick, Upptäck och Träna är aldrig på samtidigt,
+  och var och en behåller sitt läge.
 - **Träna:** flashcards med spaced repetition. En stjärnbild visas först med bara sina
   stjärnor (de runtomkring dämpas), alltid lika utzoomad som himlen öppnar, så att den
   syns i sin rätta storlek bland grannarna. Ett tryck på himlen visar linjerna, nästa

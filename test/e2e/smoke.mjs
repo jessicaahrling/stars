@@ -1456,6 +1456,76 @@ try {
     assert.equal(await phone.evaluate(() => document.documentElement.dataset.theme), shown, JSON.stringify(saved));
   }
 
+  // "Överblick": the sky to look at, filtered as the list is, with the pictures on or off;
+  // a tap opens a constellation's card. It ends Upptäck, and is remembered.
+  const over = await openPage({ width: 1280, height: 800 }, { discover: true });
+  const overState = () => over.evaluate(() => {
+    const a = window.stjarnhimlen;
+    return {
+      on: a.overviewing, discovering: a.discovering, panel: !document.getElementById('panel-overview').hidden,
+      upptack: document.getElementById('btn-discover').getAttribute('aria-pressed'), scope: a.list.scope,
+      drawn: a.catalog.constellations.filter((c) => a.isFound(c.index)).length, count: document.getElementById('overview-count').textContent,
+      card: document.getElementById('card').hidden ? null : document.querySelector('#card h3').textContent,
+    };
+  });
+  await over.click('#btn-overview');
+  assert.deepEqual(await overState(), { on: true, discovering: false, panel: true, upptack: 'false', scope: 'year', drawn: 57, count: '57', card: null });
+  assert.equal(await over.textContent('#overview-hint'), 'Tryck på en stjärnbild för att läsa mer om den.');
+  // Only the winter sky: its figures alone on the sky, and in the list.
+  await over.click('#overview-winter');
+  assert.deepEqual([(await overState()).scope, (await overState()).drawn, (await overState()).count], ['winter', 34, '34']);
+  assert.equal(await over.getAttribute('#filter-winter', 'aria-pressed'), 'true', 'the list filters the same');
+  const inWinter = await over.evaluate(() => window.stjarnhimlen.catalog.constellations.filter((c) => window.stjarnhimlen.inScope(c.index, 'winter')).map((c) => c.id));
+  // All the pictures on, then off.
+  assert.equal(await over.getAttribute('#overview-art', 'aria-pressed'), 'false');
+  await over.click('#overview-art');
+  assert.equal(await over.getAttribute('#overview-art', 'aria-pressed'), 'true');
+  const overParts = await drawnParts(null, over);
+  assert.ok(overParts.art.length >= 8, `pictures drawn (${overParts.art.length})`);
+  assert.deepEqual([...overParts.art, ...overParts.names, ...overParts.segments].filter((id) => !inWinter.includes(id)), [], 'none outside the winter sky');
+  // A tap on Orion opens its card, a second one closes it.
+  const tapOn = async (id) => {
+    const p = await over.evaluate((cid) => {
+      const a = window.stjarnhimlen;
+      a.flyTo(a.catalog.byId.get(cid).index, { instant: true });
+      a.view.timeMs = a.now();
+      a.view.update();
+      const q = {};
+      a.view.projectEq(a.catalog.byId.get(cid).centerVec, q);
+      return q;
+    }, id);
+    await settle(over);
+    await over.mouse.click(p.x, p.y);
+  };
+  await tapOn('Ori');
+  assert.equal((await overState()).card, 'Orion');
+  assert.match(await over.textContent('#overview-hint'), /^Det här är Orion\./);
+  await tapOn('Ori');
+  assert.equal((await overState()).card, null);
+  // One left out says so, and opens nothing. (On a winter evening those up are the winter
+  // sky, so this one is looked for below the horizon, through the ground.)
+  await over.evaluate(() => window.stjarnhimlen.setLayer('seeThrough', true));
+  await tapOn('Sco');
+  assert.equal((await overState()).card, null);
+  assert.equal(await over.textContent('#toast'), 'Skorpionen hör inte till vinterhimlen. Välj Alla för att se den.');
+  await over.evaluate(() => window.stjarnhimlen.setLayer('seeThrough', false));
+  await over.click('#overview-art');
+  // Träna pauses it, as it pauses Upptäck.
+  await over.click('#btn-train');
+  assert.deepEqual([(await overState()).on, (await overState()).panel], [false, false]);
+  await over.click('#btn-train');
+  assert.deepEqual([(await overState()).on, (await overState()).panel, (await overState()).scope], [true, true, 'winter']);
+  // Remembered; Upptäck ends it.
+  await over.waitForFunction(() => {
+    const saved = JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}');
+    return saved.overview?.on === true && saved.training?.on === false;
+  });
+  await over.reload();
+  await over.waitForFunction(() => window.stjarnhimlen);
+  assert.deepEqual([(await overState()).on, (await overState()).scope], [true, 'winter']);
+  await over.click('#btn-discover');
+  assert.deepEqual([(await overState()).on, (await overState()).panel, (await overState()).discovering], [false, false, true]);
+
   assert.deepEqual(errors, [], 'no errors in the console');
   console.log('e2e smoke: ok');
 } finally {

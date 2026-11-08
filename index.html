@@ -199,6 +199,8 @@
       .panel-groups .con-list { flex: none; overflow: visible; }
     }
     .train-group b { font-weight: 500; color: var(--ink); }
+    /* The overview's panel scrolls when the screen is low, as the training panel does. */
+    .panel-overview .discover-body { overflow-y: auto; }
     /* The story: in the card laid out like the facts, in the training panel like its hints. */
     .story { display: grid; gap: 6px; }
     .story p { margin: 0; }
@@ -266,17 +268,30 @@
       .panel-train[data-step="3"] #train-milestones { display: none; }
       /* Shown whole, the group needs the sky; why it belongs together is in each card's story. */
       .panel-train[data-step="0"]:not([data-view="stage"]) #train-group-why { display: none; }
+      /* With a card open, the overview's panel keeps only its hint, so that some sky shows. */
+      .panel-overview.has-card .train-view, .panel-overview.has-card .overview-scope,
+      .panel-overview.has-card .discover-foot { display: none; }
       .discover-next::-webkit-scrollbar { display: none; }
     }
     /* Low screens: the milestones reached give way to the card, except when a step is shown. */
     @media (max-height: 480px) {
       .panel-train:not([data-step="0"]) #train-milestones { display: none; }
+      /* Low screens: the overview's choices on one scrolling row, without the hint. */
+      #overview-hint { display: none; }
+      .overview-scope { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    }
+    /* Narrow phones: the three games (Upptäck, Träna, Överblick) fit beside the zoom
+       buttons. A little less padding (a design's own wins), and in this design, where they
+       are shaded when on, no dot. */
+    @media (max-width: 420px) {
+      :root[data-theme="glas"] :is(#btn-discover, #btn-train, #btn-overview)::before { display: none; }
+      :where(.toggles) .toggle { padding: 0 10px; }
     }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
 </head>
 <body>
-  <div id="sky" role="application" aria-label="Stjärnhimlen. Dra för att titta runt, scrolla eller nyp för att zooma och klicka på en stjärnbild för att visa eller dölja dess illustration. I läget Upptäck lägger du till en granne genom att klicka på den.">
+  <div id="sky" role="application" aria-label="Stjärnhimlen. Dra för att titta runt, scrolla eller nyp för att zooma och klicka på en stjärnbild för att visa eller dölja dess illustration. I läget Upptäck lägger du till en granne genom att klicka på den, och i Överblick öppnar ett klick stjärnbildens kort.">
     <canvas id="layer-sky"></canvas>
     <canvas id="layer-stars"></canvas>
     <canvas id="layer-ground"></canvas>
@@ -419,6 +434,27 @@
     </div>
   </section>
 
+  <section id="panel-overview" class="panel panel-discover panel-overview" aria-label="Överblick" hidden>
+    <div class="discover-head">
+      <h2>Överblick</h2>
+      <span class="discover-progress"><b id="overview-count"></b> <span id="overview-of"></span></span>
+    </div>
+    <div class="discover-body">
+      <p id="overview-hint" class="discover-hint" aria-live="polite"></p>
+      <div class="train-view">
+        <button id="overview-art" type="button" class="chip toggle" aria-pressed="false" title="Visa eller dölj bilderna till alla stjärnbilder som visas">Bilder</button>
+      </div>
+      <div class="seg overview-scope" role="group" aria-label="Vilka stjärnbilder som visas">
+        <button id="overview-winter" type="button" class="chip" aria-pressed="false" title="De som syns kl. 22 i december–februari från både Stockholm och Göteborg">Vinterhimlen <span class="muted" id="overview-winter-count"></span></button>
+        <button id="overview-year" type="button" class="chip" aria-pressed="false">Syns från <span id="overview-place">Stockholm</span> <span class="muted" id="overview-year-count"></span></button>
+        <button id="overview-all" type="button" class="chip" aria-pressed="false">Alla <span class="muted" id="overview-all-count"></span></button>
+      </div>
+      <div class="discover-foot">
+        <button id="btn-overview-exit" type="button" class="chip">Stäng överblicken</button>
+      </div>
+    </div>
+  </section>
+
   <aside id="panel-groups" class="panel panel-list panel-groups" aria-label="Grupper" hidden>
     <div class="panel-head">
       <h2>Grupper</h2>
@@ -443,6 +479,7 @@
     <div class="toggles" id="toggles">
       <button type="button" class="chip toggle" id="btn-discover" aria-pressed="true" title="Börja med Stora björnen och lägg till grannarna en i taget">Upptäck</button>
       <button type="button" class="chip toggle" id="btn-train" aria-pressed="false" title="Se en stjärnbild och säg vilken det är">Träna</button>
+      <button type="button" class="chip toggle" id="btn-overview" aria-pressed="false" title="Titta på himlen, med eller utan bilder, alla stjärnbilder eller bara till exempel vinterhimlen, och tryck på en stjärnbild för att läsa mer">Överblick</button>
       <button type="button" class="chip toggle" data-layer="lines" aria-pressed="true">Linjer</button>
       <button type="button" class="chip toggle" data-layer="figureStarsOnly" aria-pressed="false" title="Visa bara stjärnorna som ingår i stjärnbildernas figurer">Bara figurstjärnor</button>
       <button type="button" class="chip toggle" data-layer="art" aria-pressed="false" title="Visa en teckning av vad varje stjärnbild föreställer">Illustrationer</button>

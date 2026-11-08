@@ -20,6 +20,7 @@ import {
 } from './sky/training.js';
 import { DEFAULT_FOV, MAX_FOV, MIN_FOV, SkyView } from './sky/view.js';
 import { DiscoverPanel } from './ui/discover-panel.js';
+import { OverviewPanel } from './ui/overview-panel.js';
 import { ThemePanel } from './ui/theme-panel.js';
 import { TrainPanel } from './ui/train-panel.js';
 import { GroupsPanel } from './ui/groups-panel.js';
@@ -91,6 +92,12 @@ export class App {
      * neighbours one at a time. `all` widens the goal from the constellations seen from
      * the chosen place to the whole sky.
      */
+    /**
+     * "Överblick": the sky with its constellations to look at, filtered as the list is,
+     * their pictures on or off; a tap opens a constellation's card. On or off, never
+     * together with Upptäck or Träna.
+     */
+    this.overview = { on: saved.overview?.on === true };
     const disc = saved.discover && typeof saved.discover === 'object' ? saved.discover : {};
     this.discovery = {
       on: disc.on !== false,
@@ -226,6 +233,7 @@ export class App {
     this.card = new InfoCard(this, $);
     this.when = new WhenPanel(this, $);
     this.discoverPanel = new DiscoverPanel(this, $);
+    this.overviewPanel = new OverviewPanel(this, $);
     this.themePanel = new ThemePanel(this, $);
     this.trainPanel = new TrainPanel(this, $);
     this.groupsPanel = new GroupsPanel(this, $);
@@ -233,7 +241,7 @@ export class App {
     // a frame later so that the fitting does not resize what is being observed.
     if (typeof ResizeObserver === 'function') {
       const fit = new ResizeObserver(() => requestAnimationFrame(() => this.fitCard()));
-      for (const el of [this.card.root, this.discoverPanel.root, this.trainPanel.root]) fit.observe(el);
+      for (const el of [this.card.root, this.discoverPanel.root, this.trainPanel.root, this.overviewPanel.root]) fit.observe(el);
     }
     this.toast = $('toast');
     this.brand = doc.querySelector('.brand');
@@ -281,9 +289,23 @@ export class App {
           this.continueTraining(again);
           return;
         }
-        // A tap only shows or hides the illustration. It never opens the info card (that
-        // opens from the list) and closes it unless the tap is on the card's constellation.
         const index = this.pick(x, y);
+        // In the overview a tap opens the constellation's card and turns the view so that the
+        // figure stands in the sky left free above it; a second tap closes it, and so does a
+        // tap on one left out.
+        if (this.overviewing) {
+          if (index >= 0 && index === this.selected) this.select(-1);
+          else if (index >= 0 && this.isFound(index)) {
+            this.select(index);
+            this.flyTo(index, { fov: this.view.fov });
+          } else {
+            this.select(-1);
+            if (index >= 0) this.explainLeftOut(index);
+          }
+          return;
+        }
+        // Elsewhere a tap only shows or hides the illustration. It never opens the info card
+        // (that opens from the list) and closes it unless the tap is on the card's constellation.
         if (index !== this.selected) this.select(-1);
         if (index < 0) return;
         // While discovering, a tap on a neighbour with a plus adds it.
@@ -422,11 +444,11 @@ export class App {
     this.showToast(added ? `Markerade ${added} ${added === 1 ? 'stjärnbild som är uppe' : 'stjärnbilder som är uppe'} just nu` : 'Alla som är uppe är redan markerade');
   }
 
-  /** Removes the marks that can be seen; marks on constellations still to be discovered stay. */
+  /** Removes the marks; marks on constellations still to be discovered stay. */
   clearMarks() {
     let n = 0;
     for (const i of [...this.marks.keys()]) {
-      if (!this.isFound(i)) continue;
+      if (!this.isDiscovered(i)) continue;
       this.marks.delete(i);
       n++;
     }
@@ -465,9 +487,49 @@ export class App {
 
   // ------------------------------------------------------------------ discovering the sky
 
-  /** Whether a constellation is drawn: always, unless it is still to be discovered. */
+  /**
+   * Whether a constellation is drawn: always, unless it is still to be discovered, or left
+   * out of the overview by the list's filter.
+   */
   isFound(index) {
+    if (this.discovering) return this.discovery.found.has(index);
+    if (this.overviewing) return this.inScope(index, this.list.scope);
+    return true;
+  }
+
+  /** Whether a constellation has been discovered, or the sky is not being discovered now (marks count then). */
+  isDiscovered(index) {
     return !this.discovering || this.discovery.found.has(index);
+  }
+
+  /** Whether the overview is on: the sky to look at, filtered as the list is. */
+  get overviewing() {
+    return this.overview.on && !this.training.on && !this.discovering;
+  }
+
+  /** Turns "Överblick" on or off; on, it ends discovering and training (each keeps its progress). */
+  setOverview(on) {
+    if (on && this.training.on) this.setTraining(false);
+    if (on && this.discovery.on) this.setDiscover(false);
+    if (this.overview.on === on) return;
+    this.overview.on = on;
+    this.discoveryChanged();
+    this.saveSoon();
+  }
+
+  /** The list's filter has changed: in the overview it is what the sky shows. */
+  listScopeChanged() {
+    // The filter saved is set while the app is still being put together: drawn later anyway.
+    if (!this.toggleButtons) return;
+    if (this.overviewing) this.discoveryChanged();
+    else this.overviewPanel.render();
+  }
+
+  /** Says why a tap on a constellation left out of the overview opens nothing. */
+  explainLeftOut(index) {
+    const c = this.catalog.constellations[index];
+    const why = this.list.scope === 'winter' ? `${c.sv} hör inte till vinterhimlen.` : `${c.sv} syns aldrig från ${this.place.name}.`;
+    this.showToast(`${why} Välj Alla för att se ${c.plural ? 'dem' : 'den'}.`);
   }
 
   /** Whether the sky is being discovered now ("Träna" puts discovering on hold). */
@@ -477,6 +539,7 @@ export class App {
 
   setDiscover(on) {
     if (on && this.training.on) this.setTraining(false);
+    if (on) this.overview.on = false;
     if (this.discovery.on === on) return;
     this.discovery.on = on;
     this.lastFound = -1;
@@ -1035,6 +1098,12 @@ export class App {
       for (let s = 0; s < stars.length; s++) stars[s] = con[catalog.stars.con[s]] === 1 ? 1 : 0;
       for (const i of d.found) for (const s of catalog.constellations[i].figureStars) stars[s] = 1;
       this.reveal = { con, stars };
+    } else if (this.overviewing) {
+      // The overview draws the figures of those within the list's filter, and every star.
+      this.discoveryInfo = null;
+      const con = new Uint8Array(catalog.constellations.length);
+      for (const c of catalog.constellations) con[c.index] = this.inScope(c.index, this.list.scope) ? 1 : 0;
+      this.reveal = { con, stars: null };
     } else {
       this.discoveryInfo = null;
       this.reveal = null;
@@ -1100,6 +1169,7 @@ export class App {
     if (index >= 0) this.card.show(index);
     else this.card.hide();
     this.list.syncAll();
+    this.overviewPanel.render();
     if (fly && index >= 0) {
       if (window.innerWidth <= 640) this.closeList();
       this.flyTo(index);
@@ -1343,7 +1413,7 @@ export class App {
     const overlaps = this.groupsPanel.open
       && this.groupsPanel.panel.getBoundingClientRect().left < this.trainPanel.root.getBoundingClientRect().right;
     const covered = crowded || overlaps || (narrow && (this.when.open || this.themePanel.open || this.groupsPanel.open));
-    for (const p of [this.discoverPanel.root, this.trainPanel.root]) p.style.visibility = covered ? 'hidden' : '';
+    for (const p of [this.discoverPanel.root, this.trainPanel.root, this.overviewPanel.root]) p.style.visibility = covered ? 'hidden' : '';
     this.placeToast();
     this.fitCard();
     // Names keep clear of the panel, so they are drawn again when it comes or goes.
@@ -1366,10 +1436,11 @@ export class App {
     }
     // Marks on constellations still to be discovered are kept but not counted.
     let marks = 0;
-    for (const i of this.marks.keys()) if (this.isFound(i)) marks++;
+    for (const i of this.marks.keys()) if (this.isDiscovered(i)) marks++;
     this.markCount.hidden = marks === 0;
     this.markCount.textContent = String(marks);
     this.discoverPanel.render();
+    this.overviewPanel.render();
   }
 
   syncTimeUi(force = false) {
@@ -1423,6 +1494,7 @@ export class App {
         layers: this.layers,
         marks: [...this.marks].map(([i, color]) => [this.catalog.constellations[i].id, color]),
         artOverrides: [...this.artOverrides].map(([i, shown]) => [this.catalog.constellations[i].id, shown]),
+        overview: { on: this.overview.on },
         discover: {
           on: this.discovery.on,
           all: this.discovery.all,
@@ -1494,11 +1566,23 @@ export class App {
     }
     if (card.style.maxHeight !== max) card.style.maxHeight = max;
     if (card.style.zIndex !== front) card.style.zIndex = front;
+    // Wider than a phone held upright but low, a card that would cover the game's panel
+    // moves to its right, where there is room.
+    let left = '';
+    const side = window.innerWidth > 640 && !card.hidden ? this.modePanel() : null;
+    if (side) {
+      card.style.left = '';
+      const p = side.getBoundingClientRect();
+      const r = card.getBoundingClientRect();
+      const want = p.right + 12 + r.width / 2;
+      if (r.left < p.right + 8 && r.top < p.bottom && want + r.width / 2 <= window.innerWidth - 8) left = `${Math.round(want)}px`;
+    }
+    if (card.style.left !== left) card.style.left = left;
   }
 
   /** The panel of the game being played (Upptäck or Träna) while it is on screen, or null. */
   modePanel() {
-    for (const p of [this.trainPanel.root, this.discoverPanel.root]) {
+    for (const p of [this.trainPanel.root, this.discoverPanel.root, this.overviewPanel.root]) {
       if (!p.hidden && p.style.visibility !== 'hidden') return p;
     }
     return null;

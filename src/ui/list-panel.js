@@ -82,6 +82,7 @@ export class ListPanel {
     this.scope = scope;
     for (const [s, b] of Object.entries(this.filters)) b.setAttribute('aria-pressed', String(s === scope));
     this.applyFilter();
+    this.app.listScopeChanged?.();
     this.app.saveSoon();
   }
 
