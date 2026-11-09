@@ -179,6 +179,10 @@
     .discover-foot .chip.primary { color: #1b1406; }
     /* Why the group chosen belongs together. */
     .discover-why { margin: -4px 0 0; font-size: 13px; color: var(--ink-2); }
+    /* The choice of groups never shrinks away, and the list of groups keeps about two rows
+       when there is little height: the panel scrolls instead. */
+    .discover-scope { flex: none; }
+    #panel-discover #discover-next { min-height: 84px; }
     /* Upptäck's panel scrolls rather than run onto the buttons at the bottom of the screen.
        The extra padding, taken back by the margin, keeps room for focus rings and for rows
        that designs widen with a negative margin, so nothing is cut off or scrolls sideways. */
@@ -187,6 +191,7 @@
        so that the row keeps its height and the panel scrolls instead. */
     @media (max-height: 500px) {
       #discover-next { flex: none; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+      #panel-discover #discover-next { min-height: 0; }
       #discover-next::-webkit-scrollbar { display: none; }
     }
     .discover-foot .chip:disabled { opacity: 0.45; cursor: default; }
@@ -280,7 +285,7 @@
       .panel-train:not([data-step="3"]):not([data-step="0"]) .discover-progress { order: 3; flex-basis: 100%; }
       .discover-hint { font-size: 13px; }
       .discover-next { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; flex: none; scrollbar-width: none; }
-      .discover-scope { flex: none; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+      #panel-discover #discover-next { min-height: 0; }
       .discover-why { font-size: 12px; }
       .train-name { font-size: 21px; }
       .discover-next.train-actions { flex-wrap: wrap; overflow: visible; }
@@ -408,7 +413,7 @@
     <div id="discover-body" class="discover-body">
       <p id="discover-hint" class="discover-hint" aria-live="polite"></p>
       <p id="discover-why" class="discover-why" hidden></p>
-      <div class="seg overview-scope discover-scope" role="group" aria-label="Vilka grupper som visas">
+      <div class="seg discover-scope" role="group" aria-label="Vilka grupper som visas">
         <button id="discover-winter" type="button" class="chip" aria-pressed="false" title="Grupperna i vinterhimlen, som syns kl. 22 i december–februari från både Stockholm och Göteborg">Vinterhimlen <span class="muted" id="discover-winter-count"></span></button>
         <button id="discover-year" type="button" class="chip" aria-pressed="false" title="Grupperna där någon stjärnbild syns härifrån någon gång under året">Syns från <span id="discover-place">Stockholm</span> <span class="muted" id="discover-year-count"></span></button>
         <button id="discover-all" type="button" class="chip" aria-pressed="false" title="Alla 28 grupper, hela himlen">Alla <span class="muted" id="discover-all-count"></span></button>
@@ -421,7 +426,7 @@
         <button id="discover-bounds-group" type="button" class="chip" aria-pressed="false" title="Gränsen runt varje grupp av stjärnbilder som hör ihop, och en egen färg för varje grupp">Grupper</button>
       </div>
       <div class="discover-foot">
-        <button id="btn-discover-exit" type="button" class="chip">Visa hela himlen</button>
+        <button id="btn-discover-exit" type="button" class="chip">Sluta upptäcka</button>
       </div>
     </div>
   </section>

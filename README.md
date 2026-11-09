@@ -30,7 +30,7 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   Grupper som är under horisonten just nu står som "nere" eller "delvis uppe" i panelen.
   Under **Gränser** väljer man vilka gränser som ritas: runt varje **grupp** (som från
   början, med färgerna), runt varje **stjärnbild**, eller **Inga**, och knappen Gränser i
-  verktygsraden slår av och på samma val. Panelen kan fällas ihop, och "Visa hela himlen"
+  verktygsraden slår av och på samma val. Panelen kan fällas ihop, och "Sluta upptäcka"
   lämnar Upptäck.
 - **Överblick:** himlen att titta på, med en enkel panel. **Bilder** slår på och av alla
   bilder på en gång, och man väljer vilka stjärnbilder som visas: **Vinterhimlen**, de som
@@ -106,8 +106,9 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
 - **Bara figurstjärnor:** dölj alla stjärnor som inte ingår i någon stjärnbilds figur, så att
   mönstren framträder tydligt (fungerar med och utan linjer).
 - **Illustrationer:** en linjeteckning av vad varje stjärnbild föreställer, ritad över de
-  verkliga stjärnorna efter de klassiska stjärnatlasernas förebilder. Klicka på en
-  stjärnbild på himlen för att visa eller dölja just dess teckning. Knappen
+  verkliga stjärnorna efter de klassiska stjärnatlasernas förebilder. Utanför Upptäck
+  och Överblick visar eller döljer ett klick på en stjärnbild på himlen just dess teckning
+  (i Upptäck väljer klicket gruppen, och i Överblick öppnar det kortet). Knappen
   "Illustrationer" visar alla, eller döljer alla om någon teckning syns. Markerade stjärnbilder får teckningen i sin
   egen färg.
 - **Markera stjärnbilder:** i listan, med rutan framför namnet eller med knappen på

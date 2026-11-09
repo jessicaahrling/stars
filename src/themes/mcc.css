@@ -245,6 +245,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 26px; box-sizing: b
 .discover-next .chip.below { color: var(--legend-3); background: #171d1c; border-style: dashed; border-color: var(--legend-3); }
 .discover-next .chip:hover .state { color: var(--legend-2); }
 .discover-next .chip.below:hover { color: var(--legend); border-color: var(--legend-2); }
+.discover-next .chip.below[aria-pressed="true"] { color: var(--legend); border-style: solid; border-color: var(--legend); }
 .discover-next .chip:focus-visible { outline-offset: 0; }
 .discover-foot { gap: 4px; }
 .discover-foot .chip { min-height: 32px; padding: 0 10px; font-size: 12px; color: var(--legend-2); }

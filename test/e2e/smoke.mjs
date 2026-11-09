@@ -563,6 +563,19 @@ try {
   await sky.mouse.click(here.x, here.y);
   assert.equal((await discovery()).chosen, null);
   assert.equal(await sky.isHidden('#discover-why'), true);
+  // A double click chooses it and keeps it chosen.
+  await sky.mouse.dblclick(here.x, here.y);
+  assert.equal((await discovery()).chosen, groupHere, 'the second click of a double click does not let it go');
+  await sky.evaluate(() => window.stjarnhimlen.chooseGroup(-1));
+  // When the sky moves under a mouse that stays put, the group under it is found again.
+  for (let k = 0; k < 6; k++) await sky.keyboard.press('Shift+ArrowLeft');
+  const underMouse = await sky.evaluate(([x, y]) => {
+    const a = window.stjarnhimlen;
+    const i = a.pickShown(x, y);
+    return i >= 0 ? a.chunkOf.get(i).name : null;
+  }, [here.x, here.y]);
+  assert.deepEqual(await focusNow(), underMouse ? [underMouse] : [], `the group under the mouse after the sky has turned (${underMouse})`);
+  await sky.mouse.move(5, 300);
 
   // The filter: the winter sky, those seen from here, or all. It is the list's filter too,
   // and a group chosen that it leaves out is let go.
@@ -572,10 +585,12 @@ try {
   d = await discovery();
   assert.deepEqual([d.shown, d.chips, d.count, d.chosen], [10, 10, '10 grupper i vinterhimlen', null]);
   assert.equal(await sky.evaluate(() => window.stjarnhimlen.list.scope), 'winter');
-  // A tap on a constellation left out chooses nothing and says why.
+  // A tap on a constellation left out chooses nothing and says why. On a January evening
+  // nearly all that is up belongs to the winter sky, so the ground is see-through here.
   await sky.evaluate(() => {
-    window.stjarnhimlen.view.fov = 150;
-    window.stjarnhimlen.invalidate();
+    const a = window.stjarnhimlen;
+    a.setLayer('seeThrough', true);
+    a.flyTo(a.catalog.byId.get('Her').index, { instant: true, fov: 100 });
   });
   await settle(sky);
   const leftOut = await pointOver(0);
@@ -585,6 +600,7 @@ try {
   await sky.mouse.click(leftOut.x, leftOut.y);
   assert.match(await sky.textContent('#toast'), /hör inte till vinterhimlen\. Välj Alla/);
   assert.equal((await discovery()).chosen, null);
+  await sky.evaluate(() => window.stjarnhimlen.setLayer('seeThrough', false));
   await sky.click('#discover-all');
   assert.deepEqual(await discovery().then((x) => [x.shown, x.count]), [28, '28 grupper på hela himlen']);
   await sky.click('#discover-year');
@@ -743,7 +759,7 @@ try {
     { on: true, shown: 18, chosen: -1, bounds: 'group' });
   assert.equal((await reopen({ discover: { on: true, byGroups: true, boundsBy: 'constellation', showBounds: false } })).bounds, 'none');
 
-  // "Visa hela himlen" leaves the mode and shows every figure; "Upptäck" comes back to the
+  // "Sluta upptäcka" leaves the mode and shows every figure; "Upptäck" comes back to the
   // group chosen.
   await sky.click('#btn-discover-exit');
   d = await discovery();

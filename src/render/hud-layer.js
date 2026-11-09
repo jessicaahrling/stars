@@ -66,18 +66,19 @@ export class HudLayer {
     const small = view.fov > 110 ? 10 : 11;
     // Names never run into each other or into the boxes in st.avoid. The more important
     // ones go first: marked and selected ones, the hovered one, those of the groups pointed
-    // at and chosen while discovering, then the names of the groups (those in focus first),
-    // and then the rest.
+    // at and chosen while discovering, the names of those groups, then the names of the
+    // other groups and the rest; with every name on, the rest go before the other groups.
     const taken = st.avoid ? [...st.avoid] : [];
     const focus = st.focusMembers;
     const rank = (c) => (st.marks.has(c.index) || c.index === st.selected ? 1
       : c.index === st.hover ? 2
         : focus && focus.has(c.index) ? 3 : 4);
     const order = this.catalog.constellations.filter((c) => !st.reveal || st.reveal.con[c.index] === 1).sort((a, b) => rank(a) - rank(b));
+    const allNames = st.groups && !st.namesOnly;
     let grouped = !st.groups;
     for (const c of order) {
       if (!grouped && rank(c) > 3) {
-        this.drawGroupNames(view, st, taken, small);
+        this.drawGroupNames(view, st, taken, small, allNames ? 'focus' : 'all');
         grouped = true;
       }
       const mark = st.marks.get(c.index);
@@ -106,7 +107,8 @@ export class HudLayer {
         this.label(text, pt.x, pt.y, font, color, size * 0.18, special);
       }
     }
-    if (!grouped) this.drawGroupNames(view, st, taken, small);
+    if (!grouped) this.drawGroupNames(view, st, taken, small, allNames ? 'focus' : 'all');
+    if (allNames) this.drawGroupNames(view, st, taken, small, 'rest');
   }
 
   /** Whether a point on the sky is drawn on the screen now, putting it in this.pt. */
@@ -117,32 +119,41 @@ export class HudLayer {
 
   /**
    * The name of each group shown while discovering, once, in its own colour, in the best
-   * place free; those pointed at and chosen first, and brighter.
+   * place free: at one of its spots, or a line above or below it when a constellation's
+   * name is there. `which`: the groups pointed at and chosen ('focus', brighter), the
+   * others ('rest'), or both, in that order ('all').
    */
-  drawGroupNames(view, st, taken, small) {
+  drawGroupNames(view, st, taken, small, which) {
     const { pt } = this;
     const size = small + 2;
     const inFocus = new Set((st.focus || []).map((o) => o.group));
-    const groups = [...(st.focus || []), ...st.groups.filter((o) => !inFocus.has(o.group))];
+    const groups = [
+      ...(which === 'rest' ? [] : st.focus || []),
+      ...(which === 'focus' ? [] : st.groups.filter((o) => !inFocus.has(o.group))),
+    ];
     for (const o of groups) {
       const focused = inFocus.has(o.group);
       const font = `${focused ? 700 : 600} ${size}px ${this.fontFamily}`;
-      for (const v of o.spots) {
-        if (!this.onScreen(view, st, v, o.name, font, 0.3, size) || this.covered(o.name, font, 0.3, size, taken)) continue;
-        this.label(o.name, pt.x, pt.y, font, focused ? SKY.labelHover : o.color, 0.3, true);
-        break;
+      placing: for (const v of o.spots) {
+        for (const dy of [0, -(size + 5), size + 5]) {
+          if (!this.onScreen(view, st, v, o.name, font, 0.3, size, dy) || this.covered(o.name, font, 0.3, size, taken)) continue;
+          this.label(o.name, pt.x, pt.y, font, focused ? SKY.labelHover : o.color, 0.3, true);
+          break placing;
+        }
       }
     }
   }
 
   /**
-   * Like onSky, but only for a point on the screen itself, with this.pt moved in from the
-   * side as far as it takes for the whole name to show, and not where the name would be
-   * under the top or bottom of the screen or one of the buttons there (st.chrome).
+   * Like onSky, but only for a point on the screen itself, with this.pt moved down by dy
+   * and in from the side as far as it takes for the whole name to show, and not where the
+   * name would be under the top or bottom of the screen or one of the buttons there
+   * (st.chrome).
    */
-  onScreen(view, st, v, text, font, spacingPx, size) {
+  onScreen(view, st, v, text, font, spacingPx, size, dy = 0) {
     const { ctx, pt } = this;
     if (!this.onSky(view, st, v) || pt.x < 0 || pt.x > view.width || pt.y < 0 || pt.y > view.height) return false;
+    pt.y += dy;
     ctx.font = font;
     if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacingPx.toFixed(1)}px`;
     const w = ctx.measureText(text).width / 2 + 6;

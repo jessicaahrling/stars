@@ -203,6 +203,7 @@ input[type="range"] { accent-color: var(--yellow); }
 #discover-next .chip.below { background: transparent; border-color: var(--ink-3); border-style: dashed; color: var(--ink-2);
   box-shadow: none; }
 #discover-next .chip.below .state { color: var(--ink-3); }
+#discover-next .chip.below[aria-pressed="true"] { border-color: #fff; border-style: solid; box-shadow: 0 0 0 2px #fff; color: var(--ink); }
 /* Room round the row for the focus ring and the hard shadows; in a panel the buttons line
    up with the bubble above them. The training panel's body scrolls, so it gets the same room. */
 .discover-next { padding: 5px; margin: -3px; }

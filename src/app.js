@@ -257,7 +257,10 @@ export class App {
     // The card is fitted again whenever it or a game's panel changes size (see fitCard),
     // a frame later so that the fitting does not resize what is being observed.
     if (typeof ResizeObserver === 'function') {
-      const fit = new ResizeObserver(() => requestAnimationFrame(() => this.fitCard()));
+      const fit = new ResizeObserver(() => requestAnimationFrame(() => {
+        this.fitCard();
+        this.placeToast();
+      }));
       for (const el of [this.card.root, this.discoverPanel.root, this.trainPanel.root, this.overviewPanel.root]) fit.observe(el);
     }
     this.toast = $('toast');
@@ -329,6 +332,8 @@ export class App {
         // lines and names and the panel tells about it; a second tap lets it go again, and so
         // does a tap beside the groups shown.
         if (this.discovering) {
+          // The second click of a double click does not let go what the first chose.
+          if (again) return;
           if (index !== this.selected) this.select(-1);
           const g = index >= 0 && this.isFound(index) ? this.groupIndexOf.get(index) : -1;
           this.chooseGroup(g === this.discovery.group ? -1 : g);
@@ -341,12 +346,25 @@ export class App {
         if (index >= 0) this.toggleArt(index);
       },
       hover: (x, y) => this.setHover(this.pickShown(x, y)),
-      leave: () => this.setHover(-1),
+      leave: () => {
+        this.pointer = null;
+        this.setHover(-1);
+      },
       fling: (vx, vy) => {
         this.velocity = { vx, vy, t: null };
       },
     });
     this.hudCanvas.addEventListener('pointerup', () => this.hudCanvas.classList.remove('dragging'));
+    // Where the mouse is over the sky, so that what it points at is found again when the
+    // sky moves under it (a flight, a fling, the keys, the clock): in Upptäck that is a
+    // whole group lit up.
+    this.pointer = null;
+    const track = (e) => {
+      if (e.pointerType !== 'mouse') return;
+      const r = this.hudCanvas.getBoundingClientRect();
+      this.pointer = { x: e.clientX - r.left, y: e.clientY - r.top, held: e.type !== 'pointerup' && e.buttons !== 0 };
+    };
+    for (const type of ['pointermove', 'pointerdown', 'pointerup']) this.hudCanvas.addEventListener(type, track);
     doc.addEventListener('keydown', (e) => this.onKey(e));
     window.addEventListener('resize', () => this.resize());
     this.syncSkyFont();
@@ -1389,7 +1407,13 @@ export class App {
     if (moving) {
       this.invalidate();
       this.saveSoon();
+      this.repoint();
     }
+  }
+
+  /** Finds again what the mouse points at, after the sky has moved under it. */
+  repoint() {
+    if (this.pointer && !this.pointer.held) this.setHover(this.pickShown(this.pointer.x, this.pointer.y));
   }
 
   onKey(e) {
@@ -1457,6 +1481,7 @@ export class App {
     this.anim = null;
     fn();
     this.invalidate();
+    this.repoint();
   }
 
   // ------------------------------------------------------------------ layout & UI
@@ -1540,6 +1565,8 @@ export class App {
 
   syncTimeUi(force = false) {
     this.lastUiSync = performance.now();
+    // The sky turns with the clock.
+    this.repoint();
     // Up/down states below are read off the view, so bring it to the current time first.
     this.view.timeMs = this.now();
     this.view.update();

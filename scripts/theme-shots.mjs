@@ -85,10 +85,10 @@ const d = await open({ width: 1280, height: 800 }, false);
 await shot(d, 'desk-1-start');
 await d.evaluate(() => {
   const a = window.stjarnhimlen;
-  for (const c of ['Dra', 'UMi', 'CVn', 'Lyn', 'Leo']) a.discover(a.catalog.byId.get(c).index);
+  a.chooseGroup(a.groupIndexOf.get(a.catalog.byId.get('Leo').index));
   a.toggleMark(a.catalog.byId.get('Leo').index);
   a.flyTo(a.catalog.byId.get('UMa').index, { instant: true });
-  a.showToast('Här finns en stjärnbild du inte har hittat än. Lägg till en granne först, de har ett plus framför namnet.');
+  a.explainLeftOut(a.catalog.byId.get('Cru').index);
 });
 await d.hover('#discover-next button');
 await shot(d, 'desk-2-playing');
@@ -120,7 +120,7 @@ const p = await open({ width: 390, height: 844 }, true);
 await shot(p, 'phone-1-start');
 await p.evaluate(() => {
   const a = window.stjarnhimlen;
-  for (const c of ['Dra', 'UMi', 'CVn', 'Lyn']) a.discover(a.catalog.byId.get(c).index);
+  a.chooseGroup(a.groupIndexOf.get(a.catalog.byId.get('Lyn').index));
   a.flyTo(a.catalog.byId.get('UMa').index, { instant: true });
 });
 await p.click('#btn-list');
