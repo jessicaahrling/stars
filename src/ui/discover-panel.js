@@ -1,7 +1,9 @@
-// "Upptäck himlen": progress, counted in groups, and the neighbouring groups that can be
-// added next.
+// "Upptäck himlen": the sky as its groups. The panel says how many the list's filter takes
+// in (and lets it be changed: the winter sky, those seen from here, all), tells about the
+// group chosen, lists the groups to choose from, and chooses the boundaries drawn.
 
 const STATE_TEXT = { rising: 'delvis uppe', down: 'nere' };
+const SCOPES = ['winter', 'year', 'all'];
 
 /** "a, b och c". */
 function listOf(names) {
@@ -10,9 +12,9 @@ function listOf(names) {
 
 export class DiscoverPanel {
   /**
-   * @param {object} app  see App: catalog, chunks, place, layers, discovery, discoveryInfo,
-   *   lastGroup, setDiscover, discoverGroup, discoverRest, restartDiscovery, groupStateOf,
-   *   setDiscoverBounds, discoverBounds, saveSoon
+   * @param {object} app  see App: catalog, chunks, groupHue, place, layers, discovery,
+   *   discovering, shownGroups, list (scope, setScope), groupScopeCount, setDiscover,
+   *   chooseGroup, groupStateOf, setDiscoverBounds, discoverBounds, layoutChanged, saveSoon
    * @param {(id: string) => HTMLElement} $
    */
   constructor(app, $) {
@@ -23,14 +25,11 @@ export class DiscoverPanel {
     this.body = $('discover-body');
     this.count = $('discover-count');
     this.of = $('discover-of');
-    this.meter = $('discover-meter');
-    this.bar = $('discover-bar');
     this.hint = $('discover-hint');
+    this.why = $('discover-why');
     this.next = $('discover-next');
-    this.rest = $('btn-discover-rest');
-    this.restart = $('btn-discover-restart');
+    this.place = $('discover-place');
     this.nextKey = '';
-    this.confirming = false;
     this.button.addEventListener('click', () => app.setDiscover(!app.discovering));
     this.collapse.addEventListener('click', () => {
       app.discovery.collapsed = !app.discovery.collapsed;
@@ -42,109 +41,81 @@ export class DiscoverPanel {
       app.setDiscover(false);
       this.button.focus();
     });
-    this.rest.addEventListener('click', () => {
-      app.discoverRest();
-      this.next.querySelector('button')?.focus();
-    });
-    this.restart.addEventListener('click', () => this.onRestart());
+    // Which groups are shown: the list's filter, as in the overview.
+    this.scopes = Object.fromEntries(SCOPES.map((s) => [s, $(`discover-${s}`)]));
+    this.counts = Object.fromEntries(SCOPES.map((s) => [s, $(`discover-${s}-count`)]));
+    for (const [scope, b] of Object.entries(this.scopes)) b.addEventListener('click', () => app.list.setScope(scope));
     // Which boundaries to draw: none, each constellation's or each group's.
     this.bounds = Object.fromEntries(['none', 'constellation', 'group'].map((k) => [k, $(`discover-bounds-${k}`)]));
     for (const [k, b] of Object.entries(this.bounds)) b.addEventListener('click', () => app.setDiscoverBounds(k));
-  }
-
-  /** Restarting throws the progress away, so it takes a second press to confirm. */
-  onRestart() {
-    clearTimeout(this.confirmTimer);
-    if (this.confirming) {
-      this.confirming = false;
-      this.app.restartDiscovery();
-      this.next.querySelector('button')?.focus();
-      return;
-    }
-    this.confirming = true;
-    this.render();
-    this.confirmTimer = setTimeout(() => {
-      this.confirming = false;
-      this.render();
-    }, 4000);
+    // A pointer that can hover is asked to point; a finger, to tap.
+    this.canHover = window.matchMedia?.('(hover: hover)').matches ?? true;
   }
 
   render() {
     const { app } = this;
     const d = app.discovery;
-    const info = app.discoveryInfo;
     this.button.setAttribute('aria-pressed', String(app.discovering));
     this.root.hidden = !app.discovering;
-    if (!app.discovering || !info) return;
+    if (!app.discovering) return;
     const cons = app.catalog.constellations;
     const place = app.place.name;
+    const scope = app.list.scope;
     this.root.classList.toggle('collapsed', d.collapsed);
     this.body.hidden = d.collapsed;
     this.collapse.setAttribute('aria-expanded', String(!d.collapsed));
-    this.collapse.setAttribute('aria-label', d.collapsed ? 'Visa grannarna' : 'Fäll ihop');
-    const of = d.all ? 'grupper' : `grupper som syns från ${place}`;
-    this.count.textContent = `${info.foundInGoal} av ${info.goal}`;
-    this.of.textContent = of;
-    this.bar.style.width = `${(100 * info.foundInGoal) / info.goal}%`;
-    this.meter.setAttribute('aria-valuenow', String(info.foundInGoal));
-    this.meter.setAttribute('aria-valuemax', String(info.goal));
-    this.meter.setAttribute('aria-valuetext', `${info.foundInGoal} av ${info.goal} ${of}`);
+    this.collapse.setAttribute('aria-label', d.collapsed ? 'Visa grupperna' : 'Fäll ihop');
+    const n = app.shownGroups.length;
+    this.count.textContent = `${n} ${n === 1 ? 'grupp' : 'grupper'}`;
+    this.of.textContent = { winter: 'i vinterhimlen', year: `som syns från ${place}`, all: 'på hela himlen' }[scope];
+    for (const s of SCOPES) {
+      this.scopes[s].setAttribute('aria-pressed', String(s === scope));
+      this.counts[s].textContent = String(app.groupScopeCount(s));
+    }
+    this.place.textContent = place;
 
-    const chunks = app.chunks;
-    const left = chunks.length - d.groups.size;
-    const last = chunks[app.lastGroup];
-    // "Gruppen" agrees with "hittat" whatever the group is called ("Tre små djur", "Svanen och Lyran").
-    const recent = last ? `Du har hittat gruppen ”${last.name}”: ${listOf(last.members.map((i) => cons[i].sv))}. ` : '';
-    let hint;
-    if (info.done && (d.all || !left)) hint = `${recent}Hela himlen! Du har hittat alla ${chunks.length} grupper, alla ${cons.length} stjärnbilder.`;
-    else if (info.done) hint = `${recent}Klart! Du har hittat alla ${info.goal} grupper som syns från ${place}.`;
-    else if (d.groups.size === 1) {
-      const start = chunks[[...d.groups][0]];
-      hint = `Här är gruppen ”${start.name}”: ${listOf(start.members.map((i) => cons[i].sv))}. Lägg till en grannegrupp genom att trycka på den på himlen eller här:`;
-    } else if (d.all) hint = `${recent}De här syns aldrig från ${place}${app.layers.seeThrough ? ', så marken är genomskinlig' : '. Slå på Se genom marken för att se dem'}. Lägg till en grannegrupp:`;
-    else hint = `${recent}Lägg till en grannegrupp:`;
+    const chosen = app.chunks[d.group];
+    const hint = chosen ? `${chosen.name}: ${listOf(chosen.members.map((i) => cons[i].sv))}.`
+      : this.canHover ? 'Peka på en grupp för att se dess stjärnbilder, eller tryck på den för att välja den.'
+        : 'Tryck på en grupp för att se dess stjärnbilder.';
     // The hint is a live region, so it is only written when it says something new.
     if (this.hint.textContent !== hint) this.hint.textContent = hint;
-    this.rest.hidden = !(info.done && !d.all && left);
-    this.rest.textContent = `Fortsätt med resten av himlen (${left} ${left === 1 ? 'grupp' : 'grupper'} till)`;
-    this.restart.textContent = this.confirming ? 'Säker? Tryck igen' : 'Börja om';
+    this.why.hidden = !chosen;
+    this.why.textContent = chosen ? chosen.reason : '';
     const bounds = app.discoverBounds();
     for (const [k, b] of Object.entries(this.bounds)) b.setAttribute('aria-pressed', String(k === bounds));
-    this.restart.disabled = d.groups.size === 1 && !d.all;
 
-    const key = info.next.join(',');
+    const shown = app.shownGroups.map((o) => o.group);
+    const key = shown.join(',');
     if (key !== this.nextKey) {
       this.nextKey = key;
       // Keep keyboard focus in the row when the pressed button goes away.
       const focusAt = [...this.next.children].indexOf(document.activeElement);
       // In the order "Träna" takes them, which is roughly from the pole outwards.
-      this.next.replaceChildren(...info.next.map((g) => {
+      this.next.replaceChildren(...shown.map((g) => {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'chip';
         b.dataset.group = String(g);
-        // A colour of its own for designs that colour the neighbours, the same every time,
-        // and seldom the same as the one beside it.
-        b.dataset.hue = String(g % 7);
+        // The group's colour on the sky, for designs that colour the buttons.
+        b.dataset.hue = String(app.groupHue[g]);
         const name = document.createElement('span');
-        name.textContent = `+ ${chunks[g].name}`;
+        name.textContent = app.chunks[g].name;
         const state = document.createElement('span');
         state.className = 'state';
         b.append(name, state);
-        b.addEventListener('click', () => app.discoverGroup(g, { fly: true }));
+        b.addEventListener('click', () => app.chooseGroup(app.discovery.group === g ? -1 : g, { fly: true }));
         return b;
       }));
-      this.next.hidden = !info.next.length;
+      this.next.hidden = !shown.length;
       this.next.scrollLeft = 0;
-      if (focusAt >= 0) {
-        const target = this.next.children[Math.min(focusAt, this.next.children.length - 1)] || (this.rest.hidden ? this.restart : this.rest);
-        target.focus();
-      }
+      if (focusAt >= 0) this.next.children[Math.min(focusAt, this.next.children.length - 1)]?.focus();
     }
+    for (const b of this.next.children) b.setAttribute('aria-pressed', String(Number(b.dataset.group) === d.group));
     this.syncStates();
   }
 
-  /** Marks the groups on offer that are below the horizon now (the sky turns, so this runs every second). */
+  /** Marks the groups below the horizon now (the sky turns, so this runs every second). */
   syncStates() {
     const { app } = this;
     if (!app.discovering || this.root.hidden) return;
@@ -155,7 +126,7 @@ export class DiscoverPanel {
       const state = b.lastElementChild;
       if (state.textContent !== text) state.textContent = text;
       b.classList.toggle('below', st === 'down');
-      b.setAttribute('aria-label', `Lägg till ${app.chunks[g].name}${st === 'down' ? ', under horisonten just nu' : st === 'rising' ? ', delvis under horisonten just nu' : ''}`);
+      b.setAttribute('aria-label', `${app.chunks[g].name}${st === 'down' ? ', under horisonten just nu' : st === 'rising' ? ', delvis under horisonten just nu' : ''}`);
     }
   }
 }

@@ -6,10 +6,10 @@ import { DEFAULT_PLACE_ID, PLACES } from './data/places.js';
 import { GlLayer } from './render/gl-layer.js';
 import { FONT_FAMILY, HudLayer } from './render/hud-layer.js';
 import { buildMask, MASK_H, MASK_W } from './render/mask.js';
-import { CANDIDATE_COLOR, GROUP_COLORS, MARK_COLORS, SELECT_COLOR } from './render/palette.js';
+import { GROUP_COLORS, MARK_COLORS, SELECT_COLOR } from './render/palette.js';
 import { SkyLayer } from './render/sky-layer.js';
 import { buildCatalog } from './sky/catalog.js';
-import { discoveryState, groupColors, groupNeighbours, START_ID } from './sky/discovery.js';
+import { groupColors, groupNeighbours } from './sky/discovery.js';
 import { figureState } from './sky/facts.js';
 import { groupOutline } from './sky/group-outline.js';
 import { findNeighbours } from './sky/neighbours.js';
@@ -56,8 +56,15 @@ const SECOND_TAP_MS = 400;
 const TRAIN_FOV = DEFAULT_FOV;
 /** Layers that "Träna" sets itself, step by step. */
 const TRAINING_LAYERS = new Set(['lines', 'names', 'art']);
-/** How strongly a group found in Upptäck is tinted with its colour (the mask adds a sixth of it). */
+/** Layers that Upptäck keeps its own: for every group, or else for the one pointed at or chosen. */
+const DISCOVER_LAYERS = new Set(['lines', 'names']);
+const DISCOVER_TITLES = {
+  lines: 'Linjerna i alla grupper. Annars syns de i gruppen du pekar på eller har valt.',
+  names: 'Namnen på alla stjärnbilder. Annars syns de i gruppen du pekar på eller har valt.',
+};
+/** How strongly a group in Upptäck is tinted with its colour (the mask adds a sixth of it), and the one chosen. */
 const GROUP_TINT = 0.55;
+const GROUP_TINT_CHOSEN = 1;
 
 export class App {
   constructor(doc = document) {
@@ -90,11 +97,13 @@ export class App {
       if (c && typeof shown === 'boolean' && shown !== this.layers.art) this.artOverrides.set(c.index, shown);
     }
     /**
-     * "Upptäck himlen": the sky starts with the group of Ursa Major and the viewer adds a
-     * neighbouring group at a time (groups as "Träna" has them). `groups` holds the groups
-     * found and `found` their members. `all` widens the goal from the groups seen from the
-     * chosen place to the whole sky. The boundaries drawn are Upptäck's own choice: round
-     * each group (`boundsBy` 'group'), round each constellation, or none (`showBounds`).
+     * "Upptäck himlen": the sky as its groups (as "Träna" has them), every group within the
+     * list's filter drawn with a line round it, a colour and a name. The lines and names of
+     * a group's constellations show for the group pointed at and the one chosen (`group`, an
+     * index into chunks, or -1), or for every group when `lines` and `names` are on (the
+     * bar's "Linjer" and "Namn" while discovering). The boundaries are Upptäck's own choice
+     * too: round each group (`boundsBy` 'group'), round each constellation, or none
+     * (`showBounds`), turned off and on by the bar's "Gränser".
      */
     /**
      * "Överblick": the sky with its constellations to look at, filtered as the list is,
@@ -103,26 +112,19 @@ export class App {
      */
     this.overview = { on: saved.overview?.on === true };
     const disc = saved.discover && typeof saved.discover === 'object' ? saved.discover : {};
-    // Saved before groups were what Upptäck collects, the boundaries were the layer's, and
-    // round each constellation unless chosen otherwise: now they are round the groups.
+    // Saved before Upptäck was about groups, the boundaries were the layer's, and round each
+    // constellation unless chosen otherwise: now they are round the groups. (What was found
+    // then, constellation by constellation, is not needed any more: every group shows.)
     const byGroups = disc.byGroups === true;
     this.discovery = {
       on: disc.on !== false,
-      all: disc.all === true,
       collapsed: disc.collapsed === true,
       boundsBy: byGroups && disc.boundsBy === 'constellation' ? 'constellation' : 'group',
       showBounds: !byGroups || disc.showBounds !== false,
-      // Whether "Fortsätt med resten av himlen" turned on see-through ground (a restart turns it off again).
-      autoSeeThrough: disc.autoSeeThrough === true,
-      groups: new Set(),
-      found: new Set(),
+      lines: disc.lines === true,
+      names: disc.names === true,
+      group: -1,
     };
-    // The constellations saved; any of a group's (all of them, since groups are found
-    // whole) gives the group.
-    for (const id of Array.isArray(disc.found) ? disc.found : []) {
-      const c = this.catalog.byId.get(id);
-      if (c) this.discovery.found.add(c.index);
-    }
     this.neighbours = findNeighbours(this.catalog.constellations);
     /** The boundary round each group, by group index, worked out when first drawn. */
     this.groupOutlines = new Map();
@@ -181,8 +183,7 @@ export class App {
     this.groupIndexOf = new Map(this.chunks.flatMap((ch, g) => ch.members.map((i) => [i, g])));
     this.groupNb = groupNeighbours(this.chunks, this.neighbours);
     this.groupHue = groupColors(this.groupNb, GROUP_COLORS.length);
-    this.startGroup = this.groupIndexOf.get(this.catalog.byId.get(START_ID).index);
-    this.setFoundGroups([this.startGroup, ...[...this.discovery.found].map((i) => this.groupIndexOf.get(i))]);
+    this.discovery.group = this.chunks.findIndex((ch) => ch.name === disc.group);
     /**
      * The group being learnt (an index into chunks, or -1 for the first not learnt yet),
      * its members answered since it was taken up, and, for the card after a group has been
@@ -216,12 +217,8 @@ export class App {
       }
     }
     this.reveal = null;
-    this.discoveryInfo = null;
-    /** The group found last (an index into chunks, or -1), named in the panel and on the sky until the next find. */
-    this.lastGroup = -1;
-    /** The groups that can be added next and those found, as drawn (see groupShape), while discovering. */
-    this.offers = [];
-    this.foundShapes = [];
+    /** The groups shown while discovering, as drawn (see groupShape), or none. */
+    this.shownGroups = [];
     this.selected = -1;
     this.hover = -1;
     this.clock = { baseMs: Date.now(), baseAt: performance.now(), speed: 1, live: true };
@@ -273,8 +270,6 @@ export class App {
     this.toggleButtons = [...$('toggles').querySelectorAll('[data-layer]')];
     for (const b of this.toggleButtons) {
       b.addEventListener('click', (e) => {
-        // Once the learner sets the ground themselves, a restart leaves it as they chose.
-        if (b.dataset.layer === 'seeThrough') this.discovery.autoSeeThrough = false;
         // While training, "Gränser" is the boundary round the group. Clicked, focus goes
         // back to the card, so that Space goes on with it rather than pressing this again.
         if (this.training.on && b.dataset.layer === 'bounds') {
@@ -283,6 +278,9 @@ export class App {
         } else if (this.discovering && b.dataset.layer === 'bounds') {
           // While discovering, "Gränser" is Upptäck's choice of boundaries, off or as chosen.
           this.setDiscoverBounds(this.discovery.showBounds ? 'none' : this.discovery.boundsBy);
+        } else if (this.discovering && DISCOVER_LAYERS.has(b.dataset.layer)) {
+          // And "Linjer" and "Namn" are for every group, not only the one pointed at.
+          this.setDiscoverAll(b.dataset.layer, !this.discovery[b.dataset.layer]);
         } else this.setLayer(b.dataset.layer, !this.layerPressed(b.dataset.layer));
       });
     }
@@ -327,14 +325,20 @@ export class App {
           }
           return;
         }
+        // While discovering, a tap chooses the group, so that its constellations keep their
+        // lines and names and the panel tells about it; a second tap lets it go again, and so
+        // does a tap beside the groups shown.
+        if (this.discovering) {
+          if (index !== this.selected) this.select(-1);
+          const g = index >= 0 && this.isFound(index) ? this.groupIndexOf.get(index) : -1;
+          this.chooseGroup(g === this.discovery.group ? -1 : g);
+          if (index >= 0 && g < 0) this.explainLeftOut(index);
+          return;
+        }
         // Elsewhere a tap only shows or hides the illustration. It never opens the info card
         // (that opens from the list) and closes it unless the tap is on the card's constellation.
         if (index !== this.selected) this.select(-1);
-        if (index < 0) return;
-        // While discovering, a tap on a neighbour with a plus adds it.
-        if (this.isFound(index)) this.toggleArt(index);
-        else if (this.reveal.con[index] === 2) this.discover(index);
-        else this.explainHidden(index);
+        if (index >= 0) this.toggleArt(index);
       },
       hover: (x, y) => this.setHover(this.pickShown(x, y)),
       leave: () => this.setHover(-1),
@@ -355,8 +359,6 @@ export class App {
     this.syncControls();
     this.discoveryChanged();
     this.resize();
-    // A new discovery starts by looking at the bears round the pole.
-    if (this.discovering && this.discovery.groups.size === 1) this.flyTo(this.chunks[this.startGroup].members, { instant: true });
     if (this.training.on) this.nextTrainingCard({ instant: true });
     this.tick = this.tick.bind(this);
     requestAnimationFrame(this.tick);
@@ -467,15 +469,11 @@ export class App {
     this.showToast(added ? `Markerade ${added} ${added === 1 ? 'stjärnbild som är uppe' : 'stjärnbilder som är uppe'} just nu` : 'Alla som är uppe är redan markerade');
   }
 
-  /** Removes the marks; marks on constellations still to be discovered stay. */
+  /** Removes the marks. */
   clearMarks() {
-    let n = 0;
-    for (const i of [...this.marks.keys()]) {
-      if (!this.isDiscovered(i)) continue;
-      this.marks.delete(i);
-      n++;
-    }
-    if (!this.marks.size) this.nextColor = 0;
+    const n = this.marks.size;
+    this.marks.clear();
+    this.nextColor = 0;
     this.marksChanged();
     if (n) this.showToast(`Tog bort ${n} ${n === 1 ? 'markering' : 'markeringar'}`);
   }
@@ -508,21 +506,26 @@ export class App {
     return this.catalog.constellations.filter((c) => this.inScope(c.index, scope)).length;
   }
 
+  /** Whether a group is within a choice of the list's filter: when any of it is (see inScope). */
+  groupInScope(g, scope) {
+    return this.chunks[g].members.some((i) => this.inScope(i, scope));
+  }
+
+  /** How many groups a choice of the list's filter takes in. */
+  groupScopeCount(scope) {
+    return this.chunks.filter((ch, g) => this.groupInScope(g, scope)).length;
+  }
+
   // ------------------------------------------------------------------ discovering the sky
 
   /**
-   * Whether a constellation is drawn: always, unless it is still to be discovered, or left
-   * out of the overview by the list's filter.
+   * Whether a constellation is drawn: always, unless the list's filter leaves it out of the
+   * overview, or leaves its group out of Upptäck.
    */
   isFound(index) {
-    if (this.discovering) return this.discovery.found.has(index);
+    if (this.discovering) return !this.reveal || this.reveal.con[index] === 1;
     if (this.overviewing) return this.inScope(index, this.list.scope);
     return true;
-  }
-
-  /** Whether a constellation has been discovered, or the sky is not being discovered now (marks count then). */
-  isDiscovered(index) {
-    return !this.discovering || this.discovery.found.has(index);
   }
 
   /** Whether the overview is on: the sky to look at, filtered as the list is. */
@@ -540,15 +543,18 @@ export class App {
     this.saveSoon();
   }
 
-  /** The list's filter has changed: in the overview it is what the sky shows. */
+  /** The list's filter has changed: in the overview and in Upptäck it is what the sky shows. */
   listScopeChanged() {
     // The filter saved is set while the app is still being put together: drawn later anyway.
     if (!this.toggleButtons) return;
-    if (this.overviewing) this.discoveryChanged();
-    else this.overviewPanel.render();
+    if (this.overviewing || this.discovering) this.discoveryChanged();
+    else {
+      this.overviewPanel.render();
+      this.discoverPanel.render();
+    }
   }
 
-  /** Says why a tap on a constellation left out of the overview opens nothing. */
+  /** Says why a tap on a constellation left out by the list's filter opens nothing. */
   explainLeftOut(index) {
     const c = this.catalog.constellations[index];
     const why = this.list.scope === 'winter' ? `${c.sv} hör inte till vinterhimlen.` : `${c.sv} syns aldrig från ${this.place.name}.`;
@@ -565,41 +571,50 @@ export class App {
     if (on) this.overview.on = false;
     if (this.discovery.on === on) return;
     this.discovery.on = on;
-    this.lastGroup = -1;
     this.discoveryChanged();
-    if (on && this.discovery.groups.size === 1) this.flyTo(this.chunks[this.startGroup].members);
     this.saveSoon();
   }
 
-  /** Sets the groups found (indices into chunks), and with them the constellations found. */
-  setFoundGroups(groups) {
+  /**
+   * Chooses a group (an index into chunks, or -1 for none): its constellations keep their
+   * lines and names and the panel tells about it. `fly` turns the view to it unless all of
+   * it is in sight, and says so if it is all below the horizon.
+   */
+  chooseGroup(g, { fly = false } = {}) {
     const d = this.discovery;
-    d.groups = new Set(groups.filter((g) => g !== undefined));
-    d.found = new Set([...d.groups].flatMap((g) => this.chunks[g].members));
-  }
-
-  /** Adds the group of a constellation offered on the sky (see discoverGroup). */
-  discover(index, options) {
-    this.discoverGroup(this.groupIndexOf.get(index), options);
+    if (!(g >= 0 && g < this.chunks.length && this.discovering && this.groupInScope(g, this.list.scope))) g = -1;
+    if (d.group !== g) {
+      d.group = g;
+      this.maskDirty = true;
+      this.invalidate();
+      this.discoverPanel.render();
+      this.saveSoon();
+    }
+    if (g < 0 || !fly) return;
+    if (!this.groupInView(g)) this.flyTo(this.chunks[g].members);
+    if (!this.seeThroughNow() && this.groupStateOf(g) === 'down') {
+      this.showToast(`Gruppen ”${this.chunks[g].name}” är under horisonten just nu. Slå på Se genom marken för att se den.`);
+    }
   }
 
   /**
-   * Adds a neighbouring group to those found; `fly` turns the view to it unless all of it
-   * is in sight, and says so if it is below the horizon.
+   * The groups whose constellations show their lines and names now, while discovering:
+   * the one chosen and the one pointed at.
    */
-  discoverGroup(g, { fly = false } = {}) {
-    const d = this.discovery;
-    if (!d.on || g === undefined || d.groups.has(g)) return;
-    this.setFoundGroups([...d.groups, g]);
-    this.lastGroup = g;
-    this.discoveryChanged();
-    const { members, name } = this.chunks[g];
-    if (fly && !this.groupInView(g)) this.flyTo(members);
-    const state = this.layers.seeThrough ? 'up' : this.groupStateOf(g);
-    if (fly && state !== 'up') {
-      this.showToast(state === 'down' ? `Gruppen ”${name}” är under horisonten just nu. Slå på Se genom marken för att se den.`
-        : `En del av gruppen ”${name}” är under horisonten just nu. Slå på Se genom marken för att se hela gruppen.`);
-    }
+  focusGroups() {
+    if (!this.discovering) return [];
+    const out = this.discovery.group >= 0 ? [this.discovery.group] : [];
+    const h = this.hover >= 0 && this.isFound(this.hover) ? this.groupIndexOf.get(this.hover) : -1;
+    if (h >= 0 && !out.includes(h)) out.push(h);
+    return out;
+  }
+
+  /** Whether Upptäck draws the lines ('lines') or names ('names') of every group, or only of the ones in focus. */
+  setDiscoverAll(layer, on) {
+    if (!DISCOVER_LAYERS.has(layer)) return;
+    this.discovery[layer] = on;
+    this.syncControls();
+    this.invalidate();
     this.saveSoon();
   }
 
@@ -645,49 +660,10 @@ export class App {
     return this.groupOutlines.get(key);
   }
 
-  /** While discovering with the groups' boundaries chosen: the lines round the groups found; otherwise null. */
+  /** While discovering with the groups' boundaries chosen: the lines round the groups shown; otherwise null. */
   discoverGroupOutlines() {
     if (!this.discovering || this.discoverBounds() !== 'group') return null;
-    return [...this.discovery.groups].flatMap((g) => this.groupLines(g));
-  }
-
-  /** Goes on from the groups seen from here to the rest of the sky, which never rise here. */
-  discoverRest() {
-    this.discovery.all = true;
-    this.lastGroup = -1;
-    if (!this.layers.seeThrough) {
-      this.discovery.autoSeeThrough = true;
-      this.setLayer('seeThrough', true);
-    }
-    this.discoveryChanged();
-    const next = this.discoveryInfo.next;
-    if (next.length && !next.some((g) => this.vecInView(this.groupShape(g).middle))) this.flyTo(this.chunks[next[0]].members);
-    this.saveSoon();
-  }
-
-  /** Says why a tap on a hidden constellation adds nothing. */
-  explainHidden(index) {
-    const place = this.place.name;
-    const inSight = this.chunks[this.groupIndexOf.get(index)].members
-      .some((i) => visibilityClass(this.catalog.constellations[i].figureDecs, this.view.lat) !== 'never');
-    if (this.discoveryInfo.done) {
-      this.showToast(`Du har hittat alla grupper som syns från ${place}. Tryck på Fortsätt med resten av himlen för att ta med resten.`);
-    } else if (!this.discovery.all && !inSight) {
-      this.showToast(`Här finns en grupp som aldrig syns från ${place}. Den kommer efter dem som syns härifrån.`);
-    } else {
-      this.showToast('Här finns en grupp du inte har hittat än. Lägg till en grannegrupp först, de har ett plus framför namnet.');
-    }
-  }
-
-  restartDiscovery() {
-    this.setFoundGroups([this.startGroup]);
-    this.discovery.all = false;
-    this.lastGroup = -1;
-    if (this.discovery.autoSeeThrough && this.layers.seeThrough) this.setLayer('seeThrough', false);
-    this.discovery.autoSeeThrough = false;
-    this.discoveryChanged();
-    this.flyTo(this.chunks[this.startGroup].members);
-    this.saveSoon();
+    return this.shownGroups.flatMap((o) => o.outline);
   }
 
   // ------------------------------------------------------------------ training
@@ -1170,9 +1146,9 @@ export class App {
   }
 
   /**
-   * A group as the sky draws it while discovering: its members, its middle, the line round
-   * it, and the places its name can go, best first (its middle, if that is in it, then its members' name places
-   * nearest the middle).
+   * A group as the sky draws it while discovering: its members, its middle, the colour of
+   * its name, the line round it, and the places its name can go, best first (its middle, if that is in it, then its
+   * members' name places nearest the middle).
    */
   groupShape(g) {
     if (!this.shapeCache) this.shapeCache = new Map();
@@ -1184,44 +1160,31 @@ export class App {
       const middle = sum.map((x) => x / len);
       const spots = members.flatMap((i) => cons[i].labelVecs).sort((u, v) => angleBetween(middle, u) - angleBetween(middle, v));
       if (members.includes(this.catalog.constellationAt(middle))) spots.unshift(middle);
-      this.shapeCache.set(g, { group: g, name, members, middle, outline: this.groupLines(g), spots });
+      const color = GROUP_COLORS[this.groupHue[g]].label;
+      this.shapeCache.set(g, { group: g, name, members, middle, color, outline: this.groupLines(g), spots });
     }
     return this.shapeCache.get(g);
   }
 
-  /** Recomputes what is drawn while discovering, after a find, a restart, a new place or the mode changing. */
+  /** Recomputes what is drawn while discovering or in the overview, after a new filter, a new place or the mode changing. */
   discoveryChanged() {
     const { catalog, discovery: d } = this;
-    if (this.discovering) {
-      const lat = this.view.lat;
-      const seen = (i) => visibilityClass(catalog.constellations[i].figureDecs, lat) !== 'never';
-      // A group is to be found from here when any of it is ever seen from here.
-      const inGoal = (g) => d.all || this.chunks[g].members.some(seen);
-      this.discoveryInfo = discoveryState(d.groups, this.groupNb, inGoal);
-      this.offers = this.discoveryInfo.next.map((g) => this.groupShape(g));
-      this.foundShapes = [...d.groups].map((g) => this.groupShape(g));
-      this.recent = this.lastGroup >= 0 ? new Set(this.chunks[this.lastGroup].members) : null;
+    // Both draw every star, and the figures of those the list's filter takes in: in the
+    // overview each constellation by itself, in Upptäck each group as a whole.
+    if (this.discovering || this.overviewing) {
+      const scope = this.list.scope;
       const con = new Uint8Array(catalog.constellations.length);
-      for (const g of this.discoveryInfo.next) for (const i of this.chunks[g].members) con[i] = 2;
-      for (const i of d.found) con[i] = 1;
-      // The stars inside the constellations found, and the stars of their figures (a few
-      // figures borrow a star from a neighbour).
-      const stars = new Uint8Array(catalog.stars.count);
-      for (let s = 0; s < stars.length; s++) stars[s] = con[catalog.stars.con[s]] === 1 ? 1 : 0;
-      for (const i of d.found) for (const s of catalog.constellations[i].figureStars) stars[s] = 1;
-      this.reveal = { con, stars };
-    } else if (this.overviewing) {
-      // The overview draws the figures of those within the list's filter, and every star.
-      this.discoveryInfo = null;
-      this.offers = [];
-      this.recent = null;
-      const con = new Uint8Array(catalog.constellations.length);
-      for (const c of catalog.constellations) con[c.index] = this.inScope(c.index, this.list.scope) ? 1 : 0;
+      if (this.discovering) {
+        this.shownGroups = this.chunks.map((ch, g) => g).filter((g) => this.groupInScope(g, scope)).map((g) => this.groupShape(g));
+        for (const o of this.shownGroups) for (const i of o.members) con[i] = 1;
+        if (d.group >= 0 && !this.shownGroups.some((o) => o.group === d.group)) d.group = -1;
+      } else {
+        this.shownGroups = [];
+        for (const c of catalog.constellations) con[c.index] = this.inScope(c.index, scope) ? 1 : 0;
+      }
       this.reveal = { con, stars: null };
     } else {
-      this.discoveryInfo = null;
-      this.offers = [];
-      this.recent = null;
+      this.shownGroups = [];
       this.reveal = null;
     }
     if (this.selected >= 0 && !this.isFound(this.selected)) this.select(-1);
@@ -1559,17 +1522,18 @@ export class App {
       const group = hasGroup && isBounds;
       const byCards = training && !group && (TRAINING_LAYERS.has(b.dataset.layer) || isBounds);
       b.disabled = byCards;
-      const discovering = isBounds && this.discovering;
-      b.setAttribute('aria-pressed', String(group ? this.training.showBounds
-        : discovering ? this.discovery.showBounds : !byCards && this.layerPressed(b.dataset.layer)));
+      // While discovering, "Gränser", "Linjer" and "Namn" are Upptäck's own.
+      const discovering = this.discovering && (isBounds || DISCOVER_LAYERS.has(b.dataset.layer));
+      const pressed = group ? this.training.showBounds
+        : discovering ? (isBounds ? this.discovery.showBounds : this.discovery[b.dataset.layer])
+          : !byCards && this.layerPressed(b.dataset.layer);
+      b.setAttribute('aria-pressed', String(pressed));
       if (b.dataset.title === undefined) b.dataset.title = b.title;
-      b.title = group ? 'Gränsen runt den markerade gruppen (tangent G)' : byCards ? 'Styrs av Träna just nu' : b.dataset.title;
+      b.title = group ? 'Gränsen runt den markerade gruppen (tangent G)' : byCards ? 'Styrs av Träna just nu'
+        : discovering && !isBounds ? DISCOVER_TITLES[b.dataset.layer] : b.dataset.title;
     }
-    // Marks on constellations still to be discovered are kept but not counted.
-    let marks = 0;
-    for (const i of this.marks.keys()) if (this.isDiscovered(i)) marks++;
-    this.markCount.hidden = marks === 0;
-    this.markCount.textContent = String(marks);
+    this.markCount.hidden = this.marks.size === 0;
+    this.markCount.textContent = String(this.marks.size);
     this.discoverPanel.render();
     this.overviewPanel.render();
   }
@@ -1628,13 +1592,13 @@ export class App {
         overview: { on: this.overview.on },
         discover: {
           on: this.discovery.on,
-          all: this.discovery.all,
           collapsed: this.discovery.collapsed,
           byGroups: true,
           boundsBy: this.discovery.boundsBy,
           showBounds: this.discovery.showBounds,
-          autoSeeThrough: this.discovery.autoSeeThrough,
-          found: [...this.discovery.found].map((i) => this.catalog.constellations[i].id),
+          lines: this.discovery.lines,
+          names: this.discovery.names,
+          group: this.chunks[this.discovery.group]?.name ?? null,
         },
         view: { az: Math.round(v.az * 10) / 10, alt: Math.round(v.alt * 10) / 10, fov: Math.round(v.fov * 10) / 10 },
         listScope: this.list.scope,
@@ -1668,20 +1632,19 @@ export class App {
 
   /**
    * Tints for the sky's mask: while discovering with the groups' boundaries, each group
-   * found in a colour of its own; marked and selected constellations; the groups on offer.
+   * shown in a colour of its own, stronger for the one chosen; marked and selected
+   * constellations.
    */
   fillTints(tints) {
     if (this.discovering && this.discoverBounds() === 'group') {
-      for (const g of this.discovery.groups) {
-        const rgb = GROUP_COLORS[this.groupHue[g]].rgb.map((x) => x * GROUP_TINT);
-        for (const i of this.chunks[g].members) tints.set(i, rgb);
+      for (const o of this.shownGroups) {
+        const strength = o.group === this.discovery.group ? GROUP_TINT_CHOSEN : GROUP_TINT;
+        const rgb = GROUP_COLORS[this.groupHue[o.group]].rgb.map((x) => Math.min(255, x * strength));
+        for (const i of o.members) tints.set(i, rgb);
       }
     }
     for (const [i, color] of this.marks) if (this.isFound(i)) tints.set(i, MARK_COLORS[color].rgb);
     if (this.selected >= 0 && !this.marks.has(this.selected)) tints.set(this.selected, SELECT_COLOR.rgb.map((x) => x * 0.55));
-    if (this.discoveryInfo) {
-      for (const g of this.discoveryInfo.next) for (const i of this.chunks[g].members) tints.set(i, CANDIDATE_COLOR.rgb.map((x) => x * 0.2));
-    }
   }
 
   /** Screen boxes constellation names keep clear of: the brand and the Upptäck panel. */
@@ -1799,6 +1762,9 @@ export class App {
       // The boundary round the group, at every step: it says no more than the panel does.
       outline: this.trainingOutline(),
     } : null;
+    // The groups pointed at and chosen while discovering, and their constellations.
+    const focus = quiz ? [] : this.focusGroups().map((g) => this.groupShape(g));
+    const focusMembers = new Set(focus.flatMap((o) => o.members));
     if (this.maskDirty) {
       this.maskDirty = false;
       const tints = new Map();
@@ -1816,13 +1782,16 @@ export class App {
       reveal: null,
       bounds: 'none',
       groupBounds: null,
-      offers: [],
-      foundGroups: null,
-      recent: null,
+      groups: null,
+      focus: [],
+      focusMembers: null,
+      linesOnly: null,
+      namesOnly: null,
       avoid: this.labelObstacles(),
       quiz,
     } : {
-      layers: this.layers,
+      // In Upptäck the lines and names are Upptäck's: for the groups in focus, or for all.
+      layers: this.discovering ? { ...this.layers, lines: true, names: true } : this.layers,
       marks: this.reveal ? new Map([...this.marks].filter(([i]) => this.isFound(i))) : this.marks,
       selected: this.selected,
       hover: this.hover,
@@ -1832,10 +1801,12 @@ export class App {
       reveal: this.reveal,
       bounds: this.boundsNow(),
       groupBounds: this.discoverGroupOutlines(),
-      offers: this.discovering ? this.offers : [],
-      foundGroups: this.discovering ? this.foundShapes : null,
+      groups: this.discovering ? this.shownGroups : null,
+      focus,
+      focusMembers: this.discovering ? focusMembers : null,
+      linesOnly: this.discovering && !this.discovery.lines ? focusMembers : null,
+      namesOnly: this.discovering && !this.discovery.names ? focusMembers : null,
       chrome: this.discovering ? this.barBoxes() : null,
-      recent: this.discovering ? this.recent : null,
       avoid: this.labelObstacles(),
       quiz: null,
     };

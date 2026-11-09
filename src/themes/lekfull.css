@@ -186,8 +186,8 @@ input[type="range"] { accent-color: var(--yellow); }
   padding: 7px 11px; border-radius: 14px; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); }
 #discover-hint:empty { display: none; }
 
-/* The neighbours to add are cheerful coloured buttons, each constellation its own colour
-   (data-hue, set by the panel, stays the same as the list changes). */
+/* The groups are cheerful coloured buttons, each in its colour on the sky (data-hue, set
+   by the panel). The one chosen has a white rim. */
 #discover-next .chip { --c: #ffd166; background: var(--c); border-color: var(--c); color: var(--on-bright);
   font-weight: 900; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.5); }
 #discover-next .chip:hover { transform: translateY(1px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5); border-color: #fff; }
@@ -197,6 +197,7 @@ input[type="range"] { accent-color: var(--yellow); }
 #discover-next .chip[data-hue="4"] { --c: #f4a261; }
 #discover-next .chip[data-hue="5"] { --c: #b39ddb; }
 #discover-next .chip[data-hue="6"] { --c: #8ce99a; }
+#discover-next .chip[aria-pressed="true"] { border-color: #fff; box-shadow: 0 0 0 2px #fff, 0 3px 0 rgba(0, 0, 0, 0.5); }
 #discover-next .state { color: rgba(8, 19, 31, 0.85); font-weight: 800; }
 /* Below the horizon: no colour, only a dashed rim. */
 #discover-next .chip.below { background: transparent; border-color: var(--ink-3); border-style: dashed; color: var(--ink-2);

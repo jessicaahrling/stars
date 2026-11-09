@@ -13,20 +13,18 @@ export const MARK_COLORS = [
 export const SELECT_COLOR = { hex: '#eef3ff', rgb: [238, 243, 255] };
 
 /**
- * The groups found while discovering the sky ("Upptäck"), each tinted in one of these, and
- * never in the same one as a group it borders when that can be helped.
+ * The groups while discovering the sky ("Upptäck"), each tinted in one of these, and never
+ * in the same one as a group it borders when that can be helped; its name is written in a
+ * lighter shade of it. The same colours as the buttons of the playful design.
  */
 export const GROUP_COLORS = [
-  { name: 'havsgrön', rgb: [70, 214, 178] },
-  { name: 'rosa', rgb: [240, 120, 170] },
-  { name: 'gul', rgb: [236, 206, 92] },
-  { name: 'blå', rgb: [96, 156, 255] },
-  { name: 'lila', rgb: [178, 128, 255] },
-  { name: 'orange', rgb: [255, 150, 84] },
-];
-
-/** Groups that can be added next while discovering the sky ("Upptäck"). */
-export const CANDIDATE_COLOR = { hex: '#bccbf0', rgb: [188, 203, 240] };
+  { name: 'gul', rgb: [255, 209, 102] },
+  { name: 'havsgrön', rgb: [6, 214, 160] },
+  { name: 'röd', rgb: [239, 118, 116] },
+  { name: 'blå', rgb: [116, 185, 255] },
+  { name: 'orange', rgb: [244, 162, 97] },
+  { name: 'lila', rgb: [179, 157, 219] },
+].map((c) => ({ ...c, label: `rgb(${c.rgb.map((x) => Math.round(x + (255 - x) * 0.45)).join(', ')})` }));
 
 export const SKY = {
   line: 'rgba(132, 160, 214, 0.5)',
@@ -39,10 +37,7 @@ export const SKY = {
   boundHover: 'rgba(214, 226, 255, 0.45)',
   groupBound: 'rgba(200, 214, 250, 0.5)',
   groupFound: 'rgba(214, 226, 255, 0.62)',
-  groupName: 'rgba(214, 226, 255, 0.5)',
-  candidate: 'rgba(188, 203, 240, 0.5)',
-  candidateHover: 'rgba(228, 236, 255, 0.95)',
-  candidateLabel: 'rgba(206, 218, 248, 0.86)',
+  groupFocus: 'rgba(240, 245, 255, 0.95)',
   label: 'rgba(168, 188, 232, 0.62)',
   labelHover: 'rgba(222, 232, 255, 0.95)',
   starName: 'rgba(206, 214, 236, 0.72)',

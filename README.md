@@ -18,24 +18,20 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
 
 ## Vad som finns
 
-- **Upptäck himlen:** himlen upptäcks grupp för grupp, med samma 28 grupper som i Träna.
-  Den börjar med Björnarna vid polen (Stora björnen, Lilla björnen och Draken). De
-  grannegrupper man kan lägga till har en streckad linje runt sig och sitt namn med ett
-  plus framför ("+ Perseus räddar Andromeda") på himlen och i panelen, och man lägger till
-  en hel grupp i taget genom att klicka på den. Pekar man på en grupp lyser linjen runt den
-  upp. Sedan erbjuds grannarna till alla grupper man har hittat, tills man har alla grupper
-  som syns från vald ort (en grupp räknas om någon av dess stjärnbilder syns därifrån), och
-  därefter resten av himlen om man vill. Bara stjärnbilderna man har hittat visas, med sina
-  stjärnor, linjer och namn, och panelen säger vilka som kom med den senaste gruppen.
-  Grupper som är under horisonten just nu står som "nere" eller "delvis uppe" i panelen,
-  och "Fortsätt med resten av himlen" gör marken genomskinlig eftersom de grupperna aldrig
-  går upp här. Panelen kan fällas ihop. "Visa hela himlen" visar allt igen och knappen
-  "Upptäck" går tillbaka dit man var. "Börja om" tar två tryck. Under **Gränser** i panelen
-  väljer man vilka gränser som ritas: runt varje **grupp** (som från början), och då får
-  varje grupp man har hittat också en egen svag färg och sitt namn där det får plats, runt
-  varje **stjärnbild**, eller **Inga**. Knappen Gränser i verktygsraden slår av och på
-  samma val. En sparad upptäckt från när man lade till en stjärnbild i taget blir de
-  grupper man hade hittat någon stjärnbild i.
+- **Upptäck himlen:** himlen i sina grupper, samma 28 grupper som i Träna. Varje grupp har
+  en linje runt sig, en egen svag färg (grannar har aldrig samma färg) och sitt namn i den
+  färgen. Stjärnbildernas linjer och namn syns bara i gruppen man pekar på, och i den man
+  har valt: ett klick eller tryck på en grupp, eller på dess knapp i panelen, väljer den,
+  och då berättar panelen vilka stjärnbilder den har och varför de hör ihop. Ett klick till
+  släpper den. Knapparna **Linjer** och **Namn** i verktygsraden visar linjerna och namnen i
+  alla grupper på en gång. Man väljer vilka grupper som visas: **Vinterhimlen** (10), de
+  som **syns från** orten (18 från Stockholm; en grupp räknas om någon av dess stjärnbilder
+  syns därifrån) eller **Alla** (28). Valet är detsamma som listans filter och Överblickens.
+  Grupper som är under horisonten just nu står som "nere" eller "delvis uppe" i panelen.
+  Under **Gränser** väljer man vilka gränser som ritas: runt varje **grupp** (som från
+  början, med färgerna), runt varje **stjärnbild**, eller **Inga**, och knappen Gränser i
+  verktygsraden slår av och på samma val. Panelen kan fällas ihop, och "Visa hela himlen"
+  lämnar Upptäck.
 - **Överblick:** himlen att titta på, med en enkel panel. **Bilder** slår på och av alla
   bilder på en gång, och man väljer vilka stjärnbilder som visas: **Vinterhimlen**, de som
   **syns från** orten eller **Alla**. Valet är detsamma som listans filter, så listan och
@@ -128,7 +124,7 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   Från början används **Lekfull**, inspirerad av jonasgeografi.se: djupt rymdblått, tjocka
   rundade knappar i fet stil, en gul huvudknapp som ser ut att gå att trycka ner, glada
   pastellfärgade knappar (varje knapp i raden längst ner har sin färg, ifylld när den är på,
-  och grannarna att lägga till i Upptäck får var sin), runda ikonknappar med blå ring och
+  och grupperna i Upptäck har samma färg som på himlen), runda ikonknappar med blå ring och
   vita pratbubblor med mörk text för det appen säger: ledtråden i Upptäck, frågan i Träna
   och meddelandena. Paneler och infokort är mörkblå, som menyerna i ett spel, så att inget
   stort lyser upp natthimlen. Den tidigare designen finns kvar som Mjukt glas, och dessutom

@@ -1,9 +1,6 @@
-// "Upptäck himlen": the sky starts with the group of Ursa Major (see src/data/chunks-sv.js)
-// and the viewer adds a neighbouring group at a time, until they have them all. Two groups
-// are neighbours when a member of one borders a member of the other. The state below works
-// on any such graph: on the groups here, and on single constellations in the tests.
-
-export const START_ID = 'UMa';
+// "Upptäck himlen" shows the sky as its groups (see src/data/chunks-sv.js), each in a
+// colour of its own. Two groups are neighbours when a member of one borders a member of
+// the other, and neighbours get different colours where that can be helped.
 
 /**
  * Which groups border each other.
@@ -43,31 +40,4 @@ export function groupColors(groupNb, colors) {
     out.push(free >= 0 ? free : used.indexOf(Math.min(...used)));
   });
   return out;
-}
-
-/**
- * Progress and what can be added next: groups in the app, constellations in the tests.
- * @param {Set<number>} found  indices of the ones found so far
- * @param {number[][]} neighbours  see groupNeighbours (or findNeighbours)
- * @param {(index: number) => boolean} inGoal  whether one is to be collected (a group
- *   with a member seen from the viewer's place, or every group)
- * @returns {{next: number[], goal: number, foundInGoal: number, done: boolean}}
- *   next: indices in ascending order, empty once every goal constellation is found
- */
-export function discoveryState(found, neighbours, inGoal) {
-  let goal = 0;
-  let foundInGoal = 0;
-  for (let i = 0; i < neighbours.length; i++) {
-    if (!inGoal(i)) continue;
-    goal++;
-    if (found.has(i)) foundInGoal++;
-  }
-  const done = foundInGoal === goal;
-  const border = new Set();
-  if (!done) for (const i of found) for (const j of neighbours[i]) if (!found.has(j)) border.add(j);
-  // One outside the goal is offered only as a stepping stone, when nothing in the goal
-  // borders the ones found.
-  let next = [...border].filter(inGoal);
-  if (!next.length) next = [...border];
-  return { next: next.sort((a, b) => a - b), goal, foundInGoal, done };
 }

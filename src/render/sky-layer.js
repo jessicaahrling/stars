@@ -64,13 +64,15 @@ export class SkyLayer {
    * @param {import('../sky/view.js').SkyView} view
    * @param {object} st  render state: layers, marks (Map index -> colour index),
    *   selected, hover, groundOpaque, artShown(index), anyArt, bounds (the boundaries drawn:
-   *   'none', 'constellation' or 'group'), groupBounds (lines round the groups found so far,
-   *   while discovering with the groups' boundaries chosen, else null), offers (the groups
-   *   that can be added next while discovering: {group, name, members, outline, spots}),
-   *   and reveal while discovering the sky: {con: Uint8Array per constellation (1 found, 2
-   *   in a group that can be added next, 0 hidden), stars: Uint8Array per star (1 shown)},
-   *   otherwise null; recent (the members of the group found last, or null) and avoid
-   *   (screen boxes names keep clear of) are for the HUD;
+   *   'none', 'constellation' or 'group'), groupBounds (lines round the groups shown, while
+   *   discovering with the groups' boundaries chosen, else null), groups (the groups shown
+   *   while discovering, else null) and focus (those of them pointed at and chosen:
+   *   {group, name, members, middle, outline, spots}), focusMembers (their constellations,
+   *   or null), linesOnly and namesOnly (the constellations whose lines and names are drawn,
+   *   or null for all), reveal in the overview and while discovering: {con: Uint8Array per
+   *   constellation (1 shown, 0 left out), stars: null}, otherwise null; chrome (screen
+   *   boxes of the buttons along the edges) and avoid (screen boxes names keep clear of) are
+   *   for the HUD;
    *   quiz while training: {target, targets (the card, or a whole group shown together),
    *   context (the card's group's members already known, drawn around it), step (1 stars,
    *   2 lines, 3 name), stars: Uint8Array per star (1 for the targets' and context's),
@@ -113,18 +115,17 @@ export class SkyLayer {
       }
       ctx.stroke();
     }
-    // The groups that can be added next, each with a dashed line round it; the one pointed
-    // at stands out.
-    const offered = st.offers?.find((o) => o.members.includes(st.hover));
-    for (const o of st.offers || []) {
-      ctx.setLineDash([5, 4]);
-      ctx.lineWidth = o === offered ? 1.8 : 1.3;
-      ctx.strokeStyle = o === offered ? SKY.candidateHover : SKY.candidate;
+    // The groups pointed at and chosen stand out, whichever boundaries are drawn.
+    const focus = st.focusMembers;
+    if (st.focus && st.focus.length) {
+      ctx.setLineDash([]);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = SKY.groupFocus;
       ctx.beginPath();
-      this.tracePolyline(view, o.outline, false);
+      for (const o of st.focus) this.tracePolyline(view, o.outline, false);
       ctx.stroke();
     }
-    if (st.hover >= 0 && !special.has(st.hover) && !offered) {
+    if (st.hover >= 0 && !special.has(st.hover) && !(focus && focus.has(st.hover))) {
       ctx.setLineDash([3, 4]);
       ctx.lineWidth = 1.2;
       ctx.strokeStyle = SKY.boundHover;
@@ -177,11 +178,20 @@ export class SkyLayer {
       ctx.strokeStyle = SKY.line;
       ctx.beginPath();
       for (const c of catalog.constellations) {
-        if (found(c) && !special.has(c.index) && c.index !== st.hover) this.traceSegments(c.segments);
+        if (!found(c) || special.has(c.index) || c.index === st.hover || (focus && focus.has(c.index))) continue;
+        if (!st.linesOnly || st.linesOnly.has(c.index)) this.traceSegments(c.segments);
       }
       ctx.stroke();
     }
-    if (st.hover >= 0 && !special.has(st.hover) && found(catalog.constellations[st.hover])) {
+    // The constellations of the groups pointed at and chosen, all with their lines.
+    if (focus && focus.size && !st.quiz) {
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = SKY.lineHover;
+      ctx.beginPath();
+      for (const i of focus) if (!special.has(i) && found(catalog.constellations[i])) this.traceSegments(catalog.constellations[i].segments);
+      ctx.stroke();
+    }
+    if (st.hover >= 0 && !special.has(st.hover) && found(catalog.constellations[st.hover]) && !(focus && focus.has(st.hover))) {
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = SKY.lineHover;
       ctx.beginPath();

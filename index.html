@@ -177,8 +177,8 @@
     .discover-bounds .chip { min-height: 30px; padding: 0 8px; font-size: 12px; }
     .discover-foot .chip { min-height: 32px; padding: 0 11px; font-size: 12px; color: var(--ink-2); }
     .discover-foot .chip.primary { color: #1b1406; }
-    /* "Fortsätt med resten av himlen (10 grupper till)" takes two rows on a narrow panel. */
-    #btn-discover-rest { box-sizing: border-box; max-width: 100%; white-space: normal; text-align: left; }
+    /* Why the group chosen belongs together. */
+    .discover-why { margin: -4px 0 0; font-size: 13px; color: var(--ink-2); }
     /* Upptäck's panel scrolls rather than run onto the buttons at the bottom of the screen.
        The extra padding, taken back by the margin, keeps room for focus rings and for rows
        that designs widen with a negative margin, so nothing is cut off or scrolls sideways. */
@@ -280,6 +280,8 @@
       .panel-train:not([data-step="3"]):not([data-step="0"]) .discover-progress { order: 3; flex-basis: 100%; }
       .discover-hint { font-size: 13px; }
       .discover-next { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; flex: none; scrollbar-width: none; }
+      .discover-scope { flex: none; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+      .discover-why { font-size: 12px; }
       .train-name { font-size: 21px; }
       .discover-next.train-actions { flex-wrap: wrap; overflow: visible; }
       /* Named, the card needs the sky more than the choice of goal and the counts. */
@@ -310,7 +312,7 @@
   </style>
 </head>
 <body>
-  <div id="sky" role="application" aria-label="Stjärnhimlen. Dra för att titta runt, scrolla eller nyp för att zooma och klicka på en stjärnbild för att visa eller dölja dess illustration. I läget Upptäck lägger du till en grannegrupp genom att klicka på den, och i Överblick öppnar ett klick stjärnbildens kort.">
+  <div id="sky" role="application" aria-label="Stjärnhimlen. Dra för att titta runt, scrolla eller nyp för att zooma och klicka på en stjärnbild för att visa eller dölja dess illustration. I läget Upptäck visas stjärnbildernas grupper; peka på en grupp för att se dess stjärnbilder och klicka för att välja den, och i Överblick öppnar ett klick stjärnbildens kort.">
     <canvas id="layer-sky"></canvas>
     <canvas id="layer-stars"></canvas>
     <canvas id="layer-ground"></canvas>
@@ -375,7 +377,6 @@
     </div>
     <div class="tools">
       <input type="search" id="search" placeholder="Sök på svenska eller latin" autocomplete="off">
-      <p id="list-note" class="list-note" hidden>Listan visar de stjärnbilder du har upptäckt.</p>
       <div class="seg">
         <button id="filter-visible" type="button" class="chip" aria-pressed="true">Syns från <span id="filter-place">Stockholm</span> <span class="muted" id="filter-count"></span></button>
         <button id="filter-winter" type="button" class="chip" aria-pressed="false" title="De som syns kl. 22 i december–februari från både Stockholm och Göteborg: minst halva figuren 5° över horisonten under minst en månad">Vinterhimlen <span class="muted" id="filter-winter-count"></span></button>
@@ -404,10 +405,15 @@
       <span class="discover-progress"><b id="discover-count"></b> <span id="discover-of"></span></span>
       <button id="btn-discover-collapse" class="icon-btn" type="button" aria-controls="discover-body" aria-expanded="true" aria-label="Fäll ihop"></button>
     </div>
-    <div id="discover-meter" class="meter" role="progressbar" aria-label="Upptäckta grupper" aria-valuemin="0"><span id="discover-bar"></span></div>
     <div id="discover-body" class="discover-body">
       <p id="discover-hint" class="discover-hint" aria-live="polite"></p>
-      <div id="discover-next" class="discover-next" role="group" aria-label="Grannegrupper att lägga till"></div>
+      <p id="discover-why" class="discover-why" hidden></p>
+      <div class="seg overview-scope discover-scope" role="group" aria-label="Vilka grupper som visas">
+        <button id="discover-winter" type="button" class="chip" aria-pressed="false" title="Grupperna i vinterhimlen, som syns kl. 22 i december–februari från både Stockholm och Göteborg">Vinterhimlen <span class="muted" id="discover-winter-count"></span></button>
+        <button id="discover-year" type="button" class="chip" aria-pressed="false" title="Grupperna där någon stjärnbild syns härifrån någon gång under året">Syns från <span id="discover-place">Stockholm</span> <span class="muted" id="discover-year-count"></span></button>
+        <button id="discover-all" type="button" class="chip" aria-pressed="false" title="Alla 28 grupper, hela himlen">Alla <span class="muted" id="discover-all-count"></span></button>
+      </div>
+      <div id="discover-next" class="discover-next" role="group" aria-label="Grupperna"></div>
       <div class="seg discover-bounds" role="group" aria-label="Gränser">
         <span class="seg-label" aria-hidden="true">Gränser:</span>
         <button id="discover-bounds-none" type="button" class="chip" aria-pressed="false">Inga</button>
@@ -415,8 +421,6 @@
         <button id="discover-bounds-group" type="button" class="chip" aria-pressed="false" title="Gränsen runt varje grupp av stjärnbilder som hör ihop, och en egen färg för varje grupp">Grupper</button>
       </div>
       <div class="discover-foot">
-        <button id="btn-discover-rest" type="button" class="chip primary" hidden></button>
-        <button id="btn-discover-restart" type="button" class="chip">Börja om</button>
         <button id="btn-discover-exit" type="button" class="chip">Visa hela himlen</button>
       </div>
     </div>
@@ -502,7 +506,7 @@
 
   <nav class="bar bar-bottom" aria-label="Visa på himlen">
     <div class="toggles" id="toggles">
-      <button type="button" class="chip toggle" id="btn-discover" aria-pressed="true" title="Börja med björnarna vid polen och lägg till en grannegrupp i taget">Upptäck</button>
+      <button type="button" class="chip toggle" id="btn-discover" aria-pressed="true" title="Himlen i sina grupper av stjärnbilder som hör ihop: peka på en grupp för att se dess stjärnbilder">Upptäck</button>
       <button type="button" class="chip toggle" id="btn-train" aria-pressed="false" title="Se en stjärnbild och säg vilken det är">Träna</button>
       <button type="button" class="chip toggle" id="btn-overview" aria-pressed="false" title="Titta på himlen, med eller utan bilder, alla stjärnbilder eller bara till exempel vinterhimlen, och tryck på en stjärnbild för att läsa mer">Överblick</button>
       <button type="button" class="chip toggle" data-layer="lines" aria-pressed="true">Linjer</button>

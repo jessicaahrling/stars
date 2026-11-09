@@ -1,6 +1,6 @@
 // Smoke test in headless Chromium: the sky renders, a tap on a constellation toggles its
-// illustration, the list opens the info card, marking works, the sky can be discovered
-// one neighbouring group at a time ("Upptäck"), training with flashcards works ("Träna"), and
+// illustration, the list opens the info card, marking works, the sky is shown as its
+// groups ("Upptäck"), training with flashcards works ("Träna"), and
 // the interface designs switch. Screenshots land in test/e2e/screenshots/ (git-ignored).
 //
 //   npm run test:e2e
@@ -360,18 +360,19 @@ try {
   await page.waitForFunction(() => window.stjarnhimlen);
   assert.equal(await taurusArt(), false, 'hiding all is remembered too');
 
-  // "Upptäck": a first visit opens on the group of the bears round the pole, and offers the
-  // groups next to it.
+  // "Upptäck": the sky as its groups. Every group the list's filter takes in has a line
+  // round it, its colour and its name; the lines and names of its constellations show for
+  // the group pointed at and the one chosen.
   const sky = await openPage({ width: 1280, height: 800 }, { discover: true });
   const discovery = () => sky.evaluate(() => {
     const a = window.stjarnhimlen;
-    const id = (i) => a.catalog.constellations[i].id;
+    const text = (id) => document.getElementById(id).textContent;
     return {
       on: a.discovery.on,
-      groups: [...a.discovery.groups].sort((x, y) => x - y).map((g) => a.chunks[g].name),
-      found: [...a.discovery.found].map(id).sort(),
-      next: a.discoveryInfo ? a.discoveryInfo.next.map((g) => a.chunks[g].name) : null,
-      count: document.getElementById('discover-count').textContent,
+      shown: a.shownGroups.length,
+      chosen: a.chunks[a.discovery.group]?.name ?? null,
+      count: `${text('discover-count')} ${text('discover-of')}`,
+      chips: document.querySelectorAll('#discover-next .chip').length,
       panel: !document.getElementById('panel-discover').hidden,
       pressed: document.getElementById('btn-discover').getAttribute('aria-pressed'),
     };
@@ -419,58 +420,37 @@ try {
     miss(az, alt);
     a.invalidate();
   }, [vec, x, y]);
-  const bears = ['Dra', 'UMa', 'UMi'];
+  const scopeChoice = () => sky.$$eval('.discover-scope .chip', (els) => els.map((el) => `${el.textContent.replace(/\s+/g, ' ').trim()}:${el.getAttribute('aria-pressed')}`));
   assert.deepEqual(await discovery(), {
-    on: true,
-    groups: ['Björnarna vid polen'],
-    found: bears,
-    next: ['Perseus räddar Andromeda', 'Herakles fiender', 'Björnvaktaren och hundarna', 'Svanen och Lyran', 'Gömda djur kring björnen',
-      'Kronan, hjälten och läkaren'],
-    count: '1 av 18',
-    panel: true,
-    pressed: 'true',
+    on: true, shown: 18, chosen: null, count: '18 grupper som syns från Stockholm', chips: 18, panel: true, pressed: 'true',
   });
-  assert.equal(await sky.textContent('#discover-of'), 'grupper som syns från Stockholm');
-  assert.match(await sky.textContent('#discover-hint'), /^Här är gruppen ”Björnarna vid polen”: Stora björnen, Lilla björnen och Draken\. Lägg till en grannegrupp/);
-  for (const id of bears) assert.equal(await inView(id), true, `the view opens on the bears, ${id} clear of the panel`);
-  assert.deepEqual(await sky.$$eval('#discover-next button', (els) => els.map((b) => b.firstChild.textContent)),
-    (await discovery()).next.map((n) => `+ ${n}`));
-  // Drawn stars: how many, and whether each lies in, or belongs to the figure of, a found constellation.
-  const drawnStars = () => sky.evaluate(() => {
+  assert.deepEqual(await scopeChoice(), ['Vinterhimlen 10:false', 'Syns från Stockholm 18:true', 'Alla 28:false']);
+  assert.equal(await sky.textContent('#discover-hint'), 'Peka på en grupp för att se dess stjärnbilder, eller tryck på den för att välja den.');
+  assert.equal(await sky.isHidden('#discover-why'), true);
+  // The buttons come in the order Träna takes the groups, each in its colour on the sky.
+  assert.deepEqual(await sky.evaluate(() => {
     const a = window.stjarnhimlen;
-    const found = [...a.discovery.found];
-    const figure = new Set(found.flatMap((i) => a.catalog.constellations[i].figureStars));
-    let n = 0;
-    let stray = 0;
-    a.skyLayer.px.forEach((x, i) => {
-      if (Number.isNaN(x)) return;
-      n++;
-      if (a.discovery.on && !found.includes(a.catalog.stars.con[i]) && !figure.has(i)) stray++;
-    });
-    return { n, stray };
-  });
-  const start = await drawnStars();
-  assert.ok(start.n > 40, `the bears' stars are drawn (${start.n})`);
-  assert.equal(start.stray, 0, 'no other stars are drawn');
+    return [...document.querySelectorAll('#discover-next .chip')].slice(0, 3)
+      .map((b) => [b.firstChild.textContent, Number(b.dataset.hue) === a.groupHue[Number(b.dataset.group)]]);
+  }), [['Björnarna vid polen', true], ['Perseus räddar Andromeda', true], ['Över havet på djurens rygg', true]]);
   await sky.screenshot({ path: path.join(shots, 'discover-start.png') });
 
-  // Nothing else of a hidden constellation is drawn either, with every layer on and a mark
-  // on it: one frame is drawn while recording whose figures, outlines, illustrations and
-  // names are traced, which groups' lines and names, and how much of the sky is tinted.
+  // One frame drawn while recording whose figures, outlines, illustrations and names are
+  // traced, which groups' lines and names, and how much of the sky is tinted.
   const drawnParts = (hover = null, page = sky) => page.evaluate((hoverId) => {
     const a = window.stjarnhimlen;
-    if (hoverId) a.hover = a.catalog.byId.get(hoverId).index;
+    a.hover = hoverId ? a.catalog.byId.get(hoverId).index : -1;
     const sl = a.skyLayer;
     const owner = new Map();
     for (const c of a.catalog.constellations) for (const part of [c.segments, c.outlines, c.art]) owner.set(part, c.id);
     const names = new Map(a.catalog.constellations.map((c) => [c.sv.toUpperCase(), c.id]));
     const groupNames = new Set(a.chunks.map((ch) => ch.name));
-    const seen = { segments: new Set(), outlines: new Set(), art: new Set(), names: new Set(), texts: new Set(), offers: new Set() };
+    const seen = { segments: new Set(), outlines: new Set(), art: new Set(), names: new Set(), texts: new Set(), focus: new Set(), groups: new Set() };
     const obstacles = a.labelObstacles();
     const boxes = [];
     let covered = 0;
     let tinted = 0;
-    // Lines of the boundary round the group being learnt, and round the groups found.
+    // Lines of the boundary round the group being learnt, and round the groups shown.
     let outlined = 0;
     let groupLined = 0;
     // Names of groups under the buttons along the top and bottom of the screen.
@@ -485,18 +465,19 @@ try {
     };
     wrap(sl, 'traceSegments', (segs) => owner.has(segs) && seen.segments.add(owner.get(segs)));
     wrap(sl, 'tracePolyline', (view, rings) => {
-      const offer = a.offers.find((o) => o.outline === rings);
+      const group = a.shownGroups.find((o) => o.outline === rings);
       if (owner.has(rings)) seen.outlines.add(owner.get(rings));
       else if (a.training.on && rings === a.trainingOutline()) outlined += rings.length;
-      else if (offer) seen.offers.add(offer.name);
+      else if (group) seen.focus.add(group.name);
       else if (a.discovering) groupLined += rings.length;
     });
     wrap(sl, 'traceArt', (view, lines) => owner.has(lines) && seen.art.add(owner.get(lines)));
     wrap(a.hud, 'label', (text, x, y) => {
       seen.texts.add(text);
       const id = names.get(text);
-      if (!id && !groupNames.has(text.replace(/^\+ /, ''))) return;
+      if (!id && !groupNames.has(text)) return;
       if (id) seen.names.add(id);
+      else seen.groups.add(text);
       if (obstacles.some((r) => x > r.left && x < r.right && y > r.top && y < r.bottom)) covered++;
       const w = a.hud.ctx.measureText(text).width / 2;
       boxes.push([x - w, x + w, y - 5, y + 5]);
@@ -517,8 +498,6 @@ try {
     }));
     return { ...Object.fromEntries(Object.entries(seen).map(([k, v]) => [k, [...v].sort()])), covered, overlaps, tinted, outlined, groupLined, underBar };
   }, hover);
-  const offer = (await discovery()).next;
-  const plain = await drawnParts();
   /** The tint of a constellation on the sky's mask, or null. */
   const tintOf = (id) => sky.evaluate((c) => {
     const a = window.stjarnhimlen;
@@ -526,100 +505,26 @@ try {
     a.fillTints(tints);
     return tints.get(a.catalog.byId.get(c).index) || null;
   }, id);
-  const groupTint = await tintOf('UMa');
-  assert.ok(groupTint, 'the bears are tinted in their group\'s colour');
-  await sky.evaluate(() => {
-    const a = window.stjarnhimlen;
-    for (const layer of ['art', 'bounds', 'names']) a.setLayer(layer, true);
-    a.toggleMark(a.catalog.byId.get('Ori').index);
-    a.markAllUp();
-  });
-  // With the mouse on Cassiopeja, in a group on offer, so that the line round the group
-  // lights up but not its figure.
-  const parts = await drawnParts('Cas');
-  assert.deepEqual(parts.segments, bears, 'only found figures are drawn');
-  assert.deepEqual(parts.art, bears, 'only found illustrations are drawn');
-  assert.ok(parts.outlines.every((id) => bears.includes(id)), `outlines of their own: only found ones (${parts.outlines})`);
-  assert.deepEqual(parts.offers, [...offer].sort(), 'a line round each group on offer');
-  assert.ok(parts.groupLined > 0, 'a line round the group found');
-  assert.ok(parts.names.includes('UMa') && parts.names.every((id) => bears.includes(id)), `names: ${parts.names}`);
-  const plus = parts.texts.filter((t) => t.startsWith('+ '));
-  assert.ok(plus.includes('+ Perseus räddar Andromeda') && plus.every((t) => offer.includes(t.slice(2))), `the groups on offer are named: ${plus}`);
-  assert.ok(parts.texts.includes('Björnarna vid polen'), 'the group found is named');
-  assert.equal(parts.covered, 0, 'no name is drawn under the panel or the brand');
-  assert.equal(parts.overlaps, 0, 'names do not run into each other');
-  assert.equal(parts.underBar, 0, 'no group is named under the buttons along the edges');
-  // A name that would land under the panel is left out.
-  const draLabel = await sky.evaluate(() => window.stjarnhimlen.catalog.byId.get('Dra').labelVecs[0]);
-  const box = (await onScreen(draLabel)).panel;
-  await placeAt(draLabel, box.right - 60, box.top + 100);
+  const bears = (await groupNamed('Björnarna vid polen')).members;
+  // Nothing pointed at: lines round the groups and their names, but no figures and no
+  // names of constellations.
+  const plain = await drawnParts();
+  assert.deepEqual([plain.segments, plain.names, plain.outlines, plain.focus], [[], [], [], []]);
+  assert.ok(plain.groupLined > 0 && plain.groups.length >= 3, `groups named: ${plain.groups}`);
+  assert.deepEqual([plain.covered, plain.overlaps, plain.underBar], [0, 0, 0], 'names keep clear of the panel, the buttons and each other');
+  // Pointing at Cassiopeja shows all of her group: its line stands out, and the lines and
+  // names of all its constellations show.
+  const perseus = await groupNamed('Perseus räddar Andromeda');
+  await sky.evaluate((g) => window.stjarnhimlen.flyTo(window.stjarnhimlen.chunks[g].members, { instant: true }), perseus.g);
   await settle(sky);
-  const placed = await onScreen(draLabel);
-  assert.ok(Math.hypot(placed.x - box.right + 60, placed.y - box.top - 100) < 2, `Draco's name is under the panel (${Math.round(placed.x)}, ${Math.round(placed.y)})`);
-  const under = await drawnParts();
-  assert.ok(!under.names.includes('Dra') && under.covered === 0, `a name under the panel is left out (${under.names})`);
-  await sky.evaluate(() => window.stjarnhimlen.flyTo(window.stjarnhimlen.catalog.byId.get('UMa').index, { instant: true }));
-  await settle(sky);
-  // The marks tint the found constellations instead of their group's colour, and the
-  // hidden Orion is not tinted at all.
-  assert.notDeepEqual(await tintOf('UMa'), groupTint, 'the mark colours Ursa Major instead of its group');
-  assert.equal(await tintOf('Ori'), null, 'the hidden Orion is not tinted');
-  assert.equal(parts.tinted, plain.tinted, 'marks tint nothing beyond what is found and on offer');
-  const marked = await sky.evaluate(() => [...window.stjarnhimlen.marks.keys()].map((i) => window.stjarnhimlen.catalog.constellations[i].id).sort());
-  assert.ok(marked.includes('Ori') && marked.includes('UMa') && marked.every((id) => id === 'Ori' || bears.includes(id)), `marked: ${marked}`);
-  const shownMarks = marked.length - 1;
-  assert.equal(await sky.textContent('#mark-count'), String(shownMarks), 'the hidden mark is not counted');
-  // "Rensa markeringar" removes the marks that can be seen and keeps the hidden one.
-  await sky.click('#btn-list');
-  await sky.click('#btn-clear');
-  assert.equal(await sky.textContent('#toast'), `Tog bort ${shownMarks} ${shownMarks === 1 ? 'markering' : 'markeringar'}`);
-  assert.deepEqual(await sky.evaluate(() => [...window.stjarnhimlen.marks.keys()].map((i) => window.stjarnhimlen.catalog.constellations[i].id)), ['Ori']);
-  await sky.click('#btn-list-close');
-  // Upptäck draws the line round each group, from the start, with each group found in a
-  // colour of its own; or each constellation's boundary; or none. "Gränser" in the bar
-  // turns them off and on again, and leaves the layer of the whole sky as it was.
-  const boundsChoice = () => sky.$$eval('.discover-bounds .chip', (els) => els.map((el) => `${el.textContent}:${el.getAttribute('aria-pressed')}`));
-  const barBounds = () => sky.getAttribute('[data-layer="bounds"]', 'aria-pressed');
-  await sky.evaluate(() => window.stjarnhimlen.setLayer('bounds', false));
-  assert.deepEqual([await boundsChoice(), await barBounds()], [['Inga:false', 'Stjärnbilder:false', 'Grupper:true'], 'true']);
-  const grouped = await drawnParts();
-  assert.ok(grouped.outlines.length === 0 && grouped.groupLined > 0, 'no boundary of their own round the bears, a line round their group');
-  assert.deepEqual(await sky.evaluate(() => {
-    const lines = window.stjarnhimlen.discoverGroupOutlines();
-    return [lines.length, Math.hypot(...lines[0][0].map((x, k) => x - lines[0].at(-1)[k])) < 1e-6];
-  }), [1, true], 'one closed line round the bears');
-  await sky.click('#discover-bounds-constellation');
-  assert.deepEqual(await boundsChoice(), ['Inga:false', 'Stjärnbilder:true', 'Grupper:false']);
-  const byConstellation = await drawnParts();
-  assert.deepEqual([byConstellation.outlines, byConstellation.groupLined], [bears, 0]);
-  assert.ok(byConstellation.tinted < grouped.tinted, `the group found loses its colour (${grouped.tinted} -> ${byConstellation.tinted})`);
-  await sky.click('[data-layer="bounds"]');
-  assert.deepEqual([await boundsChoice(), await barBounds()], [['Inga:true', 'Stjärnbilder:false', 'Grupper:false'], 'false']);
-  assert.deepEqual((await drawnParts()).outlines, [], 'no boundaries');
-  await sky.click('[data-layer="bounds"]');
-  assert.deepEqual([await boundsChoice(), await barBounds()], [['Inga:false', 'Stjärnbilder:true', 'Grupper:false'], 'true'], 'back as chosen');
-  await sky.click('#discover-bounds-none');
-  assert.equal(await barBounds(), 'false');
-  await sky.click('#discover-bounds-group');
-  assert.deepEqual([await boundsChoice(), await barBounds()], [['Inga:false', 'Stjärnbilder:false', 'Grupper:true'], 'true']);
-  // Turned off from the bar with the groups chosen: no line, colour or name for the bears'
-  // group, while the groups on offer keep their lines.
-  await sky.click('[data-layer="bounds"]');
-  const groupsOff = await drawnParts();
-  assert.deepEqual([groupsOff.groupLined, groupsOff.outlines, groupsOff.texts.includes('Björnarna vid polen'), groupsOff.offers],
-    [0, [], false, [...offer].sort()]);
-  assert.ok(groupsOff.tinted < grouped.tinted, 'nor its colour');
-  await sky.click('[data-layer="bounds"]');
-  assert.deepEqual([await boundsChoice(), await barBounds()], [['Inga:false', 'Stjärnbilder:false', 'Grupper:true'], 'true']);
-  assert.equal(await sky.evaluate(() => window.stjarnhimlen.layers.bounds), false, 'the layer of the whole sky is left alone');
-  await sky.evaluate(() => {
-    const a = window.stjarnhimlen;
-    a.marks.clear();
-    a.marksChanged();
-    a.setLayer('art', false);
-  });
+  const pointed = await drawnParts('Cas');
+  assert.deepEqual(pointed.segments, perseus.members, 'the lines of every constellation in the group');
+  assert.deepEqual(pointed.focus, ['Perseus räddar Andromeda'], 'the line round the group stands out');
+  assert.deepEqual(pointed.names, perseus.members, 'and the names of every constellation in it');
+  assert.ok(pointed.groups.includes('Perseus räddar Andromeda'));
+  assert.deepEqual([pointed.covered, pointed.overlaps], [0, 0]);
 
-  /** A point on the sky (not under a panel) over a constellation in the given state: 1 found, 2 on offer, 0 hidden. */
+  /** A point on the sky (not under a panel) over a constellation that is shown (1) or left out (0). */
   const pointOver = (state, avoid = []) => sky.evaluate(([st, skip]) => {
     const a = window.stjarnhimlen;
     for (let y = 90; y < innerHeight - 90; y += 20) {
@@ -631,46 +536,62 @@ try {
     }
     return null;
   }, [state, avoid]);
-  const hoverId = () => sky.evaluate(() => {
-    const a = window.stjarnhimlen;
-    return a.hover >= 0 ? a.catalog.constellations[a.hover].id : null;
-  });
+  const focusNow = () => sky.evaluate(() => window.stjarnhimlen.focusGroups().map((g) => window.stjarnhimlen.chunks[g].name));
 
-  // A tap on a constellation in a group on offer adds the whole group, and the groups next
-  // to it are offered in turn.
-  const offered = await pointOver(2);
-  assert.ok(offered, 'a group on offer is in view');
-  await sky.mouse.move(offered.x, offered.y);
-  assert.equal(await hoverId(), offered.id, 'a group on offer lights up under the mouse');
-  await sky.mouse.click(offered.x, offered.y);
-  await settle(sky);
-  const firstName = await groupOfId(offered.id);
-  const first = await groupNamed(firstName);
+  // With the mouse: pointing at a group puts it in focus, and a click chooses it. The
+  // panel then tells about it, its button is pressed, and its colour is stronger.
+  const here = await pointOver(1);
+  assert.ok(here, 'a group is in view');
+  const groupHere = await groupOfId(here.id);
+  await sky.mouse.move(here.x, here.y);
+  assert.deepEqual(await focusNow(), [groupHere], 'the group under the mouse is in focus');
+  const weakTint = await tintOf(here.id);
+  assert.ok(weakTint, 'the groups are tinted');
+  await sky.mouse.click(here.x, here.y);
   let d = await discovery();
-  assert.deepEqual(d.groups.sort(), ['Björnarna vid polen', firstName].sort());
-  assert.deepEqual(d.found, [...bears, ...first.members].sort());
-  assert.equal(d.count, '2 av 18');
-  assert.ok(!d.next.includes(firstName), 'what is found is not offered again');
-  assert.match(await sky.textContent('#discover-hint'), new RegExp(`^Du har hittat gruppen ”${firstName}”: [^.]+\\. Lägg till en grannegrupp:$`));
-  const two = await drawnStars();
-  assert.ok(two.n > start.n && two.stray === 0, `its stars appear (${start.n} -> ${two.n})`);
+  assert.equal(d.chosen, groupHere);
+  const chosenChunk = await sky.evaluate(() => window.stjarnhimlen.chunks[window.stjarnhimlen.discovery.group]);
+  assert.match(await sky.textContent('#discover-hint'), new RegExp(`^${groupHere}: [^.]+\\.$`));
+  assert.deepEqual([await sky.isVisible('#discover-why'), await sky.textContent('#discover-why')], [true, chosenChunk.reason]);
+  assert.equal(await sky.getAttribute(`#discover-next .chip[data-group="${await sky.evaluate(() => window.stjarnhimlen.discovery.group)}"]`, 'aria-pressed'), 'true');
+  assert.ok((await tintOf(here.id)).some((x, k) => x > weakTint[k]), 'the group chosen is tinted more strongly');
+  // Chosen, its constellations keep their lines and names with the mouse elsewhere.
+  const chosenParts = await drawnParts();
+  const chosenIds = (await groupNamed(groupHere)).members;
+  assert.deepEqual([chosenParts.segments, chosenParts.focus], [chosenIds, [groupHere]]);
+  // A second click lets it go.
+  await sky.mouse.click(here.x, here.y);
+  assert.equal((await discovery()).chosen, null);
+  assert.equal(await sky.isHidden('#discover-why'), true);
 
-  // A tap on a hidden constellation adds nothing and says why; it does not light up either.
+  // The filter: the winter sky, those seen from here, or all. It is the list's filter too,
+  // and a group chosen that it leaves out is let go.
+  await sky.evaluate((g) => window.stjarnhimlen.chooseGroup(g), (await groupNamed('Kronan, hjälten och läkaren')).g);
+  assert.equal((await discovery()).chosen, 'Kronan, hjälten och läkaren');
+  await sky.click('#discover-winter');
+  d = await discovery();
+  assert.deepEqual([d.shown, d.chips, d.count, d.chosen], [10, 10, '10 grupper i vinterhimlen', null]);
+  assert.equal(await sky.evaluate(() => window.stjarnhimlen.list.scope), 'winter');
+  // A tap on a constellation left out chooses nothing and says why.
   await sky.evaluate(() => {
     window.stjarnhimlen.view.fov = 150;
     window.stjarnhimlen.invalidate();
   });
   await settle(sky);
-  const hidden = await pointOver(0);
-  assert.ok(hidden, 'some constellation is still hidden');
-  await sky.mouse.move(hidden.x, hidden.y);
-  assert.equal(await hoverId(), null, 'a hidden constellation does not light up under the mouse');
-  await sky.mouse.click(hidden.x, hidden.y);
-  assert.match(await sky.textContent('#toast'), /inte har hittat än|aldrig syns/);
-  assert.deepEqual((await discovery()).found, d.found);
+  const leftOut = await pointOver(0);
+  assert.ok(leftOut, 'a constellation outside the winter sky is in view');
+  await sky.mouse.move(leftOut.x, leftOut.y);
+  assert.deepEqual(await focusNow(), [], 'it does not light up');
+  await sky.mouse.click(leftOut.x, leftOut.y);
+  assert.match(await sky.textContent('#toast'), /hör inte till vinterhimlen\. Välj Alla/);
+  assert.equal((await discovery()).chosen, null);
+  await sky.click('#discover-all');
+  assert.deepEqual(await discovery().then((x) => [x.shown, x.count]), [28, '28 grupper på hela himlen']);
+  await sky.click('#discover-year');
+  assert.equal((await discovery()).shown, 18);
 
-  // The buttons in the panel add groups too, and turn the view to one that is out of
-  // sight, here hidden behind the panel itself.
+  // The buttons in the panel choose a group too, and turn the view to it when it is out of
+  // sight, here hidden behind the panel itself; a second press lets it go.
   await sky.evaluate(() => {
     window.stjarnhimlen.view.fov = 80;
     window.stjarnhimlen.invalidate();
@@ -679,7 +600,7 @@ try {
     const b = [...document.querySelectorAll('#discover-next button')].find((e) => !e.querySelector('.state').textContent);
     return b ? Number(b.dataset.group) : null;
   });
-  assert.ok(chipGroup !== null, 'a group all above the horizon is on offer');
+  assert.ok(chipGroup !== null, 'a group all above the horizon is shown');
   const middle = await sky.evaluate((g) => window.stjarnhimlen.groupShape(g).middle, chipGroup);
   const behind = (await onScreen(middle)).panel;
   await placeAt(middle, behind.right - 40, (behind.top + behind.bottom) / 2);
@@ -687,71 +608,123 @@ try {
   assert.equal(await sky.evaluate((g) => window.stjarnhimlen.groupInView(g), chipGroup), false);
   await sky.click(`#discover-next button[data-group="${chipGroup}"]`);
   await settle(sky);
-  d = await discovery();
-  assert.equal(d.groups.length, 3);
-  const chipMembers = await sky.evaluate((g) => window.stjarnhimlen.chunks[g].members.map((i) => window.stjarnhimlen.catalog.constellations[i].id), chipGroup);
-  assert.ok(chipMembers.every((id) => d.found.includes(id)), 'all of the group is found');
+  assert.equal(await sky.evaluate(() => window.stjarnhimlen.discovery.group), chipGroup);
   const landed = await onScreen(middle);
   assert.ok(landed.x > landed.panel.right + 50, `the view turned to it, clear of the panel (${Math.round(landed.x)} > ${landed.panel.right})`);
   assert.equal(await sky.evaluate((g) => window.stjarnhimlen.groupInView(g), chipGroup), true);
-  // Keyboard: Enter on a button adds it and keeps the focus in the row.
+  await sky.click(`#discover-next button[data-group="${chipGroup}"]`);
+  assert.equal((await discovery()).chosen, null);
+  // Keyboard: Enter on a button chooses its group, and the focus stays on it.
   await sky.focus('#discover-next button');
   await sky.keyboard.press('Enter');
   await settle(sky);
-  assert.equal((await discovery()).groups.length, 4);
-  assert.equal(await sky.evaluate(() => document.activeElement.closest('#discover-next') !== null), true, 'focus stays among the neighbours');
-  d = await discovery();
+  assert.equal((await discovery()).chosen, 'Björnarna vid polen');
+  assert.equal(await sky.evaluate(() => document.activeElement.closest('#discover-next .chip')?.firstChild.textContent), 'Björnarna vid polen');
+  await sky.screenshot({ path: path.join(shots, 'discover-chosen.png') });
 
-  // A tap on a found constellation shows its drawing and adds nothing.
-  await sky.evaluate(() => window.stjarnhimlen.flyTo(window.stjarnhimlen.catalog.byId.get('UMa').index, { instant: true }));
-  await settle(sky);
-  const umaPoint = await pointOver(1, d.found.filter((x) => x !== 'UMa'));
-  await sky.mouse.click(umaPoint.x, umaPoint.y);
-  assert.equal(await sky.evaluate(() => window.stjarnhimlen.artShown(window.stjarnhimlen.catalog.byId.get('UMa').index)), true);
-  assert.deepEqual((await discovery()).found, d.found, 'a tap on a found constellation adds nothing');
-  await sky.screenshot({ path: path.join(shots, 'discover-four.png') });
+  // "Linjer" and "Namn" in the bar are Upptäck's own while discovering: the lines and names
+  // of every group shown, leaving the layers of the whole sky as they were.
+  const bar = (layer) => sky.getAttribute(`[data-layer="${layer}"]`, 'aria-pressed');
+  await sky.evaluate(() => window.stjarnhimlen.chooseGroup(-1));
+  assert.deepEqual([await bar('lines'), await bar('names')], ['false', 'false']);
+  await sky.click('[data-layer="lines"]');
+  await sky.click('[data-layer="names"]');
+  assert.deepEqual([await bar('lines'), await bar('names')], ['true', 'true']);
+  const everything = await drawnParts();
+  assert.ok(everything.segments.length > 15 && everything.names.length > 15, `${everything.segments.length} figures, ${everything.names.length} names`);
+  assert.deepEqual([everything.overlaps, everything.covered, everything.underBar], [0, 0, 0]);
+  await sky.click('[data-layer="lines"]');
+  await sky.click('[data-layer="names"]');
+  assert.deepEqual((await drawnParts()).segments, []);
+  assert.deepEqual(await sky.evaluate(() => [window.stjarnhimlen.layers.lines, window.stjarnhimlen.layers.names]), [true, true]);
 
-  // The list holds only what has been found, and says so when a search finds a hidden one.
-  // Choosing one there turns the view so that it lands between the panel and the list.
-  const chipId = chipMembers[0];
-  const chipVec = await sky.evaluate((c) => window.stjarnhimlen.catalog.byId.get(c).centerVec, chipId);
+  // A mark colours a constellation instead of its group, and is counted.
+  const bearTint = await tintOf('UMa');
+  await sky.evaluate(() => window.stjarnhimlen.toggleMark(window.stjarnhimlen.catalog.byId.get('UMa').index));
+  assert.notDeepEqual(await tintOf('UMa'), bearTint, 'the mark colours Ursa Major instead of its group');
+  assert.equal(await sky.textContent('#mark-count'), '1');
+  // Marked, its lines show whatever is in focus; "Rensa markeringar" removes it.
+  assert.deepEqual((await drawnParts()).segments, ['UMa']);
   await sky.click('#btn-list');
-  await sky.click(`#con-list li[data-index="${await sky.evaluate((c) => window.stjarnhimlen.catalog.byId.get(c).index, chipId)}"] .con-name`);
-  await settle(sky);
-  const between = await onScreen(chipVec);
-  const listLeft = await sky.$eval('#panel-list', (e) => e.getBoundingClientRect().left);
-  const gap = (between.panel.right + listLeft) / 2;
-  assert.ok(Math.abs(between.x - gap) < 40, `centred between the panel and the list (${Math.round(between.x)}, gap centre ${Math.round(gap)})`);
-  await sky.click('#card .icon-btn');
-  const listed = await sky.$$eval('#con-list li:not([hidden]):not(.empty) strong', (els) => els.length);
-  assert.equal(listed, d.found.length);
-  assert.equal(await sky.isVisible('#list-note'), true);
-  // Vattumannen's group is two groups away from any next to the bears.
-  await sky.fill('#search', 'vattumannen');
-  assert.equal(await sky.textContent('#con-list .empty'), 'Vattumannen har du inte upptäckt än.');
-  await sky.fill('#search', '');
+  await sky.click('#btn-clear');
+  assert.equal(await sky.textContent('#toast'), 'Tog bort 1 markering');
   await sky.click('#btn-list-close');
 
-  // The panel folds up to its progress line.
+  // A name that would land under the panel is left out (names of every group on here).
+  await sky.evaluate(() => window.stjarnhimlen.setDiscoverAll('names', true));
+  const draLabel = await sky.evaluate(() => window.stjarnhimlen.catalog.byId.get('Dra').labelVecs[0]);
+  const box = (await onScreen(draLabel)).panel;
+  await placeAt(draLabel, box.right - 60, box.top + 100);
+  await settle(sky);
+  const placed = await onScreen(draLabel);
+  assert.ok(Math.hypot(placed.x - box.right + 60, placed.y - box.top - 100) < 2, `Draco's name is under the panel (${Math.round(placed.x)}, ${Math.round(placed.y)})`);
+  const under = await drawnParts();
+  assert.ok(!under.names.includes('Dra') && under.covered === 0, `a name under the panel is left out (${under.names})`);
+  await sky.evaluate(() => window.stjarnhimlen.setDiscoverAll('names', false));
+
+  // Upptäck draws the line round each group, from the start, with each group in its
+  // colour; or each constellation's boundary; or none. "Gränser" in the bar turns them off
+  // and on again, and leaves the layer of the whole sky as it was.
+  await sky.evaluate(() => window.stjarnhimlen.flyTo(window.stjarnhimlen.chunks[0].members, { instant: true }));
+  await settle(sky);
+  const boundsChoice = () => sky.$$eval('.discover-bounds .chip', (els) => els.map((el) => `${el.textContent}:${el.getAttribute('aria-pressed')}`));
+  assert.deepEqual([await boundsChoice(), await bar('bounds')], [['Inga:false', 'Stjärnbilder:false', 'Grupper:true'], 'true']);
+  const grouped = await drawnParts();
+  assert.ok(grouped.outlines.length === 0 && grouped.groupLined > 0, 'no boundaries of their own, a line round each group');
+  await sky.click('#discover-bounds-constellation');
+  assert.deepEqual(await boundsChoice(), ['Inga:false', 'Stjärnbilder:true', 'Grupper:false']);
+  const byConstellation = await drawnParts();
+  assert.ok(byConstellation.outlines.length > 5 && byConstellation.groupLined === 0, `boundaries of ${byConstellation.outlines.length}`);
+  assert.ok(byConstellation.tinted < grouped.tinted, `the groups lose their colours (${grouped.tinted} -> ${byConstellation.tinted})`);
+  assert.ok(byConstellation.groups.length > 0, 'the groups are still named');
+  await sky.click('[data-layer="bounds"]');
+  assert.deepEqual([await boundsChoice(), await bar('bounds')], [['Inga:true', 'Stjärnbilder:false', 'Grupper:false'], 'false']);
+  assert.deepEqual((await drawnParts()).outlines, [], 'no boundaries');
+  await sky.click('[data-layer="bounds"]');
+  assert.deepEqual([await boundsChoice(), await bar('bounds')], [['Inga:false', 'Stjärnbilder:true', 'Grupper:false'], 'true'], 'back as chosen');
+  await sky.click('#discover-bounds-group');
+  // Turned off from the bar with the groups chosen: no lines or colours for the groups.
+  await sky.click('[data-layer="bounds"]');
+  const groupsOff = await drawnParts();
+  assert.deepEqual([groupsOff.groupLined, groupsOff.outlines], [0, []]);
+  assert.ok(groupsOff.tinted < grouped.tinted, 'nor colours');
+  await sky.click('[data-layer="bounds"]');
+  assert.deepEqual([await boundsChoice(), await bar('bounds')], [['Inga:false', 'Stjärnbilder:false', 'Grupper:true'], 'true']);
+  assert.equal(await sky.evaluate(() => window.stjarnhimlen.layers.bounds), false, 'the layer of the whole sky is left alone');
+
+  // The panel folds up to its count.
   await sky.click('#btn-discover-collapse');
   assert.equal(await sky.isHidden('#discover-body'), true);
   assert.equal(await sky.getAttribute('#btn-discover-collapse', 'aria-expanded'), 'false');
   await sky.click('#btn-discover-collapse');
   assert.equal(await sky.isVisible('#discover-next'), true);
 
-  // What has been found is remembered between visits.
-  const foundIds = JSON.stringify(d.found);
-  await sky.waitForFunction((ids) => {
+  // The group chosen and the choices are remembered between visits.
+  await sky.evaluate((g) => {
+    const a = window.stjarnhimlen;
+    a.chooseGroup(g);
+    a.setDiscoverAll('lines', true);
+    a.setDiscoverBounds('constellation');
+  }, perseus.g);
+  await sky.waitForFunction(() => {
     const saved = JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').discover;
-    return saved?.collapsed === false && saved.byGroups === true && JSON.stringify([...saved.found].sort()) === ids;
-  }, foundIds);
+    return saved?.group === 'Perseus räddar Andromeda' && saved.lines === true && saved.boundsBy === 'constellation' && saved.collapsed === false;
+  });
   await sky.reload();
   await sky.waitForFunction(() => window.stjarnhimlen);
-  assert.deepEqual(await discovery().then((x) => [x.groups, x.found]), [d.groups, d.found]);
-  assert.deepEqual(await boundsChoice(), ['Inga:false', 'Stjärnbilder:false', 'Grupper:true']);
-  // A discovery saved when constellations were found one at a time becomes the groups it
-  // had a constellation of, drawn round the groups whatever boundaries it had. One saved
-  // since keeps its choice of boundaries.
+  assert.deepEqual(await sky.evaluate(() => {
+    const a = window.stjarnhimlen;
+    return [a.chunks[a.discovery.group]?.name, a.discovery.lines, a.discovery.names, a.discoverBounds()];
+  }), ['Perseus räddar Andromeda', true, false, 'constellation']);
+  assert.match(await sky.textContent('#discover-hint'), /^Perseus räddar Andromeda: /);
+  await sky.evaluate(() => {
+    const a = window.stjarnhimlen;
+    a.setDiscoverAll('lines', false);
+    a.setDiscoverBounds('group');
+  });
+  // Saved when Upptäck found constellations one at a time, the discovery found is not
+  // needed any more, and the boundaries become the groups'. One saved since keeps its
+  // choice of boundaries.
   const reopen = async (saved) => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     page.on('pageerror', (e) => errors.push(e.message));
@@ -761,147 +734,47 @@ try {
     await page.waitForFunction(() => window.stjarnhimlen);
     const state = await page.evaluate(() => {
       const a = window.stjarnhimlen;
-      return {
-        groups: [...a.discovery.groups].sort((x, y) => x - y).map((g) => a.chunks[g].name),
-        found: [...a.discovery.found].map((i) => a.catalog.constellations[i].id).sort(),
-        bounds: a.discoverBounds(),
-        count: document.getElementById('discover-count').textContent,
-      };
+      return { on: a.discovering, shown: a.shownGroups.length, chosen: a.discovery.group, bounds: a.discoverBounds() };
     });
     await page.close();
     return state;
   };
-  assert.deepEqual(await reopen({ layers: { bounds: false }, discover: { on: true, boundsBy: 'constellation', found: ['UMa', 'Leo', 'Cas', 'Nope'] } }), {
-    groups: ['Björnarna vid polen', 'Perseus räddar Andromeda', 'Herakles fiender'],
-    found: ['And', 'Cas', 'Cep', 'Cnc', 'Dra', 'Hya', 'Leo', 'Per', 'Sex', 'UMa', 'UMi'],
-    bounds: 'group',
-    count: '3 av 18',
-  });
-  assert.equal((await reopen({ discover: { on: true, byGroups: true, boundsBy: 'constellation', showBounds: false, found: bears } })).bounds, 'none');
+  assert.deepEqual(await reopen({ layers: { bounds: false }, discover: { on: true, boundsBy: 'constellation', found: ['UMa', 'Leo', 'Cas', 'Nope'], all: true } }),
+    { on: true, shown: 18, chosen: -1, bounds: 'group' });
+  assert.equal((await reopen({ discover: { on: true, byGroups: true, boundsBy: 'constellation', showBounds: false } })).bounds, 'none');
 
-  // "Visa hela himlen" leaves the mode, shows every star and lists every constellation;
-  // "Upptäck" comes back to where it was.
-  await sky.evaluate(() => {
-    const a = window.stjarnhimlen;
-    a.flyTo(a.catalog.byId.get('UMa').index, { instant: true });
-    a.view.fov = 120;
-    a.invalidate();
-  });
-  await settle(sky);
-  const discovering = await drawnStars();
+  // "Visa hela himlen" leaves the mode and shows every figure; "Upptäck" comes back to the
+  // group chosen.
   await sky.click('#btn-discover-exit');
-  await settle(sky);
   d = await discovery();
-  assert.deepEqual([d.on, d.panel, d.pressed, d.next], [false, false, 'false', null]);
-  const whole = await drawnStars();
-  assert.ok(whole.n > discovering.n * 1.5, `the whole sky is back (${discovering.n} -> ${whole.n} stars)`);
-  // Zoomed all the way out, crowded names are left out rather than drawn over each other.
-  await sky.evaluate(() => {
-    window.stjarnhimlen.view.fov = 160;
-    window.stjarnhimlen.invalidate();
-  });
-  await settle(sky);
-  const crowded = await drawnParts();
-  assert.ok(crowded.names.length > 20 && crowded.overlaps === 0, `${crowded.names.length} names, ${crowded.overlaps} overlapping`);
-  await sky.click('#btn-list');
-  assert.ok((await sky.$$eval('#con-list li:not([hidden]):not(.empty)', (els) => els.length)) > 50);
-  assert.equal(await sky.isVisible('#list-note'), false);
-  await sky.click('#btn-list-close');
+  assert.deepEqual([d.on, d.panel, d.pressed, d.chosen], [false, false, 'false', 'Perseus räddar Andromeda']);
+  assert.ok((await drawnParts()).segments.length > 15, 'every figure is drawn again');
   await sky.click('#btn-discover');
   d = await discovery();
-  assert.deepEqual([d.on, d.panel, d.groups.length], [true, true, 4]);
-  // Zoomed out while discovering, the names of constellations and groups keep apart too.
+  assert.deepEqual([d.on, d.panel, d.chosen], [true, true, 'Perseus räddar Andromeda']);
+  // Zoomed out, the names of groups and of the group in focus keep apart.
   await sky.evaluate(() => {
     window.stjarnhimlen.view.fov = 160;
     window.stjarnhimlen.invalidate();
   });
   await settle(sky);
-  const wide = await drawnParts();
-  assert.ok(wide.texts.some((t) => t.startsWith('+ ')) && wide.overlaps === 0 && wide.covered === 0 && wide.underBar === 0,
-    `${wide.texts.length} names, ${wide.overlaps} overlapping, ${wide.underBar} under the buttons`);
+  const wide = await drawnParts('Ori');
+  assert.ok(wide.groups.length > 5 && wide.overlaps === 0 && wide.covered === 0 && wide.underBar === 0,
+    `${wide.groups.length} groups named, ${wide.overlaps} overlapping, ${wide.underBar} under the buttons`);
 
-  // Another place changes the goal: fewer groups rise in Kiruna.
+  // Another place: fewer groups rise in Kiruna.
   await sky.evaluate(() => window.stjarnhimlen.setPlace('kiruna'));
-  assert.match((await discovery()).count, /^\d+ av 16$/);
+  assert.deepEqual(await discovery().then((x) => [x.shown, x.count]), [16, '16 grupper som syns från Kiruna']);
   await sky.evaluate(() => window.stjarnhimlen.setPlace('stockholm'));
 
-  // Collecting every group on offer finishes the sky seen from here. The rest never rise
-  // here, so going on makes the ground see-through and turns to one of them.
-  const collect = () => sky.evaluate(() => {
-    const a = window.stjarnhimlen;
-    while (a.discoveryInfo.next.length) a.discoverGroup(a.discoveryInfo.next[0]);
-  });
-  await collect();
-  assert.match(await sky.textContent('#discover-hint'), /Klart! Du har hittat alla 18 grupper som syns från Stockholm\.$/);
-  assert.equal(await sky.textContent('#btn-discover-rest'), 'Fortsätt med resten av himlen (10 grupper till)');
-  const hiddenAfterDone = await pointOver(0);
-  if (hiddenAfterDone) {
-    await sky.mouse.click(hiddenAfterDone.x, hiddenAfterDone.y);
-    assert.match(await sky.textContent('#toast'), /Fortsätt med resten av himlen/);
-  }
-  await sky.click('#btn-discover-rest');
-  await settle(sky);
-  d = await discovery();
-  assert.equal(d.count, '18 av 28');
-  assert.equal(await sky.textContent('#discover-of'), 'grupper');
-  assert.ok(d.next.length > 0);
-  assert.equal(await sky.evaluate(() => window.stjarnhimlen.layers.seeThrough), true);
-  assert.ok(await sky.evaluate(() => {
-    const a = window.stjarnhimlen;
-    return a.discoveryInfo.next.some((g) => a.vecInView(a.groupShape(g).middle));
-  }), 'one of the rest is in view');
-  assert.match(await sky.textContent('#discover-hint'), /syns aldrig från Stockholm, så marken är genomskinlig/);
-  // Going on is remembered too.
-  const found19 = await sky.evaluate(() => {
-    const a = window.stjarnhimlen;
-    a.discoverGroup(a.discoveryInfo.next[0]);
-    return a.discovery.found.size;
-  });
-  await sky.waitForFunction((n) => {
-    const saved = JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').discover;
-    return saved?.on === true && saved.all === true && saved.found.length === n;
-  }, found19);
-  await sky.reload();
-  await sky.waitForFunction(() => window.stjarnhimlen);
-  assert.equal((await discovery()).count, '19 av 28');
-  await collect();
-  d = await discovery();
-  assert.deepEqual([d.found.length, d.groups.length, d.next.length, d.count], [88, 28, 0, '28 av 28']);
-  assert.match(await sky.textContent('#discover-hint'), /Hela himlen! Du har hittat alla 28 grupper, alla 88 stjärnbilder\.$/);
-  assert.equal(await sky.isHidden('#btn-discover-rest'), true);
-
-  // Starting over takes two presses and turns back to the bears.
-  await sky.evaluate(() => {
-    const a = window.stjarnhimlen;
-    Object.assign(a.view, { az: 180, alt: 20, fov: 60 });
-    a.invalidate();
-  });
-  await sky.click('#btn-discover-restart');
-  assert.equal((await discovery()).found.length, 88);
-  assert.equal(await sky.textContent('#btn-discover-restart'), 'Säker? Tryck igen');
-  await sky.click('#btn-discover-restart');
-  await settle(sky);
-  d = await discovery();
-  assert.deepEqual([d.groups, d.found, d.count], [['Björnarna vid polen'], bears, '1 av 18']);
-  assert.equal(await inView('UMa'), true);
-  assert.equal(await sky.evaluate(() => window.stjarnhimlen.layers.seeThrough), false, 'the see-through ground it turned on is off again');
-  // Turning the mode back on with only the bears found turns to them as well.
-  await sky.click('#btn-discover-exit');
-  await sky.evaluate(() => {
-    Object.assign(window.stjarnhimlen.view, { az: 180, alt: 20, fov: 60 });
-    window.stjarnhimlen.invalidate();
-  });
-  await sky.click('#btn-discover');
-  await settle(sky);
-  assert.equal(await inView('UMa'), true);
-
-  // A group added by its button while below the horizon: the button says so, and a note
-  // explains why it cannot be seen. In mid August at 23:00 Herakles' foes are under the ground.
+  // A group chosen by its button while below the horizon: the button says so, and a note
+  // explains why it cannot be seen. In mid August at 23:00 Orion's group is under the ground.
   await sky.evaluate(() => window.stjarnhimlen.setTime(Date.UTC(2026, 7, 15, 21, 0)));
-  const foes = await groupNamed('Herakles fiender');
-  assert.match(await sky.textContent(`#discover-next button[data-group="${foes.g}"]`), /nere|delvis uppe/);
-  await sky.click(`#discover-next button[data-group="${foes.g}"]`);
-  assert.match(await sky.textContent('#toast'), /^(En del av gruppen|Gruppen) ”Herakles fiender” är under horisonten just nu/);
+  const hunter = await groupNamed('Jägaren Orion');
+  assert.equal(await sky.evaluate((g) => window.stjarnhimlen.groupStateOf(g), hunter.g), 'down');
+  assert.match(await sky.textContent(`#discover-next button[data-group="${hunter.g}"]`), /nere$/);
+  await sky.click(`#discover-next button[data-group="${hunter.g}"]`);
+  assert.match(await sky.textContent('#toast'), /^Gruppen ”Jägaren Orion” är under horisonten just nu/);
 
   // A flight frames a constellation's name too; Cassiopeja's sits well outside its W.
   const casNamed = (page) => page.evaluate(() => {
@@ -916,15 +789,31 @@ try {
   });
   assert.ok(await casNamed(sky), 'Cassiopeja is named on screen after a flight');
 
-  // On a phone the panel fits across the top, the view opens below it, and notes are
-  // shown below it too.
-  const phoneSky = await openPage({ width: 390, height: 844 }, { discover: true });
+  // On a phone the panel fits across the top, the groups are named clear of the buttons,
+  // a tap chooses a group, and notes are shown below the panel.
+  const phoneSky = await openPage({ width: 390, height: 844 }, { discover: true, touch: true });
   assert.equal(await phoneSky.isVisible('#panel-discover'), true);
+  assert.equal(await phoneSky.textContent('#discover-hint'), 'Tryck på en grupp för att se dess stjärnbilder.');
+  await phoneSky.evaluate(() => window.stjarnhimlen.flyTo(window.stjarnhimlen.chunks[0].members, { instant: true }));
+  await settle(phoneSky);
   const phoneStart = await drawnParts(null, phoneSky);
-  assert.ok(phoneStart.texts.some((t) => t.startsWith('+ ')) && phoneStart.underBar === 0 && phoneStart.overlaps === 0,
-    `groups on offer named clear of the buttons on a phone (${phoneStart.underBar} under them)`);
+  assert.ok(phoneStart.groups.length > 2 && phoneStart.underBar === 0 && phoneStart.overlaps === 0,
+    `groups named clear of the buttons on a phone (${phoneStart.groups}; ${phoneStart.underBar} under them)`);
   assert.ok((await phoneSky.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 0, 'no horizontal scroll');
-  assert.equal(await phoneSky.evaluate(() => window.stjarnhimlen.inView(window.stjarnhimlen.catalog.byId.get('UMa').index)), true);
+  const phoneSpot = await phoneSky.evaluate(() => {
+    const a = window.stjarnhimlen;
+    const panel = a.discoverPanel.root.getBoundingClientRect();
+    for (let y = panel.bottom + 30; y < innerHeight - 100; y += 20) {
+      for (let x = 30; x < innerWidth - 30; x += 20) {
+        const i = a.pick(x, y);
+        if (i >= 0 && a.reveal.con[i] === 1 && document.elementFromPoint(x, y) === a.hudCanvas) return { x, y, group: a.chunkOf.get(i).name };
+      }
+    }
+    return null;
+  });
+  assert.ok(phoneSpot, 'a group below the panel');
+  await phoneSky.touchscreen.tap(phoneSpot.x, phoneSpot.y);
+  assert.equal(await phoneSky.evaluate(() => window.stjarnhimlen.chunks[window.stjarnhimlen.discovery.group]?.name), phoneSpot.group);
   await phoneSky.evaluate(() => window.stjarnhimlen.showToast('Prov'));
   const [panelBox, toastBox] = await Promise.all(['#panel-discover', '#toast'].map((sel) => phoneSky.$eval(sel, (e) => e.getBoundingClientRect().toJSON())));
   assert.ok(toastBox.top >= panelBox.bottom, 'the note does not cover the panel');
@@ -1199,7 +1088,7 @@ try {
   await quiz.click('#btn-discover');
   q = await quizState();
   assert.deepEqual([q.on, q.panel, q.discovering], [false, false, true]);
-  assert.equal(await quiz.textContent('#discover-count'), '1 av 18');
+  assert.equal(await quiz.textContent('#discover-count'), '18 grupper');
   assert.equal(await quiz.isDisabled('#btn-list'), false);
   assert.equal(await quiz.isDisabled('[data-layer="lines"]'), false);
   await quiz.click('#btn-train');

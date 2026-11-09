@@ -65,27 +65,28 @@ export class HudLayer {
     const { pt } = this;
     const small = view.fov > 110 ? 10 : 11;
     // Names never run into each other or into the boxes in st.avoid. The more important
-    // ones go first: the group just found, marked and selected ones, the hovered one, the
-    // groups on offer (by their own names), then the rest, and last the names of the
-    // groups found, where there is room for them.
+    // ones go first: marked and selected ones, the hovered one, those of the groups pointed
+    // at and chosen while discovering, then the names of the groups (those in focus first),
+    // and then the rest.
     const taken = st.avoid ? [...st.avoid] : [];
-    const recent = (c) => Boolean(st.recent && st.recent.has(c.index));
-    const rank = (c) => (recent(c) ? 0
-      : st.marks.has(c.index) || c.index === st.selected ? 1
-        : c.index === st.hover ? 2 : 4);
-    // A constellation in a group on offer is not named: the group is.
+    const focus = st.focusMembers;
+    const rank = (c) => (st.marks.has(c.index) || c.index === st.selected ? 1
+      : c.index === st.hover ? 2
+        : focus && focus.has(c.index) ? 3 : 4);
     const order = this.catalog.constellations.filter((c) => !st.reveal || st.reveal.con[c.index] === 1).sort((a, b) => rank(a) - rank(b));
-    let offered = false;
+    let grouped = !st.groups;
     for (const c of order) {
-      if (!offered && rank(c) > 2) {
-        this.drawOffers(view, st, taken, small);
-        offered = true;
+      if (!grouped && rank(c) > 3) {
+        this.drawGroupNames(view, st, taken, small);
+        grouped = true;
       }
       const mark = st.marks.get(c.index);
       const selected = c.index === st.selected;
       const special = mark !== undefined || selected;
       const hover = c.index === st.hover;
+      const focused = Boolean(focus && focus.has(c.index));
       if (!special && !hover && !st.layers.names) continue;
+      if (!special && !hover && st.namesOnly && !st.namesOnly.has(c.index)) continue;
       const text = c.sv.toUpperCase();
       let color = SKY.label;
       let size = small;
@@ -94,10 +95,9 @@ export class HudLayer {
         color = mark !== undefined ? MARK_COLORS[mark % MARK_COLORS.length].hex : SELECT_COLOR.hex;
         size = selected ? 15 : 13;
         weight = 600;
-      } else if (hover || recent(c)) {
-        // Hovered, or just discovered.
+      } else if (hover || focused) {
+        // Hovered, or in a group pointed at or chosen.
         color = SKY.labelHover;
-        if (!hover) weight = 600;
       }
       const font = `${weight} ${size}px ${this.fontFamily}`;
       for (const v of c.labelVecs) {
@@ -106,8 +106,7 @@ export class HudLayer {
         this.label(text, pt.x, pt.y, font, color, size * 0.18, special);
       }
     }
-    if (!offered) this.drawOffers(view, st, taken, small);
-    if (st.bounds === 'group' && st.foundGroups && st.layers.names) this.drawGroupNames(view, st, taken, small);
+    if (!grouped) this.drawGroupNames(view, st, taken, small);
   }
 
   /** Whether a point on the sky is drawn on the screen now, putting it in this.pt. */
@@ -116,30 +115,21 @@ export class HudLayer {
     return !(st.groundOpaque && view.altOf(v) < -2);
   }
 
-  /** The name of each group that can be added next, with a plus, once, in the best place free. */
-  drawOffers(view, st, taken, small) {
-    const { pt } = this;
-    const size = small + 2;
-    for (const o of st.offers || []) {
-      const hover = o.members.includes(st.hover);
-      const text = `+ ${o.name}`;
-      const font = `${hover ? 700 : 600} ${size}px ${this.fontFamily}`;
-      for (const v of o.spots) {
-        if (!this.onScreen(view, st, v, text, font, 0.5, size) || this.covered(text, font, 0.5, size, taken)) continue;
-        this.label(text, pt.x, pt.y, font, hover ? SKY.candidateHover : SKY.candidateLabel, 0.5, true);
-        break;
-      }
-    }
-  }
-
-  /** The name of each group found, once, where it does not run into anything named before it. */
+  /**
+   * The name of each group shown while discovering, once, in its own colour, in the best
+   * place free; those pointed at and chosen first, and brighter.
+   */
   drawGroupNames(view, st, taken, small) {
     const { pt } = this;
-    const font = `italic 500 ${small + 1}px ${this.fontFamily}`;
-    for (const o of st.foundGroups) {
+    const size = small + 2;
+    const inFocus = new Set((st.focus || []).map((o) => o.group));
+    const groups = [...(st.focus || []), ...st.groups.filter((o) => !inFocus.has(o.group))];
+    for (const o of groups) {
+      const focused = inFocus.has(o.group);
+      const font = `${focused ? 700 : 600} ${size}px ${this.fontFamily}`;
       for (const v of o.spots) {
-        if (!this.onScreen(view, st, v, o.name, font, 0.3, small + 1) || this.covered(o.name, font, 0.3, small + 1, taken)) continue;
-        this.label(o.name, pt.x, pt.y, font, SKY.groupName, 0.3, true);
+        if (!this.onScreen(view, st, v, o.name, font, 0.3, size) || this.covered(o.name, font, 0.3, size, taken)) continue;
+        this.label(o.name, pt.x, pt.y, font, focused ? SKY.labelHover : o.color, 0.3, true);
         break;
       }
     }

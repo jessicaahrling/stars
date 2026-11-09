@@ -5,7 +5,7 @@ const STATE_TEXT = { up: 'uppe', rising: 'delvis uppe', down: 'nere' };
 
 export class ListPanel {
   /**
-   * @param {object} app  see App: catalog, marks, selected, view, discovery, isFound, inScope, toggleMark, select, figureStateOf
+   * @param {object} app  see App: catalog, marks, selected, view, inScope, toggleMark, select, figureStateOf
    * @param {(id: string) => HTMLElement} $
    */
   constructor(app, $) {
@@ -18,7 +18,6 @@ export class ListPanel {
     this.filterPlace = $('filter-place');
     this.filterCount = $('filter-count');
     this.filterWinterCount = $('filter-winter-count');
-    this.note = $('list-note');
     /** Which constellations the list holds: 'year' those seen from here, 'winter' the winter sky, or 'all'. */
     this.scope = 'year';
     this.rows = new Map();
@@ -90,20 +89,14 @@ export class ListPanel {
   applyFilter() {
     const q = this.search.value.trim().toLowerCase();
     let shown = 0;
-    let undiscovered = null;
     for (const c of this.app.catalog.constellations) {
       const row = this.rows.get(c.index);
-      // While discovering the sky, the list holds only the constellations found so far.
-      const match = this.app.inScope(c.index, this.scope) && (!q || row.search.includes(q));
-      const show = match && this.app.isFound(c.index);
-      if (match && !show && q) undiscovered = undiscovered ? 'many' : c;
+      const show = this.app.inScope(c.index, this.scope) && (!q || row.search.includes(q));
       row.li.hidden = !show;
       if (show) shown++;
     }
     this.empty.hidden = shown > 0;
-    this.empty.textContent = !undiscovered ? 'Ingen stjärnbild matchar sökningen.'
-      : undiscovered === 'many' ? 'Du har inte upptäckt någon av dem än.' : `${undiscovered.sv} har du inte upptäckt än.`;
-    this.note.hidden = !this.app.discovering;
+    this.empty.textContent = 'Ingen stjärnbild matchar sökningen.';
     this.filterPlace.textContent = this.app.place.name;
     this.filterCount.textContent = String(this.app.scopeCount('year'));
     this.filterWinterCount.textContent = String(this.app.scopeCount('winter'));
