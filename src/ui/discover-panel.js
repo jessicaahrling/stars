@@ -1,11 +1,18 @@
-// "Upptäck himlen": progress, and the neighbours that can be added next.
+// "Upptäck himlen": progress, counted in groups, and the neighbouring groups that can be
+// added next.
 
 const STATE_TEXT = { rising: 'delvis uppe', down: 'nere' };
 
+/** "a, b och c". */
+function listOf(names) {
+  return names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} och ${names[names.length - 1]}`;
+}
+
 export class DiscoverPanel {
   /**
-   * @param {object} app  see App: catalog, place, layers, discovery, discoveryInfo, lastFound,
-   *   setDiscover, discover, discoverRest, restartDiscovery, figureStateOf, saveSoon
+   * @param {object} app  see App: catalog, chunks, place, layers, discovery, discoveryInfo,
+   *   lastGroup, setDiscover, discoverGroup, discoverRest, restartDiscovery, groupStateOf,
+   *   setDiscoverBounds, discoverBounds, saveSoon
    * @param {(id: string) => HTMLElement} $
    */
   constructor(app, $) {
@@ -75,54 +82,58 @@ export class DiscoverPanel {
     this.body.hidden = d.collapsed;
     this.collapse.setAttribute('aria-expanded', String(!d.collapsed));
     this.collapse.setAttribute('aria-label', d.collapsed ? 'Visa grannarna' : 'Fäll ihop');
+    const of = d.all ? 'grupper' : `grupper som syns från ${place}`;
     this.count.textContent = `${info.foundInGoal} av ${info.goal}`;
-    this.of.textContent = d.all ? 'stjärnbilder' : `som syns från ${place}`;
+    this.of.textContent = of;
     this.bar.style.width = `${(100 * info.foundInGoal) / info.goal}%`;
     this.meter.setAttribute('aria-valuenow', String(info.foundInGoal));
     this.meter.setAttribute('aria-valuemax', String(info.goal));
-    this.meter.setAttribute('aria-valuetext', `${info.foundInGoal} av ${info.goal} ${d.all ? 'stjärnbilder' : `som syns från ${place}`}`);
+    this.meter.setAttribute('aria-valuetext', `${info.foundInGoal} av ${info.goal} ${of}`);
 
-    const left = cons.length - d.found.size;
-    const last = cons[app.lastFound];
-    const recent = last ? `${last.sv} är ${last.plural ? 'upptäckta' : 'upptäckt'}! ` : '';
+    const chunks = app.chunks;
+    const left = chunks.length - d.groups.size;
+    const last = chunks[app.lastGroup];
+    const recent = last ? `${last.name} är upptäckt: ${listOf(last.members.map((i) => cons[i].sv))}. ` : '';
     let hint;
-    if (info.done && (d.all || !left)) hint = `Hela himlen! Du har hittat alla ${cons.length} stjärnbilder.`;
-    else if (info.done) hint = `${recent}Klart! Du har hittat alla ${info.goal} som syns från ${place}.`;
-    else if (d.found.size === 1) hint = 'Här är Stora björnen. Lägg till en granne genom att trycka på den på himlen eller här:';
-    else if (d.all) hint = `${recent}De här syns aldrig från ${place}${app.layers.seeThrough ? ', så marken är genomskinlig' : '. Slå på Se genom marken för att se dem'}. Lägg till en granne:`;
-    else hint = `${recent}Lägg till en granne:`;
+    if (info.done && (d.all || !left)) hint = `${recent}Hela himlen! Du har hittat alla ${chunks.length} grupper, alla ${cons.length} stjärnbilder.`;
+    else if (info.done) hint = `${recent}Klart! Du har hittat alla ${info.goal} grupper som syns från ${place}.`;
+    else if (d.groups.size === 1) {
+      const start = chunks[[...d.groups][0]];
+      hint = `Här är ${start.name}: ${listOf(start.members.map((i) => cons[i].sv))}. Lägg till en grannegrupp genom att trycka på den på himlen eller här:`;
+    } else if (d.all) hint = `${recent}De här syns aldrig från ${place}${app.layers.seeThrough ? ', så marken är genomskinlig' : '. Slå på Se genom marken för att se dem'}. Lägg till en grannegrupp:`;
+    else hint = `${recent}Lägg till en grannegrupp:`;
     // The hint is a live region, so it is only written when it says something new.
     if (this.hint.textContent !== hint) this.hint.textContent = hint;
     this.rest.hidden = !(info.done && !d.all && left);
-    this.rest.textContent = `Fortsätt med resten av himlen (${left} till)`;
+    this.rest.textContent = `Fortsätt med resten av himlen (${left} ${left === 1 ? 'grupp' : 'grupper'} till)`;
     this.restart.textContent = this.confirming ? 'Säker? Tryck igen' : 'Börja om';
     const bounds = app.discoverBounds();
     for (const [k, b] of Object.entries(this.bounds)) b.setAttribute('aria-pressed', String(k === bounds));
-    this.restart.disabled = d.found.size === 1 && !d.all;
+    this.restart.disabled = d.groups.size === 1 && !d.all;
 
     const key = info.next.join(',');
     if (key !== this.nextKey) {
       this.nextKey = key;
       // Keep keyboard focus in the row when the pressed button goes away.
       const focusAt = [...this.next.children].indexOf(document.activeElement);
-      const sorted = info.next.map((i) => cons[i]).sort((a, b) => a.sv.localeCompare(b.sv, 'sv'));
-      this.next.replaceChildren(...sorted.map((c) => {
+      // In the order "Träna" takes them, which is roughly from the pole outwards.
+      this.next.replaceChildren(...info.next.map((g) => {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'chip';
-        b.dataset.id = c.id;
+        b.dataset.group = String(g);
         // A colour of its own for designs that colour the neighbours, the same every time,
-        // and seldom the same as the one beside it: the rows are in alphabetical order too.
-        b.dataset.hue = String(this.hueOf(c));
+        // and seldom the same as the one beside it.
+        b.dataset.hue = String(g % 7);
         const name = document.createElement('span');
-        name.textContent = `+ ${c.sv}`;
+        name.textContent = `+ ${chunks[g].name}`;
         const state = document.createElement('span');
         state.className = 'state';
         b.append(name, state);
-        b.addEventListener('click', () => app.discover(c.index, { fly: true }));
+        b.addEventListener('click', () => app.discoverGroup(g, { fly: true }));
         return b;
       }));
-      this.next.hidden = !sorted.length;
+      this.next.hidden = !info.next.length;
       this.next.scrollLeft = 0;
       if (focusAt >= 0) {
         const target = this.next.children[Math.min(focusAt, this.next.children.length - 1)] || (this.rest.hidden ? this.restart : this.rest);
@@ -132,27 +143,18 @@ export class DiscoverPanel {
     this.syncStates();
   }
 
-  /** A colour number 0-6 for a constellation: its place among all 88 in Swedish alphabetical order. */
-  hueOf(c) {
-    if (!this.hues) {
-      const cons = [...this.app.catalog.constellations].sort((a, b) => a.sv.localeCompare(b.sv, 'sv'));
-      this.hues = new Map(cons.map((x, k) => [x.index, k % 7]));
-    }
-    return this.hues.get(c.index);
-  }
-
-  /** Marks the neighbours on offer that are below the horizon now (the sky turns, so this runs every second). */
+  /** Marks the groups on offer that are below the horizon now (the sky turns, so this runs every second). */
   syncStates() {
     const { app } = this;
     if (!app.discovering || this.root.hidden) return;
     for (const b of this.next.children) {
-      const c = app.catalog.byId.get(b.dataset.id);
-      const st = app.layers.seeThrough ? 'up' : app.figureStateOf(c);
+      const g = Number(b.dataset.group);
+      const st = app.layers.seeThrough ? 'up' : app.groupStateOf(g);
       const text = STATE_TEXT[st] || '';
       const state = b.lastElementChild;
       if (state.textContent !== text) state.textContent = text;
       b.classList.toggle('below', st === 'down');
-      b.setAttribute('aria-label', `Lägg till ${c.sv}${st === 'down' ? ', under horisonten just nu' : st === 'rising' ? ', delvis under horisonten just nu' : ''}`);
+      b.setAttribute('aria-label', `Lägg till ${app.chunks[g].name}${st === 'down' ? ', under horisonten just nu' : st === 'rising' ? ', delvis under horisonten just nu' : ''}`);
     }
   }
 }

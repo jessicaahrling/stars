@@ -18,18 +18,24 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
 
 ## Vad som finns
 
-- **Upptäck himlen:** himlen börjar med bara Stora björnen. Grannarna står utsatta med ett
-  plus framför namnet, och man lägger till en i taget genom att klicka på den på himlen
-  eller i panelen. Sedan erbjuds grannarna till alla man har hittat, tills man har alla
-  som syns från vald ort, och därefter resten av himlen om man vill. Bara stjärnbilderna
-  man har hittat visas, med sina stjärnor, linjer och namn. Grannar som är under
-  horisonten just nu står som "nere" i panelen, och "Fortsätt med resten av himlen" gör
-  marken genomskinlig eftersom de stjärnbilderna aldrig går upp här. Panelen kan fällas
-  ihop. "Visa hela himlen" visar allt igen och knappen "Upptäck" går tillbaka dit man var.
-  "Börja om" tar två tryck. Under **Gränser** i panelen väljer man vilka gränser som ritas:
-  **Inga**, runt varje **stjärnbild** eller runt varje **grupp** (samma 28 grupper som i
-  Träna), och då går gränsen runt de stjärnbilder i gruppen man har hittat hittills, så att
-  den växer med upptäckterna.
+- **Upptäck himlen:** himlen upptäcks grupp för grupp, med samma 28 grupper som i Träna.
+  Den börjar med Björnarna vid polen (Stora björnen, Lilla björnen och Draken). De
+  grannegrupper man kan lägga till har en streckad linje runt sig och sitt namn med ett
+  plus framför ("+ Perseus räddar Andromeda") på himlen och i panelen, och man lägger till
+  en hel grupp i taget genom att klicka på den. Pekar man på en grupp lyser linjen runt den
+  upp. Sedan erbjuds grannarna till alla grupper man har hittat, tills man har alla grupper
+  som syns från vald ort (en grupp räknas om någon av dess stjärnbilder syns därifrån), och
+  därefter resten av himlen om man vill. Bara stjärnbilderna man har hittat visas, med sina
+  stjärnor, linjer och namn, och panelen säger vilka som kom med den senaste gruppen.
+  Grupper som är under horisonten just nu står som "nere" eller "delvis uppe" i panelen,
+  och "Fortsätt med resten av himlen" gör marken genomskinlig eftersom de grupperna aldrig
+  går upp här. Panelen kan fällas ihop. "Visa hela himlen" visar allt igen och knappen
+  "Upptäck" går tillbaka dit man var. "Börja om" tar två tryck. Under **Gränser** i panelen
+  väljer man vilka gränser som ritas: runt varje **grupp** (som från början), och då får
+  varje grupp man har hittat också en egen svag färg och sitt namn där det får plats, runt
+  varje **stjärnbild**, eller **Inga**. Knappen Gränser i verktygsraden slår av och på
+  samma val. En sparad upptäckt från när man lade till en stjärnbild i taget blir de
+  grupper man hade hittat någon stjärnbild i.
 - **Överblick:** himlen att titta på, med en enkel panel. **Bilder** slår på och av alla
   bilder på en gång, och man väljer vilka stjärnbilder som visas: **Vinterhimlen**, de som
   **syns från** orten eller **Alla**. Valet är detsamma som listans filter, så listan och

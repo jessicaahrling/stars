@@ -63,11 +63,14 @@ export class SkyLayer {
   /**
    * @param {import('../sky/view.js').SkyView} view
    * @param {object} st  render state: layers, marks (Map index -> colour index),
-   *   selected, hover, groundOpaque, artShown(index), anyArt, groupBounds (lines round the
-   *   groups found so far, while discovering with the groups' boundaries chosen, else null), and reveal while
-   *   discovering the sky: {con: Uint8Array per constellation (1 found, 2 can be added
-   *   next, 0 hidden), stars: Uint8Array per star (1 shown)}, otherwise null; recent (the
-   *   constellation found last) and avoid (screen boxes names keep clear of) are for the HUD;
+   *   selected, hover, groundOpaque, artShown(index), anyArt, bounds (the boundaries drawn:
+   *   'none', 'constellation' or 'group'), groupBounds (lines round the groups found so far,
+   *   while discovering with the groups' boundaries chosen, else null), offers (the groups
+   *   that can be added next while discovering: {group, name, members, outline, spots}),
+   *   and reveal while discovering the sky: {con: Uint8Array per constellation (1 found, 2
+   *   in a group that can be added next, 0 hidden), stars: Uint8Array per star (1 shown)},
+   *   otherwise null; recent (the members of the group found last, or null) and avoid
+   *   (screen boxes names keep clear of) are for the HUD;
    *   quiz while training: {target, targets (the card, or a whole group shown together),
    *   context (the card's group's members already known, drawn around it), step (1 stars,
    *   2 lines, 3 name), stars: Uint8Array per star (1 for the targets' and context's),
@@ -91,15 +94,16 @@ export class SkyLayer {
     const found = (c) => !rv || rv.con[c.index] === 1;
 
     // Boundaries (while training only the one round the group: a constellation's own
-    // would give the answer away). While discovering they can go round each group instead.
-    if (st.layers.bounds && !st.quiz && st.groupBounds) {
-      ctx.setLineDash([6, 5]);
-      ctx.lineWidth = 1.3;
-      ctx.strokeStyle = SKY.groupBound;
+    // would give the answer away). While discovering they can go round each group instead:
+    // one solid line, drawn as one path so that where two groups meet it is not doubled.
+    if (st.bounds === 'group' && st.groupBounds) {
+      ctx.setLineDash([]);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = SKY.groupFound;
       ctx.beginPath();
       this.tracePolyline(view, st.groupBounds, false);
       ctx.stroke();
-    } else if (st.layers.bounds && !st.quiz) {
+    } else if (st.bounds === 'constellation') {
       ctx.setLineDash([3, 4]);
       ctx.lineWidth = 1;
       ctx.strokeStyle = SKY.bound;
@@ -109,21 +113,21 @@ export class SkyLayer {
       }
       ctx.stroke();
     }
-    if (rv) {
+    // The groups that can be added next, each with a dashed line round it; the one pointed
+    // at stands out.
+    const offered = st.offers?.find((o) => o.members.includes(st.hover));
+    for (const o of st.offers || []) {
       ctx.setLineDash([5, 4]);
-      ctx.lineWidth = 1.2;
-      ctx.strokeStyle = SKY.candidate;
+      ctx.lineWidth = o === offered ? 1.8 : 1.3;
+      ctx.strokeStyle = o === offered ? SKY.candidateHover : SKY.candidate;
       ctx.beginPath();
-      for (const c of catalog.constellations) {
-        if (rv.con[c.index] === 2 && c.index !== st.hover) this.tracePolyline(view, c.outlines);
-      }
+      this.tracePolyline(view, o.outline, false);
       ctx.stroke();
     }
-    if (st.hover >= 0 && !special.has(st.hover)) {
-      const candidate = rv && rv.con[st.hover] === 2;
-      ctx.setLineDash(candidate ? [5, 4] : [3, 4]);
-      ctx.lineWidth = candidate ? 1.6 : 1.2;
-      ctx.strokeStyle = candidate ? SKY.candidateHover : SKY.boundHover;
+    if (st.hover >= 0 && !special.has(st.hover) && !offered) {
+      ctx.setLineDash([3, 4]);
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = SKY.boundHover;
       ctx.beginPath();
       this.tracePolyline(view, catalog.constellations[st.hover].outlines);
       ctx.stroke();

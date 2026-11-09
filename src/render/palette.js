@@ -12,7 +12,20 @@ export const MARK_COLORS = [
 
 export const SELECT_COLOR = { hex: '#eef3ff', rgb: [238, 243, 255] };
 
-/** Neighbours that can be added next while discovering the sky ("Upptäck"). */
+/**
+ * The groups found while discovering the sky ("Upptäck"), each tinted in one of these, and
+ * never in the same one as a group it borders when that can be helped.
+ */
+export const GROUP_COLORS = [
+  { name: 'havsgrön', rgb: [70, 214, 178] },
+  { name: 'rosa', rgb: [240, 120, 170] },
+  { name: 'gul', rgb: [236, 206, 92] },
+  { name: 'blå', rgb: [96, 156, 255] },
+  { name: 'lila', rgb: [178, 128, 255] },
+  { name: 'orange', rgb: [255, 150, 84] },
+];
+
+/** Groups that can be added next while discovering the sky ("Upptäck"). */
 export const CANDIDATE_COLOR = { hex: '#bccbf0', rgb: [188, 203, 240] };
 
 export const SKY = {
@@ -25,6 +38,8 @@ export const SKY = {
   artHoverFine: 'rgba(240, 226, 196, 0.42)',
   boundHover: 'rgba(214, 226, 255, 0.45)',
   groupBound: 'rgba(200, 214, 250, 0.5)',
+  groupFound: 'rgba(214, 226, 255, 0.62)',
+  groupName: 'rgba(214, 226, 255, 0.5)',
   candidate: 'rgba(188, 203, 240, 0.5)',
   candidateHover: 'rgba(228, 236, 255, 0.95)',
   candidateLabel: 'rgba(206, 218, 248, 0.86)',

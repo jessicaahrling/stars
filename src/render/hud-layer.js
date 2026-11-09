@@ -65,51 +65,98 @@ export class HudLayer {
     const { pt } = this;
     const small = view.fov > 110 ? 10 : 11;
     // Names never run into each other or into the boxes in st.avoid. The more important
-    // ones go first: the one just found, marked and selected ones, the hovered one, the
-    // neighbours on offer, then the rest.
+    // ones go first: the group just found, marked and selected ones, the hovered one, the
+    // groups on offer (by their own names), then the rest, and last the names of the
+    // groups found, where there is room for them.
     const taken = st.avoid ? [...st.avoid] : [];
-    const rank = (c) => (c.index === st.recent ? 0
+    const recent = (c) => Boolean(st.recent && st.recent.has(c.index));
+    const rank = (c) => (recent(c) ? 0
       : st.marks.has(c.index) || c.index === st.selected ? 1
-        : c.index === st.hover ? 2
-          : st.reveal && st.reveal.con[c.index] === 2 ? 3 : 4);
-    const order = [...this.catalog.constellations].sort((a, b) => rank(a) - rank(b));
+        : c.index === st.hover ? 2 : 4);
+    // A constellation in a group on offer is not named: the group is.
+    const order = this.catalog.constellations.filter((c) => !st.reveal || st.reveal.con[c.index] === 1).sort((a, b) => rank(a) - rank(b));
+    let offered = false;
     for (const c of order) {
-      const state = st.reveal ? st.reveal.con[c.index] : 1;
-      if (!state) continue;
+      if (!offered && rank(c) > 2) {
+        this.drawOffers(view, st, taken, small);
+        offered = true;
+      }
       const mark = st.marks.get(c.index);
       const selected = c.index === st.selected;
       const special = mark !== undefined || selected;
       const hover = c.index === st.hover;
-      if (state === 1 && !special && !hover && !st.layers.names) continue;
+      if (!special && !hover && !st.layers.names) continue;
+      const text = c.sv.toUpperCase();
+      let color = SKY.label;
+      let size = small;
+      let weight = 500;
+      if (special) {
+        color = mark !== undefined ? MARK_COLORS[mark % MARK_COLORS.length].hex : SELECT_COLOR.hex;
+        size = selected ? 15 : 13;
+        weight = 600;
+      } else if (hover || recent(c)) {
+        // Hovered, or just discovered.
+        color = SKY.labelHover;
+        if (!hover) weight = 600;
+      }
+      const font = `${weight} ${size}px ${this.fontFamily}`;
       for (const v of c.labelVecs) {
-        if (!view.projectEq(v, pt) || pt.z < view.cosCorner - 0.1) continue;
-        if (st.groundOpaque && view.altOf(v) < -2) continue;
-        if (state === 2) {
-          // A neighbour that can be added next is always named, with a plus.
-          const text = `+ ${c.sv.toUpperCase()}`;
-          const font = `${hover ? 600 : 500} ${small + 1}px ${this.fontFamily}`;
-          if (this.covered(text, font, small * 0.18, small + 1, taken)) continue;
-          this.label(text, pt.x, pt.y, font, hover ? SKY.candidateHover : SKY.candidateLabel, small * 0.18, true);
-          continue;
-        }
-        const text = c.sv.toUpperCase();
-        let color = SKY.label;
-        let size = small;
-        let weight = 500;
-        if (special) {
-          color = mark !== undefined ? MARK_COLORS[mark % MARK_COLORS.length].hex : SELECT_COLOR.hex;
-          size = selected ? 15 : 13;
-          weight = 600;
-        } else if (hover || c.index === st.recent) {
-          // Hovered, or just discovered.
-          color = SKY.labelHover;
-          if (!hover) weight = 600;
-        }
-        const font = `${weight} ${size}px ${this.fontFamily}`;
+        if (!this.onSky(view, st, v)) continue;
         if (this.covered(text, font, size * 0.18, size, taken)) continue;
         this.label(text, pt.x, pt.y, font, color, size * 0.18, special);
       }
     }
+    if (!offered) this.drawOffers(view, st, taken, small);
+    if (st.bounds === 'group' && st.foundGroups && st.layers.names) this.drawGroupNames(view, st, taken, small);
+  }
+
+  /** Whether a point on the sky is drawn on the screen now, putting it in this.pt. */
+  onSky(view, st, v) {
+    if (!view.projectEq(v, this.pt) || this.pt.z < view.cosCorner - 0.1) return false;
+    return !(st.groundOpaque && view.altOf(v) < -2);
+  }
+
+  /** The name of each group that can be added next, with a plus, once, in the best place free. */
+  drawOffers(view, st, taken, small) {
+    const { pt } = this;
+    const size = small + 2;
+    for (const o of st.offers || []) {
+      const hover = o.members.includes(st.hover);
+      const text = `+ ${o.name}`;
+      const font = `${hover ? 700 : 600} ${size}px ${this.fontFamily}`;
+      for (const v of o.spots) {
+        if (!this.onScreen(view, st, v, text, font, 0.5) || this.covered(text, font, 0.5, size, taken)) continue;
+        this.label(text, pt.x, pt.y, font, hover ? SKY.candidateHover : SKY.candidateLabel, 0.5, true);
+        break;
+      }
+    }
+  }
+
+  /** The name of each group found, once, where it does not run into anything named before it. */
+  drawGroupNames(view, st, taken, small) {
+    const { pt } = this;
+    const font = `italic 500 ${small + 1}px ${this.fontFamily}`;
+    for (const o of st.foundGroups) {
+      for (const v of o.spots) {
+        if (!this.onScreen(view, st, v, o.name, font, 0.3) || this.covered(o.name, font, 0.3, small + 1, taken)) continue;
+        this.label(o.name, pt.x, pt.y, font, SKY.groupName, 0.3, true);
+        break;
+      }
+    }
+  }
+
+  /**
+   * Like onSky, but only for a point on the screen itself, and with this.pt moved in from the
+   * side as far as it takes for the whole name to show.
+   */
+  onScreen(view, st, v, text, font, spacingPx) {
+    const { ctx, pt } = this;
+    if (!this.onSky(view, st, v) || pt.x < 0 || pt.x > view.width || pt.y < 0 || pt.y > view.height) return false;
+    ctx.font = font;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacingPx.toFixed(1)}px`;
+    const w = ctx.measureText(text).width / 2 + 6;
+    pt.x = w * 2 > view.width ? view.width / 2 : Math.min(Math.max(pt.x, w), view.width - w);
+    return true;
   }
 
   /**
