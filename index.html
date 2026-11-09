@@ -177,6 +177,18 @@
     .discover-bounds .chip { min-height: 30px; padding: 0 8px; font-size: 12px; }
     .discover-foot .chip { min-height: 32px; padding: 0 11px; font-size: 12px; color: var(--ink-2); }
     .discover-foot .chip.primary { color: #1b1406; }
+    /* "Fortsätt med resten av himlen (10 grupper till)" takes two rows on a narrow panel. */
+    #btn-discover-rest { box-sizing: border-box; max-width: 100%; white-space: normal; text-align: left; }
+    /* Upptäck's panel scrolls rather than run onto the buttons at the bottom of the screen.
+       The extra padding, taken back by the margin, keeps room for focus rings and for rows
+       that designs widen with a negative margin, so nothing is cut off or scrolls sideways. */
+    #panel-discover .discover-body { overflow-x: hidden; overflow-y: auto; margin: -4px -12px; padding: 4px 12px; }
+    /* Low screens (a phone on its side): the groups on offer in one row that scrolls sideways,
+       so that the row keeps its height and the panel scrolls instead. */
+    @media (max-height: 500px) {
+      #discover-next { flex: none; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+      #discover-next::-webkit-scrollbar { display: none; }
+    }
     .discover-foot .chip:disabled { opacity: 0.45; cursor: default; }
     .train-answer { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
     .train-answer:focus { outline: none; }

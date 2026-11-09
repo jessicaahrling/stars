@@ -597,7 +597,8 @@ export class App {
     if (fly && !this.groupInView(g)) this.flyTo(members);
     const state = this.layers.seeThrough ? 'up' : this.groupStateOf(g);
     if (fly && state !== 'up') {
-      this.showToast(`${state === 'down' ? `${name} är under` : `En del av ${name} är under`} horisonten just nu. Slå på Se genom marken för att se hela gruppen.`);
+      this.showToast(state === 'down' ? `Gruppen ”${name}” är under horisonten just nu. Slå på Se genom marken för att se den.`
+        : `En del av gruppen ”${name}” är under horisonten just nu. Slå på Se genom marken för att se hela gruppen.`);
     }
     this.saveSoon();
   }
@@ -1691,6 +1692,12 @@ export class App {
     return out;
   }
 
+  /** Screen boxes of the buttons along the top and bottom of the screen, which the names of groups keep clear of. */
+  barBoxes() {
+    return [...this.doc.querySelectorAll('.bar .chip')].map((el) => el.getBoundingClientRect())
+      .filter((r) => r.width > 0 && r.right > 0 && r.left < this.view.width);
+  }
+
   /**
    * On a phone held upright the card keeps below the panel of the game being played, which
    * a taller card or panel (a design with larger type, a long story) would otherwise slide
@@ -1827,6 +1834,7 @@ export class App {
       groupBounds: this.discoverGroupOutlines(),
       offers: this.discovering ? this.offers : [],
       foundGroups: this.discovering ? this.foundShapes : null,
+      chrome: this.discovering ? this.barBoxes() : null,
       recent: this.discovering ? this.recent : null,
       avoid: this.labelObstacles(),
       quiz: null,

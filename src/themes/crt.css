@@ -249,6 +249,9 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px #000
 .discover-next .chip.below { color: var(--amber-3); border-style: none; }
 .discover-next .chip.below::before { content: "("; content: "(" / ""; color: var(--amber-line); }
 .discover-next .chip.below::after { content: ")"; content: ")" / ""; color: var(--amber-line); }
+/* The brackets stay on the row of the name, which wraps inside its own part instead. */
+#discover-next .chip { flex-wrap: nowrap; }
+#discover-next .chip > span { min-width: 0; }
 .discover-foot { gap: 4px; }
 .discover-foot .chip { min-height: 32px; padding: 0 4px; font-size: 17px; color: var(--amber-2); }
 /* The long "Fortsätt med resten av himlen" may take two lines rather than leave the box */

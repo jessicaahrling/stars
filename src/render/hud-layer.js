@@ -125,7 +125,7 @@ export class HudLayer {
       const text = `+ ${o.name}`;
       const font = `${hover ? 700 : 600} ${size}px ${this.fontFamily}`;
       for (const v of o.spots) {
-        if (!this.onScreen(view, st, v, text, font, 0.5) || this.covered(text, font, 0.5, size, taken)) continue;
+        if (!this.onScreen(view, st, v, text, font, 0.5, size) || this.covered(text, font, 0.5, size, taken)) continue;
         this.label(text, pt.x, pt.y, font, hover ? SKY.candidateHover : SKY.candidateLabel, 0.5, true);
         break;
       }
@@ -138,7 +138,7 @@ export class HudLayer {
     const font = `italic 500 ${small + 1}px ${this.fontFamily}`;
     for (const o of st.foundGroups) {
       for (const v of o.spots) {
-        if (!this.onScreen(view, st, v, o.name, font, 0.3) || this.covered(o.name, font, 0.3, small + 1, taken)) continue;
+        if (!this.onScreen(view, st, v, o.name, font, 0.3, small + 1) || this.covered(o.name, font, 0.3, small + 1, taken)) continue;
         this.label(o.name, pt.x, pt.y, font, SKY.groupName, 0.3, true);
         break;
       }
@@ -146,17 +146,20 @@ export class HudLayer {
   }
 
   /**
-   * Like onSky, but only for a point on the screen itself, and with this.pt moved in from the
-   * side as far as it takes for the whole name to show.
+   * Like onSky, but only for a point on the screen itself, with this.pt moved in from the
+   * side as far as it takes for the whole name to show, and not where the name would be
+   * under the top or bottom of the screen or one of the buttons there (st.chrome).
    */
-  onScreen(view, st, v, text, font, spacingPx) {
+  onScreen(view, st, v, text, font, spacingPx, size) {
     const { ctx, pt } = this;
     if (!this.onSky(view, st, v) || pt.x < 0 || pt.x > view.width || pt.y < 0 || pt.y > view.height) return false;
     ctx.font = font;
     if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacingPx.toFixed(1)}px`;
     const w = ctx.measureText(text).width / 2 + 6;
+    const h = size / 2 + 2;
     pt.x = w * 2 > view.width ? view.width / 2 : Math.min(Math.max(pt.x, w), view.width - w);
-    return true;
+    if (pt.y < h || pt.y > view.height - h) return false;
+    return !(st.chrome || []).some((r) => pt.x + w > r.left && pt.x - w < r.right && pt.y + h > r.top && pt.y - h < r.bottom);
   }
 
   /**

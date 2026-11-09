@@ -93,13 +93,14 @@ export class DiscoverPanel {
     const chunks = app.chunks;
     const left = chunks.length - d.groups.size;
     const last = chunks[app.lastGroup];
-    const recent = last ? `${last.name} är upptäckt: ${listOf(last.members.map((i) => cons[i].sv))}. ` : '';
+    // "Gruppen" agrees with "hittat" whatever the group is called ("Tre små djur", "Svanen och Lyran").
+    const recent = last ? `Du har hittat gruppen ”${last.name}”: ${listOf(last.members.map((i) => cons[i].sv))}. ` : '';
     let hint;
     if (info.done && (d.all || !left)) hint = `${recent}Hela himlen! Du har hittat alla ${chunks.length} grupper, alla ${cons.length} stjärnbilder.`;
     else if (info.done) hint = `${recent}Klart! Du har hittat alla ${info.goal} grupper som syns från ${place}.`;
     else if (d.groups.size === 1) {
       const start = chunks[[...d.groups][0]];
-      hint = `Här är ${start.name}: ${listOf(start.members.map((i) => cons[i].sv))}. Lägg till en grannegrupp genom att trycka på den på himlen eller här:`;
+      hint = `Här är gruppen ”${start.name}”: ${listOf(start.members.map((i) => cons[i].sv))}. Lägg till en grannegrupp genom att trycka på den på himlen eller här:`;
     } else if (d.all) hint = `${recent}De här syns aldrig från ${place}${app.layers.seeThrough ? ', så marken är genomskinlig' : '. Slå på Se genom marken för att se dem'}. Lägg till en grannegrupp:`;
     else hint = `${recent}Lägg till en grannegrupp:`;
     // The hint is a live region, so it is only written when it says something new.
