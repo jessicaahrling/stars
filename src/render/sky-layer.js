@@ -3,8 +3,14 @@ import { bvToRgb, MARK_COLORS, SELECT_COLOR, SKY } from './palette.js';
 
 const COLOR_STEPS = 8;
 const ALPHA_STEPS = [0.22, 0.36, 0.52, 0.7, 0.86, 1];
-/** Faintest magnitude drawn after extinction. */
+/** Faintest magnitude drawn after extinction, on the darkest sky. */
 const MAG_LIMIT = 6.3;
+/** The faintest the star catalogue goes: a limit there or beyond is the darkest sky. */
+export const CATALOG_FAINTEST = 6;
+/** Magnitudes every star is dimmed by per magnitude the limit is brought down ("Sikt"). */
+const HAZE_DIMMING = 0.25;
+/** Over how many magnitudes below the limit the faintest stars left fade out. */
+const FADE = 0.5;
 /** Magnitudes lost per extra airmass near the horizon. */
 const EXTINCTION = 0.28;
 
@@ -72,7 +78,8 @@ export class SkyLayer {
    *   or null for all), reveal in the overview and while discovering: {con: Uint8Array per
    *   constellation (1 shown, 0 left out), stars: null}, otherwise null; chrome (screen
    *   boxes of the buttons along the edges) and avoid (screen boxes names keep clear of) are
-   *   for the HUD;
+   *   for the HUD; limitMag (the faintest magnitude seen, "Sikt": CATALOG_FAINTEST or more
+   *   for the darkest sky); artBright (constellations whose illustrations stand out);
    *   quiz while training: {target, targets (the card, or a whole group shown together),
    *   context (the card's group's members already known, drawn around it), step (1 stars,
    *   2 lines, 3 name), stars: Uint8Array per star (1 for the targets' and context's),
@@ -212,7 +219,7 @@ export class SkyLayer {
     this.drawStars();
   }
 
-  /** Illustrations: plain ones batched in two paths, hovered and marked ones on top. */
+  /** Illustrations: plain ones batched in two paths, hovered, chosen (st.artBright) and marked ones on top. */
   drawArt(view, st, special) {
     const { ctx } = this;
     const corner = (Math.acos(Math.max(-1, Math.min(1, view.cosCorner))) * 180) / Math.PI;
@@ -223,7 +230,8 @@ export class SkyLayer {
       const cz = m[6] * v[0] + m[7] * v[1] + m[8] * v[2];
       return (Math.acos(Math.max(-1, Math.min(1, cz))) * 180) / Math.PI - c.artRadius < corner + 2;
     });
-    const plain = visible.filter((c) => !special.has(c.index) && c.index !== st.hover);
+    const bright = st.artBright || new Set();
+    const plain = visible.filter((c) => !special.has(c.index) && c.index !== st.hover && !bright.has(c.index));
     ctx.save();
     ctx.lineCap = 'round';
     const stroke = (list, fine, style, width) => {
@@ -235,10 +243,10 @@ export class SkyLayer {
     };
     stroke(plain, false, SKY.art, 1.25);
     stroke(plain, true, SKY.artFine, 0.9);
-    const hover = visible.find((c) => c.index === st.hover && !special.has(c.index));
-    if (hover) {
-      stroke([hover], false, SKY.artHover, 1.4);
-      stroke([hover], true, SKY.artHoverFine, 1);
+    const lit = visible.filter((c) => (c.index === st.hover || bright.has(c.index)) && !special.has(c.index));
+    if (lit.length) {
+      stroke(lit, false, SKY.artHover, 1.4);
+      stroke(lit, true, SKY.artHoverFine, 1);
     }
     for (const c of visible) {
       const color = special.get(c.index);
@@ -285,6 +293,13 @@ export class SkyLayer {
     const minZ = view.cosCorner - 0.02;
     const figureOnly = st.layers.figureStarsOnly;
     const shown = st.reveal?.stars;
+    // A hazier sky or a brighter town ("Sikt"): fainter stars are lost, those near the
+    // limit fade out, and every star is a little dimmer.
+    const chosen = st.limitMag ?? CATALOG_FAINTEST;
+    const limit = chosen >= CATALOG_FAINTEST ? MAG_LIMIT : chosen;
+    const haze = (CATALOG_FAINTEST - Math.min(chosen, CATALOG_FAINTEST)) * HAZE_DIMMING;
+    const fadeOver = Math.min(FADE, MAG_LIMIT - limit);
+    this.haze = haze;
     // While training, the stars around the target stay as faint context.
     const target = st.quiz?.stars;
     for (const b of this.buckets) b.length = 0;
@@ -309,14 +324,18 @@ export class SkyLayer {
       } else if (st.groundOpaque) {
         continue;
       }
-      if (mag > MAG_LIMIT) continue;
+      // A training card's own stars always show, so that there is something to answer.
+      const card = target && target[i];
+      if (mag > (card ? MAG_LIMIT : limit)) continue;
       if (!view.projectCam(m[0] * x + m[1] * y + m[2] * z, m[3] * x + m[4] * y + m[5] * z, cz, pt)) continue;
+      const fade = fadeOver > 0 && !card ? Math.min(1, (limit - mag) / fadeOver + 0.3) : 1;
+      mag += haze;
       const r = radiusForMag(mag) * zoom * (context ? 0.8 : 1);
       this.px[i] = pt.x;
       this.py[i] = pt.y;
       this.pr[i] = r;
       this.dim[i] = context ? 1 : 0;
-      const a = alphaForMag(mag) * (context ? 0.3 : 1);
+      const a = alphaForMag(mag) * fade * (context ? 0.3 : 1);
       let ai = 0;
       while (ai < ALPHA_STEPS.length - 1 && ALPHA_STEPS[ai] < a) ai++;
       this.buckets[this.colorStep[i] * ALPHA_STEPS.length + ai].push(i);
@@ -330,7 +349,9 @@ export class SkyLayer {
       if (this.catalog.stars.mag[i] > 2.2) break; // sorted bright first
       if (Number.isNaN(this.px[i])) continue;
       const r = this.pr[i] * 4.2;
-      ctx.globalAlpha = Math.min(0.55, (2.4 - this.catalog.stars.mag[i]) / 5) * (this.dim[i] ? 0.3 : 1);
+      const glow = Math.min(0.55, (2.4 - this.catalog.stars.mag[i] - (this.haze || 0)) / 5);
+      if (glow <= 0) continue;
+      ctx.globalAlpha = glow * (this.dim[i] ? 0.3 : 1);
       ctx.drawImage(this.glows[this.colorStep[i]], this.px[i] - r, this.py[i] - r, 2 * r, 2 * r);
     }
     for (let c = 0; c < COLOR_STEPS; c++) {

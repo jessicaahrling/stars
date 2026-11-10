@@ -3,7 +3,7 @@ import { THEMES } from './themes.js';
 
 export class ThemePanel {
   /**
-   * @param {object} app  see App: theme, setTheme, closeList, closeWhen, closeGroups, layoutChanged
+   * @param {object} app  see App: theme, setTheme, closeList, closeWhen, closeGroups, closeSky, layoutChanged
    * @param {(id: string) => HTMLElement} $
    */
   constructor(app, $) {
@@ -44,6 +44,7 @@ export class ThemePanel {
       this.app.closeList();
       this.app.closeWhen();
       this.app.closeGroups();
+      this.app.closeSky();
       this.sync();
     }
     this.app.layoutChanged();

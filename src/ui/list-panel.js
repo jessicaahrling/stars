@@ -71,6 +71,7 @@ export class ListPanel {
     if (open) {
       this.app.closeWhen();
       this.app.closeTheme();
+      this.app.closeSky();
       this.syncAll();
     }
     this.app.layoutChanged();

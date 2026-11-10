@@ -521,6 +521,7 @@ try {
   assert.deepEqual(pointed.segments, perseus.members, 'the lines of every constellation in the group');
   assert.deepEqual(pointed.focus, ['Perseus räddar Andromeda'], 'the line round the group stands out');
   assert.deepEqual(pointed.names, perseus.members, 'and the names of every constellation in it');
+  assert.deepEqual(pointed.art, [], 'but not their illustrations: those come with a click');
   assert.ok(pointed.groups.includes('Perseus räddar Andromeda'));
   assert.deepEqual([pointed.covered, pointed.overlaps], [0, 0]);
 
@@ -559,6 +560,8 @@ try {
   const chosenParts = await drawnParts();
   const chosenIds = (await groupNamed(groupHere)).members;
   assert.deepEqual([chosenParts.segments, chosenParts.focus], [chosenIds, [groupHere]]);
+  // Chosen, its constellations show their illustrations too (those in view are drawn).
+  assert.ok(chosenParts.art.length > 0 && chosenParts.art.every((id) => chosenIds.includes(id)), `illustrations: ${chosenParts.art}`);
   // A second click lets it go.
   await sky.mouse.click(here.x, here.y);
   assert.equal((await discovery()).chosen, null);
@@ -1585,6 +1588,81 @@ try {
   assert.deepEqual([(await overState()).on, (await overState()).scope], [true, 'winter']);
   await over.click('#btn-discover');
   assert.deepEqual([(await overState()).on, (await overState()).panel, (await overState()).discovering], [false, false, true]);
+
+  // "Sikt": a gauge of how faint the faintest stars seen are. Dragged down, only the
+  // brightest are left and the Milky Way goes; up again, every star. Remembered.
+  const sikt = await openPage({ width: 1280, height: 800 });
+  const starsDrawn = () => sikt.evaluate(() => {
+    const a = window.stjarnhimlen;
+    a.draw();
+    let n = 0;
+    let faintest = -9;
+    a.skyLayer.px.forEach((x, i) => {
+      if (Number.isNaN(x)) return;
+      n++;
+      faintest = Math.max(faintest, a.catalog.stars.mag[i]);
+    });
+    return { n, faintest };
+  });
+  const milkyWay = () => sikt.evaluate(() => {
+    const a = window.stjarnhimlen;
+    let fade = null;
+    const render = a.glSky.render;
+    a.glSky.render = function (p) {
+      fade = p.milkyWay ? (p.milkyWayFade ?? 1) : 0;
+      return render.call(this, p);
+    };
+    a.draw();
+    delete a.glSky.render;
+    return fade;
+  });
+  const limit = () => sikt.evaluate(() => window.stjarnhimlen.limitMag);
+  // Thousands are set apart by a no-break space, as Swedish writes them.
+  const readout = async () => (await sikt.textContent('#sky-readout')).replace(/\u00a0/g, ' ');
+  assert.deepEqual([await limit(), await sikt.getAttribute('#btn-sky', 'aria-expanded'), await sikt.isHidden('#panel-sky')], [6, 'false', true]);
+  const allStars = await starsDrawn();
+  await sikt.click('#btn-sky');
+  assert.deepEqual([await sikt.getAttribute('#btn-sky', 'aria-expanded'), await sikt.isVisible('#panel-sky')], ['true', true]);
+  assert.equal(await readout(), 'Alla 5 045 stjärnor syns, ner till magnitud 6,0.');
+  assert.equal((await sikt.getAttribute('#sky-meter', 'aria-valuetext')).replace(/\u00a0/g, ' '), 'Magnitud 6,0, mörk himmel på landet, 5 045 stjärnor');
+  assert.equal(await milkyWay(), 1);
+  // Dragged down to 3,6, as in the middle of a big town.
+  const meter = await sikt.$eval('#sky-meter', (e) => e.getBoundingClientRect().toJSON());
+  const yOf = (m) => meter.bottom - ((m - 1) / 5) * meter.height;
+  await sikt.mouse.move(meter.left + meter.width / 2, yOf(6));
+  await sikt.mouse.down();
+  await sikt.mouse.move(meter.left + meter.width / 2, yOf(4.5), { steps: 4 });
+  await sikt.mouse.move(meter.left + meter.width / 2, yOf(3.6), { steps: 4 });
+  await sikt.mouse.up();
+  assert.ok(Math.abs((await limit()) - 3.6) < 0.051, `dragged to ${await limit()}`);
+  assert.equal(await readout(), '327 stjärnor syns, ner till magnitud 3,6.');
+  const city = await starsDrawn();
+  assert.ok(city.n < allStars.n / 4 && city.faintest <= 3.6, `${allStars.n} -> ${city.n} stars, the faintest ${city.faintest}`);
+  assert.equal(await milkyWay(), 0, 'no Milky Way in a big town');
+  assert.equal(await sikt.evaluate(() => document.getElementById('btn-sky').classList.contains('limited')), true);
+  assert.deepEqual(await sikt.$$eval('.sky-bar.lit', (els) => els.length), 6, 'the graph is lit up to the limit');
+  // The keys of a slider, and the skies along it.
+  await sikt.focus('#sky-meter');
+  await sikt.keyboard.press('Home');
+  assert.equal(await limit(), 1);
+  assert.equal((await starsDrawn()).n <= 15, true, 'only the brightest');
+  await sikt.keyboard.press('ArrowUp');
+  await sikt.keyboard.press('PageUp');
+  assert.equal(await limit(), 1.6);
+  await sikt.keyboard.press('End');
+  assert.equal(await limit(), 6);
+  assert.equal((await starsDrawn()).n, allStars.n, 'every star again');
+  await sikt.click('.sky-preset:has-text("Stad")');
+  assert.deepEqual([await limit(), await sikt.getAttribute('.sky-preset:has-text("Stad")', 'aria-pressed')], [4.5, 'true']);
+  // Escape closes it and gives the focus back to its button; the limit stays.
+  await sikt.focus('#sky-meter');
+  await sikt.keyboard.press('Escape');
+  assert.deepEqual([await sikt.isHidden('#panel-sky'), await sikt.evaluate(() => document.activeElement.id)], [true, 'btn-sky']);
+  await sikt.waitForFunction(() => JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').limitMag === 4.5);
+  await sikt.reload();
+  await sikt.waitForFunction(() => window.stjarnhimlen);
+  assert.deepEqual([await limit(), await sikt.evaluate(() => document.getElementById('btn-sky').classList.contains('limited'))], [4.5, true]);
+  await sikt.screenshot({ path: path.join(shots, 'sikt.png') });
 
   assert.deepEqual(errors, [], 'no errors in the console');
   console.log('e2e smoke: ok');

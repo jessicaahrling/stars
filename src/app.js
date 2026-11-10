@@ -26,6 +26,7 @@ import { TrainPanel } from './ui/train-panel.js';
 import { GroupsPanel } from './ui/groups-panel.js';
 import { applyTheme, DEFAULT_THEME, THEMES } from './ui/themes.js';
 import { celebrate } from './ui/confetti.js';
+import { clampLimit, LIMIT_MAX, SkyPanel } from './ui/sky-panel.js';
 import { InfoCard } from './ui/info-card.js';
 import { attachSkyInput } from './ui/input.js';
 import { ListPanel } from './ui/list-panel.js';
@@ -111,6 +112,8 @@ export class App {
      * together with Upptäck or Träna.
      */
     this.overview = { on: saved.overview?.on === true };
+    /** "Sikt": the faintest magnitude seen, LIMIT_MAX (every star) unless brought down for a hazier or brighter sky. */
+    this.limitMag = Number.isFinite(saved.limitMag) ? clampLimit(saved.limitMag) : LIMIT_MAX;
     const disc = saved.discover && typeof saved.discover === 'object' ? saved.discover : {};
     // Saved before Upptäck was about groups, the boundaries were the layer's, and round each
     // constellation unless chosen otherwise: now they are round the groups. (What was found
@@ -252,6 +255,8 @@ export class App {
     this.discoverPanel = new DiscoverPanel(this, $);
     this.overviewPanel = new OverviewPanel(this, $);
     this.themePanel = new ThemePanel(this, $);
+    this.skyPanel = new SkyPanel(this, $);
+    this.skyPanel.sync();
     this.trainPanel = new TrainPanel(this, $);
     this.groupsPanel = new GroupsPanel(this, $);
     // The card is fitted again whenever it or a game's panel changes size (see fitCard),
@@ -1470,6 +1475,10 @@ export class App {
       Escape: () => {
         if (this.groupsPanel.open) this.groupsPanel.toggle(false);
         else if (this.themePanel.open) this.themePanel.toggle(false);
+        else if (this.skyPanel.open) {
+          this.skyPanel.toggle(false);
+          this.skyPanel.button.focus();
+        }
         else if (this.list.open) this.list.toggle(false);
         else if (this.when.open) this.when.toggle(false);
         else this.select(-1);
@@ -1492,6 +1501,20 @@ export class App {
 
   closeTheme() {
     if (this.themePanel.open) this.themePanel.toggle(false);
+  }
+
+  closeSky() {
+    if (this.skyPanel?.open) this.skyPanel.toggle(false);
+  }
+
+  /** How faint the faintest stars seen are ("Sikt"): LIMIT_MAX for every star, as on the darkest sky. */
+  setLimitMag(mag) {
+    const m = clampLimit(Number(mag));
+    if (!Number.isFinite(m) || m === this.limitMag) return;
+    this.limitMag = m;
+    this.skyPanel.sync();
+    this.invalidate();
+    this.saveSoon();
   }
 
   closeGroups() {
@@ -1629,6 +1652,7 @@ export class App {
         },
         view: { az: Math.round(v.az * 10) / 10, alt: Math.round(v.alt * 10) / 10, fov: Math.round(v.fov * 10) / 10 },
         listScope: this.list.scope,
+        limitMag: this.limitMag,
         theme: this.theme,
         themes: 2,
         training: {
@@ -1792,6 +1816,7 @@ export class App {
     // The groups pointed at and chosen while discovering, and their constellations.
     const focus = quiz ? [] : this.focusGroups().map((g) => this.groupShape(g));
     const focusMembers = new Set(focus.flatMap((o) => o.members));
+    const chosenArt = new Set(!quiz && this.discovering && this.discovery.group >= 0 ? this.chunks[this.discovery.group].members : []);
     if (this.maskDirty) {
       this.maskDirty = false;
       const tints = new Map();
@@ -1815,6 +1840,7 @@ export class App {
       linesOnly: null,
       namesOnly: null,
       avoid: this.labelObstacles(),
+      limitMag: this.limitMag,
       quiz,
     } : {
       // In Upptäck the lines and names are Upptäck's: for the groups in focus, or for all.
@@ -1823,8 +1849,10 @@ export class App {
       selected: this.selected,
       hover: this.hover,
       groundOpaque: !this.seeThroughNow(),
-      artShown: (i) => this.isFound(i) && this.artShown(i),
-      anyArt: this.anyArtShown(),
+      // The group chosen in Upptäck shows the illustrations of all its constellations.
+      artShown: (i) => this.isFound(i) && (this.artShown(i) || chosenArt.has(i)),
+      anyArt: this.anyArtShown() || chosenArt.size > 0,
+      artBright: chosenArt,
       reveal: this.reveal,
       bounds: this.boundsNow(),
       groupBounds: this.discoverGroupOutlines(),
@@ -1835,6 +1863,7 @@ export class App {
       namesOnly: this.discovering && !this.discovery.names ? focusMembers : null,
       chrome: this.discovering ? this.barBoxes() : null,
       avoid: this.labelObstacles(),
+      limitMag: this.limitMag,
       quiz: null,
     };
     const gl = {
@@ -1843,6 +1872,8 @@ export class App {
       camToHor: v.camToHor,
       horToEq: v.horToEq,
       milkyWay: this.layers.milkyWay,
+      // The Milky Way is the first thing a hazy or bright sky takes away.
+      milkyWayFade: clamp((this.limitMag - 4.3) / 1.5, 0, 1),
       groundAlpha: this.seeThroughNow() ? 0.42 : 1,
     };
     this.glSky.render(gl);

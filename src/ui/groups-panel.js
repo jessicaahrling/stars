@@ -78,6 +78,7 @@ export class GroupsPanel {
       this.app.closeList();
       this.app.closeTheme();
       this.app.closeWhen();
+      this.app.closeSky();
       this.render();
       this.rows[this.app.trainingGroupShown()]?.li.scrollIntoView({ block: 'nearest' });
     }

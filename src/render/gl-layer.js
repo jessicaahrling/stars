@@ -199,6 +199,8 @@ export class GlLayer {
    * @param {number} p.dpr
    * @param {number[]} p.camToHor row-major
    * @param {number[]} p.horToEq  row-major, horizontal -> J2000
+   * @param {boolean} p.milkyWay
+   * @param {number} [p.milkyWayFade]  0-1: how much of the Milky Way a hazy or bright sky leaves
    */
   render(p) {
     const gl = this.gl;
@@ -210,7 +212,7 @@ export class GlLayer {
     gl.uniformMatrix3fv(this.u.uCamToHor, false, colMajor(p.camToHor));
     gl.uniformMatrix3fv(this.u.uHorToEq, false, colMajor(p.horToEq));
     if (this.mode === 'sky') {
-      gl.uniform1f(this.u.uMilkyWayStrength, p.milkyWay ? 0.2 : 0);
+      gl.uniform1f(this.u.uMilkyWayStrength, p.milkyWay ? 0.2 * (p.milkyWayFade ?? 1) : 0);
       gl.uniform1f(this.u.uMaskStrength, 0.16);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, this.mwTex);

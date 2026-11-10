@@ -21,9 +21,9 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
 - **Upptäck himlen:** himlen i sina grupper, samma 28 grupper som i Träna. Varje grupp har
   en linje runt sig, en egen svag färg (grannar har aldrig samma färg) och sitt namn i den
   färgen. Stjärnbildernas linjer och namn syns bara i gruppen man pekar på, och i den man
-  har valt: ett klick eller tryck på en grupp, eller på dess knapp i panelen, väljer den,
-  och då berättar panelen vilka stjärnbilder den har och varför de hör ihop. Ett klick till
-  släpper den. Knapparna **Linjer** och **Namn** i verktygsraden visar linjerna och namnen i
+  har valt: ett klick eller tryck på en grupp, eller på dess knapp i panelen, väljer den.
+  Då syns också bilderna till alla dess stjärnbilder, och panelen berättar vilka
+  stjärnbilder gruppen har och varför de hör ihop. Ett klick till släpper den. Knapparna **Linjer** och **Namn** i verktygsraden visar linjerna och namnen i
   alla grupper på en gång. Man väljer vilka grupper som visas: **Vinterhimlen** (10), de
   som **syns från** orten (18 från Stockholm; en grupp räknas om någon av dess stjärnbilder
   syns därifrån) eller **Alla** (28). Valet är detsamma som listans filter och Överblickens.
@@ -103,6 +103,17 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   Vintergatan ritas ut och skogskanten vid horisonten är lägre åt söder.
 - **Plats och tid:** åtta orter från Malmö till Kiruna, valfritt datum och klockslag, och
   tiden kan gå i realtid, 10 min/s eller 1 tim/s.
+- **Sikt:** stjärnknappen bredvid zoomknapparna öppnar en mätare för hur ljussvaga
+  stjärnor som syns. Drar man den ända ner syns bara de allra klaraste (magnitud 1, femton
+  stjärnor på hela himlen), och ju högre upp desto fler, ända till alla 5 045 som på en
+  mörk himmel på landet. Bredvid mätaren visar staplar hur många stjärnor det finns av varje
+  ljusstyrka, tända så långt man har valt, och himlar att välja direkt: mörk himmel på
+  landet, förort, stad, mitt i storstan, disigt eller tunna moln och bara de klaraste. Som
+  i verkligheten tonar de svagaste stjärnorna som är kvar ut, alla stjärnor blir lite
+  svagare i diset, Vintergatan försvinner först, och nära horisonten syns färre. Linjer
+  ritas bara mellan stjärnor som syns. I Träna syns kortets egna stjärnor ändå, så att det
+  alltid finns något att svara på. Mätaren går också med piltangenterna, Page Up/Down och
+  Home/End, och valet sparas.
 - **Bara figurstjärnor:** dölj alla stjärnor som inte ingår i någon stjärnbilds figur, så att
   mönstren framträder tydligt (fungerar med och utan linjer).
 - **Illustrationer:** en linjeteckning av vad varje stjärnbild föreställer, ritad över de
