@@ -47,11 +47,12 @@ export class SkyPanel {
     this.mags = mags;
 
     // The graph: one bar per half magnitude, as long as the square root of its count, so
-    // that the few brightest still show beside the thousands of faint ones.
+    // that the few brightest still show beside the thousands of faint ones. The first bar
+    // takes in the very brightest too, which always show.
     this.bins = [];
     for (let lo = LIMIT_MIN; lo < LIMIT_MAX - 1e-6; lo += BIN) {
       let n = 0;
-      for (const m of mags) if (m > lo && m <= lo + BIN) n++;
+      for (const m of mags) if ((lo === LIMIT_MIN || m > lo) && m <= lo + BIN) n++;
       this.bins.push({ lo, n });
     }
     const most = Math.max(...this.bins.map((b) => b.n));
@@ -78,9 +79,10 @@ export class SkyPanel {
       return { ...p, el };
     });
 
-    // Dragging anywhere on the gauge moves the limit there.
+    // Dragging anywhere on the gauge moves the limit there (not once the panel is closed).
     const fromPointer = (e) => {
       const r = this.meter.getBoundingClientRect();
+      if (this.panel.hidden || r.height <= 0) return;
       const frac = (r.bottom - e.clientY) / r.height;
       app.setLimitMag(LIMIT_MIN + Math.min(1, Math.max(0, frac)) * (LIMIT_MAX - LIMIT_MIN));
     };
@@ -100,6 +102,7 @@ export class SkyPanel {
     };
     this.meter.addEventListener('pointerup', stop);
     this.meter.addEventListener('pointercancel', stop);
+    this.meter.addEventListener('lostpointercapture', stop);
     // The keys of a slider: up for more stars, down for fewer.
     this.meter.addEventListener('keydown', (e) => {
       const m = app.limitMag;
@@ -126,6 +129,15 @@ export class SkyPanel {
 
   toggle(force) {
     const open = force ?? this.panel.hidden;
+    if (!open && this.dragging != null) {
+      // Closed in the middle of a drag: the drag ends where it was.
+      try {
+        this.meter.releasePointerCapture?.(this.dragging);
+      } catch {
+        // Already released.
+      }
+      this.dragging = null;
+    }
     this.panel.hidden = !open;
     this.button.setAttribute('aria-expanded', String(open));
     if (open) {
@@ -160,7 +172,7 @@ export class SkyPanel {
     const count = this.countTo(limit).toLocaleString('sv-SE');
     const sky = this.presetFor(limit);
     this.handle.style.bottom = at(limit);
-    for (const b of this.bins) b.el.classList.toggle('lit', b.lo < limit - 1e-6);
+    for (const b of this.bins) b.el.classList.toggle('lit', b.lo === LIMIT_MIN || b.lo < limit - 1e-6);
     for (const p of this.presets) p.el.setAttribute('aria-pressed', String(p === sky && Math.abs(p.mag - limit) < 0.05));
     this.meter.setAttribute('aria-valuenow', limit.toFixed(1));
     this.meter.setAttribute('aria-valuemin', String(LIMIT_MIN));

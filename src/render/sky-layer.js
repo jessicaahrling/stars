@@ -295,10 +295,12 @@ export class SkyLayer {
     const shown = st.reveal?.stars;
     // A hazier sky or a brighter town ("Sikt"): fainter stars are lost, those near the
     // limit fade out, and every star is a little dimmer.
-    const chosen = st.limitMag ?? CATALOG_FAINTEST;
-    const limit = chosen >= CATALOG_FAINTEST ? MAG_LIMIT : chosen;
-    const haze = (CATALOG_FAINTEST - Math.min(chosen, CATALOG_FAINTEST)) * HAZE_DIMMING;
-    const fadeOver = Math.min(FADE, MAG_LIMIT - limit);
+    // From the darkest sky down, the cut-off, the fade and the haze all grow smoothly.
+    const chosen = Math.min(st.limitMag ?? CATALOG_FAINTEST, CATALOG_FAINTEST);
+    const below = CATALOG_FAINTEST - chosen;
+    const limit = chosen + (MAG_LIMIT - CATALOG_FAINTEST) * Math.max(0, 1 - below);
+    const haze = below * HAZE_DIMMING;
+    const fadeOver = Math.min(FADE, below);
     this.haze = haze;
     // While training, the stars around the target stay as faint context.
     const target = st.quiz?.stars;

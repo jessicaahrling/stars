@@ -107,6 +107,14 @@ body { font: 14px/1.4 var(--font-type); }
   color: var(--red); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
 
 .panel-head { padding: 12px 10px 10px calc(var(--margin) + 14px); }
+/* "Sikt" on the sheet: right of the red margin, with ink bars and the stars lit in red. */
+.sky-readout, .sky-gauge, .sky-note { margin-left: calc(var(--margin) + 14px); margin-right: 14px; }
+.sky-meter { width: 72px; border-color: var(--ink-3); background: var(--paper-2); }
+/* The typewriter is wide: the longer skies take two lines. */
+.sky-preset { white-space: normal; line-height: 1.15; }
+.sky-bar { background: var(--ink-3); opacity: 0.25; }
+.sky-bar.lit { background: var(--red); opacity: 1; }
+.sky-meter:focus-visible { outline-color: var(--ink); }
 .icon-btn { width: 34px; height: 34px; border-radius: 0; border: 1px solid transparent; background: transparent;
   color: var(--ink); font: 400 24px/1 var(--font-type); display: grid; place-items: center; padding: 0; }
 .icon-btn:hover { background: var(--paper-2); border-color: var(--ink); color: var(--ink); }

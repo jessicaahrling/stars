@@ -460,13 +460,23 @@ export class App {
 
   /** Whether a constellation's illustration is drawn. */
   artShown(index) {
-    return this.artOverrides.has(index) ? this.artOverrides.get(index) : this.layers.art;
+    return this.artOverrides.has(index) ? this.artOverrides.get(index) : this.artByDefault(index);
+  }
+
+  /** Whether a constellation's illustration shows unless it is turned on or off by itself: with the layer, or as one of the group chosen in Upptäck. */
+  artByDefault(index) {
+    return this.layers.art || this.chosenMembers().includes(index);
+  }
+
+  /** The constellations of the group chosen in Upptäck, while discovering. */
+  chosenMembers() {
+    return this.discovering && this.discovery.group >= 0 ? this.chunks[this.discovery.group].members : [];
   }
 
   /** Shows or hides one constellation's illustration (a tap on it in the sky does this). */
   toggleArt(index) {
     const shown = !this.artShown(index);
-    if (shown === this.layers.art) this.artOverrides.delete(index);
+    if (shown === this.artByDefault(index)) this.artOverrides.delete(index);
     else this.artOverrides.set(index, shown);
     this.invalidate();
     this.card.render();
@@ -610,6 +620,8 @@ export class App {
       d.group = g;
       this.maskDirty = true;
       this.invalidate();
+      // The card's illustration button follows the group's illustrations.
+      this.card.render();
       this.discoverPanel.render();
       this.saveSoon();
     }
@@ -1264,7 +1276,8 @@ export class App {
     }
     if (!narrow) {
       // The list and the time panel stand along the right edge while open.
-      for (const p of [this.list.panel, this.when.panel, this.themePanel.panel, this.groupsPanel.panel]) {
+      for (const p of [this.list.panel, this.when.panel, this.themePanel.panel, this.groupsPanel.panel, this.skyPanel?.panel]) {
+        if (!p) continue;
         if (!p.hidden) a.right = Math.max(a.left + 200, Math.min(a.right, p.getBoundingClientRect().left));
       }
     }
@@ -1552,7 +1565,7 @@ export class App {
     // The groups overview stands over the training panel where the two do not fit side by side.
     const overlaps = this.groupsPanel.open
       && this.groupsPanel.panel.getBoundingClientRect().left < this.trainPanel.root.getBoundingClientRect().right;
-    const covered = crowded || overlaps || (narrow && (this.when.open || this.themePanel.open || this.groupsPanel.open));
+    const covered = crowded || overlaps || (narrow && (this.when.open || this.themePanel.open || this.groupsPanel.open || this.skyPanel?.open));
     for (const p of [this.discoverPanel.root, this.trainPanel.root, this.overviewPanel.root]) p.style.visibility = covered ? 'hidden' : '';
     this.placeToast();
     this.fitCard();
@@ -1816,7 +1829,7 @@ export class App {
     // The groups pointed at and chosen while discovering, and their constellations.
     const focus = quiz ? [] : this.focusGroups().map((g) => this.groupShape(g));
     const focusMembers = new Set(focus.flatMap((o) => o.members));
-    const chosenArt = new Set(!quiz && this.discovering && this.discovery.group >= 0 ? this.chunks[this.discovery.group].members : []);
+    const chosenArt = new Set(quiz ? [] : this.chosenMembers());
     if (this.maskDirty) {
       this.maskDirty = false;
       const tints = new Map();
@@ -1849,8 +1862,9 @@ export class App {
       selected: this.selected,
       hover: this.hover,
       groundOpaque: !this.seeThroughNow(),
-      // The group chosen in Upptäck shows the illustrations of all its constellations.
-      artShown: (i) => this.isFound(i) && (this.artShown(i) || chosenArt.has(i)),
+      // The group chosen in Upptäck shows the illustrations of all its constellations
+      // (unless one of them is hidden by itself).
+      artShown: (i) => this.isFound(i) && this.artShown(i),
       anyArt: this.anyArtShown() || chosenArt.size > 0,
       artBright: chosenArt,
       reveal: this.reveal,

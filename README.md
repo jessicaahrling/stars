@@ -96,14 +96,15 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   skulle avslöja svaret, och **Gränser** gäller då bara gränsen runt gruppen. Framstegen
   sparas.
 - **Titta runt:** dra för att vrida blicken, scrolla eller nyp för att zooma (piltangenter
-  och `+`/`−` fungerar också). Projektionen är stereografisk, som i ett planetarium, och
-  horisonten hålls vågrät.
+  och `+`/`−` fungerar också, liksom zoomknapparna, som på smala mobiler ger plats åt
+  lägesknapparna eftersom man zoomar med två fingrar där). Projektionen är stereografisk,
+  som i ett planetarium, och horisonten hålls vågrät.
 - **Realistiska positioner:** stjärnornas lägen räknas om till höjd och azimut för vald ort
   och tid, med precession, och svagare stjärnor bleknar nära horisonten (extinktion).
   Vintergatan ritas ut och skogskanten vid horisonten är lägre åt söder.
 - **Plats och tid:** åtta orter från Malmö till Kiruna, valfritt datum och klockslag, och
   tiden kan gå i realtid, 10 min/s eller 1 tim/s.
-- **Sikt:** stjärnknappen bredvid zoomknapparna öppnar en mätare för hur ljussvaga
+- **Sikt:** stjärnknappen längst ner till höger öppnar en mätare för hur ljussvaga
   stjärnor som syns. Drar man den ända ner syns bara de allra klaraste (magnitud 1, femton
   stjärnor på hela himlen), och ju högre upp desto fler, ända till alla 5 045 som på en
   mörk himmel på landet. Bredvid mätaren visar staplar hur många stjärnor det finns av varje

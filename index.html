@@ -135,12 +135,15 @@
     .sky-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
     .sky-btn.limited svg { fill: currentColor; fill-opacity: 0.35; }
     .panel-sky { bottom: calc(var(--bottom) + 60px); right: var(--gutter-r); width: 320px; box-sizing: border-box;
-      max-height: calc(100% - var(--top) - var(--bottom) - 120px); display: flex; flex-direction: column; overflow-y: auto; }
-    .sky-readout { margin: 0 18px 10px; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
+      max-height: calc(100% - var(--top) - var(--bottom) - 120px); display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+    /* Two lines kept for the count, so that the gauge does not move under the pointer. */
+    .sky-readout { margin: 0 18px 10px; font-size: 14px; line-height: 1.4; min-height: 2.8em; color: var(--ink); font-variant-numeric: tabular-nums; }
     .sky-gauge { position: relative; display: flex; gap: 12px; margin: 0 18px; padding: 10px 0; flex: none; }
     .sky-meter { position: relative; flex: none; width: 92px; height: 230px; border-radius: 10px; cursor: ns-resize;
       touch-action: none; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--hairline, rgba(255, 255, 255, 0.14)); }
     .sky-meter:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+    /* The knob sticks out on the right; the gauge takes a press there too. */
+    .sky-meter::after { content: ""; position: absolute; inset: -4px -12px -4px -8px; }
     .sky-bars { position: absolute; inset: 0 6px; }
     .sky-bar { position: absolute; left: 0; border-radius: 3px; background: var(--ink-3); opacity: 0.35; }
     .sky-bar.lit { background: var(--gold); opacity: 0.9; }
@@ -213,9 +216,9 @@
     /* Low screens (a phone on its side): the groups on offer in one row that scrolls sideways,
        so that the row keeps its height and the panel scrolls instead. */
     @media (max-height: 500px) {
-      /* A lower gauge, and the panel scrolls to its note. */
+      /* A lower gauge, below the top bar, and the panel scrolls to its note. */
       .sky-meter, .sky-scale { height: 150px; }
-      .panel-sky { bottom: calc(var(--bottom) + 56px); max-height: calc(100% - var(--top) - var(--bottom) - 64px); }
+      .panel-sky { top: calc(var(--top) + 52px); bottom: calc(var(--bottom) + 56px); max-height: none; }
       #discover-next { flex: none; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
       #panel-discover #discover-next { min-height: 0; }
       #discover-next::-webkit-scrollbar { display: none; }
@@ -290,6 +293,15 @@
 
     @media (max-width: 640px) {
       .panel-sky { left: var(--gutter-l); right: var(--gutter-r); width: auto; }
+      /* Narrow phones zoom with two fingers: the zoom buttons give their room to the games. */
+      @media (max-width: 420px) {
+        #zoom-out, #zoom-in { display: none; }
+      }
+      /* The skies along the gauge take two lines rather than run out of the panel. */
+      @media (max-width: 360px) {
+        .sky-meter { width: 72px; }
+        .sky-preset { white-space: normal; line-height: 1.15; }
+      }
       .brand span { display: none; }
       .chip-theme { width: 40px; padding: 0; justify-content: center; }
       /* Live time shows as the dot alone, so the top bar fits. */
@@ -421,22 +433,6 @@
       <button id="btn-clear" type="button" class="chip">Rensa markeringar</button>
     </div>
   </aside>
-
-  <section id="panel-sky" class="panel panel-sky" aria-label="Sikt" hidden>
-    <div class="panel-head">
-      <h2>Sikt</h2>
-      <button id="btn-sky-close" class="icon-btn" type="button" aria-label="Stäng">×</button>
-    </div>
-    <p id="sky-readout" class="sky-readout"></p>
-    <div class="sky-gauge">
-      <div id="sky-meter" class="sky-meter" role="slider" tabindex="0" aria-orientation="vertical" aria-label="De ljussvagaste stjärnorna som syns">
-        <div id="sky-bars" class="sky-bars" aria-hidden="true"></div>
-        <div id="sky-handle" class="sky-handle" aria-hidden="true"></div>
-      </div>
-      <div id="sky-scale" class="sky-scale" role="group" aria-label="Himlar"></div>
-    </div>
-    <p class="sky-note">Dra ner för en disigare himmel eller en ljusare stad, upp för en mörkare. Staplarna visar hur många stjärnor det finns av varje ljusstyrka, och ju lägre magnitud, desto klarare stjärna. Antalet gäller hela himlen: ungefär hälften är uppe åt gången, och nära horisonten syns färre.</p>
-  </section>
 
   <section id="panel-theme" class="panel panel-theme" aria-label="Design" hidden>
     <div class="panel-head">
@@ -574,6 +570,24 @@
       <button id="zoom-in" type="button" class="chip round" aria-label="Zooma in">+</button>
     </div>
   </nav>
+
+  <!-- After the bar, so that Tab goes from the star button straight into it, and it stands
+       over the panels of the games. -->
+  <section id="panel-sky" class="panel panel-sky" aria-label="Sikt" hidden>
+    <div class="panel-head">
+      <h2>Sikt</h2>
+      <button id="btn-sky-close" class="icon-btn" type="button" aria-label="Stäng">×</button>
+    </div>
+    <p id="sky-readout" class="sky-readout"></p>
+    <div class="sky-gauge">
+      <div id="sky-meter" class="sky-meter" role="slider" tabindex="0" aria-orientation="vertical" aria-label="De ljussvagaste stjärnorna som syns">
+        <div id="sky-bars" class="sky-bars" aria-hidden="true"></div>
+        <div id="sky-handle" class="sky-handle" aria-hidden="true"></div>
+      </div>
+      <div id="sky-scale" class="sky-scale" role="group" aria-label="Himlar"></div>
+    </div>
+    <p class="sky-note">Dra ner för en disigare himmel eller en ljusare stad, upp för en mörkare. Staplarna visar hur många stjärnor det finns av varje ljusstyrka, och ju lägre magnitud, desto klarare stjärna. Antalet gäller hela himlen: ungefär hälften är uppe åt gången, och nära horisonten syns färre.</p>
+  </section>
 
   <noscript><div class="fallback">Stjärnhimlen behöver JavaScript.</div></noscript>
   <script src="dist/stjarnhimlen.js"></script>

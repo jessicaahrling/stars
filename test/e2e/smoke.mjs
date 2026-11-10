@@ -1268,7 +1268,8 @@ try {
     };
   });
   assert.deepEqual(await practiceState(), { practice: 'winter 0/34', view: null, line: 'Övning: Vinterhimlen · 0 av 34 klara', stop: true, restart: false, overview: false });
-  assert.equal(await quiz.textContent('#train-prompt'), 'Vilken stjärnbild är det här?');
+  // The round is shuffled, so its first card may be one that is below the horizon by now.
+  assert.match(await quiz.textContent('#train-prompt'), /^Vilken stjärnbild är det här\?( Den är under horisonten just nu, så marken är genomskinlig\.)?$/);
   const firstInRound = await quiz.evaluate(() => window.stjarnhimlen.training.card);
   await quiz.click('#train-actions button:has-text("Visa svaret")');
   await quiz.click('#train-actions button:has-text("Fel")');
@@ -1645,7 +1646,28 @@ try {
   await sikt.focus('#sky-meter');
   await sikt.keyboard.press('Home');
   assert.equal(await limit(), 1);
-  assert.equal((await starsDrawn()).n <= 15, true, 'only the brightest');
+  const brightest = await starsDrawn();
+  assert.ok(brightest.n > 0 && brightest.n <= 15 && brightest.faintest <= 1, `only the brightest: ${brightest.n}, the faintest ${brightest.faintest}`);
+  assert.equal(await readout(), '15 stjärnor syns, ner till magnitud 1,0.');
+  assert.equal(await sikt.$$eval('.sky-bar.lit', (els) => els.length), 1, 'the first bar, with the brightest of all, stays lit');
+  // A training card's own stars show all the same, so that there is something to answer.
+  const card = await sikt.evaluate(async () => {
+    const a = window.stjarnhimlen;
+    a.setTraining(true);
+    a.anim = null;
+    a.draw();
+    const own = a.training.stars;
+    let ownFaint = 0;
+    let otherFaint = 0;
+    a.skyLayer.px.forEach((x, i) => {
+      if (Number.isNaN(x) || a.catalog.stars.mag[i] <= 1) return;
+      if (own[i]) ownFaint++;
+      else otherFaint++;
+    });
+    a.setTraining(false);
+    return { ownFaint, otherFaint };
+  });
+  assert.ok(card.ownFaint > 0 && card.otherFaint === 0, `card stars fainter than the limit: ${card.ownFaint}, others: ${card.otherFaint}`);
   await sikt.keyboard.press('ArrowUp');
   await sikt.keyboard.press('PageUp');
   assert.equal(await limit(), 1.6);
@@ -1654,6 +1676,19 @@ try {
   assert.equal((await starsDrawn()).n, allStars.n, 'every star again');
   await sikt.click('.sky-preset:has-text("Stad")');
   assert.deepEqual([await limit(), await sikt.getAttribute('.sky-preset:has-text("Stad")', 'aria-pressed')], [4.5, 'true']);
+  // Closed in the middle of a drag, the limit stays where the drag had it.
+  await sikt.focus('#sky-meter');
+  const meter2 = await sikt.$eval('#sky-meter', (e) => e.getBoundingClientRect().toJSON());
+  await sikt.mouse.move(meter2.left + meter2.width / 2, meter2.bottom - ((4.5 - 1) / 5) * meter2.height);
+  await sikt.mouse.down();
+  await sikt.mouse.move(meter2.left + meter2.width / 2, meter2.bottom - ((4.8 - 1) / 5) * meter2.height, { steps: 3 });
+  const midDrag = await limit();
+  await sikt.keyboard.press('Escape');
+  await sikt.mouse.move(meter2.left + meter2.width / 2, meter2.bottom - 5, { steps: 3 });
+  await sikt.mouse.up();
+  assert.equal(await limit(), midDrag, 'closing ends the drag');
+  await sikt.click('#btn-sky');
+  await sikt.click('.sky-preset:has-text("Stad")');
   // Escape closes it and gives the focus back to its button; the limit stays.
   await sikt.focus('#sky-meter');
   await sikt.keyboard.press('Escape');
@@ -1663,6 +1698,19 @@ try {
   await sikt.waitForFunction(() => window.stjarnhimlen);
   assert.deepEqual([await limit(), await sikt.evaluate(() => document.getElementById('btn-sky').classList.contains('limited'))], [4.5, true]);
   await sikt.screenshot({ path: path.join(shots, 'sikt.png') });
+  // On a phone the games' panel gives way to Sikt, the zoom buttons give their room to the
+  // games, and the gauge can be dragged with a finger.
+  const siktPhone = await openPage({ width: 390, height: 844 }, { discover: true, touch: true });
+  await siktPhone.click('#btn-sky');
+  assert.deepEqual(await siktPhone.evaluate(() => {
+    const at = (sel) => {
+      const r = document.querySelector(sel).getBoundingClientRect();
+      return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest(sel) !== null;
+    };
+    const toggles = document.getElementById('toggles').getBoundingClientRect();
+    const over = document.getElementById('btn-overview').getBoundingClientRect();
+    return [at('#btn-sky-close'), at('#sky-meter'), getComputedStyle(document.getElementById('zoom-in')).display, over.right <= toggles.right + 1];
+  }), [true, true, 'none', true]);
 
   assert.deepEqual(errors, [], 'no errors in the console');
   console.log('e2e smoke: ok');
