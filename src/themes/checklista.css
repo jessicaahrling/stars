@@ -300,3 +300,10 @@ input[type="range"]::-moz-range-thumb { width: 8px; height: 22px; border: 0; bor
   .bar-top .chip { font-size: 11px; padding: 0 6px; }
   .bar-top .chip-theme { width: 38px; padding: 0; }
 }
+
+/* Narrow phones: the games' buttons a little tighter, so that all three fit beside the
+   compass and Sikt. */
+@media (max-width: 420px) {
+  .toggles { gap: 4px; }
+  .toggle { padding: 0 7px 0 6px; gap: 6px; }
+}

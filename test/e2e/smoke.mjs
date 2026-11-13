@@ -1728,6 +1728,9 @@ try {
   await point.click('#btn-point');
   assert.equal(await point.getAttribute('#btn-point', 'aria-pressed'), 'true');
   assert.match(await point.textContent('#toast'), /^Håll upp telefonen mot himlen/);
+  // A reading without north that comes before the first with north (Android sends the two
+  // kinds separately) does not leave the sky turned wrong.
+  await aimAt('deviceorientation', { alpha: 30, beta: 90, gamma: 0, absolute: false });
   // Upright, its back to the west (alpha 90): west, on the horizon, with the compass's
   // north turned to true north (about 6 degrees in Sweden).
   await aimAt('deviceorientationabsolute', { alpha: 90, beta: 90, gamma: 0, absolute: true });
@@ -1742,28 +1745,65 @@ try {
   assert.ok(Math.abs(((corrected - beforeDrag.az + 540) % 360) - 180) > 5, `the drag turned the view (${beforeDrag.az} -> ${corrected})`);
   await aimAt('deviceorientationabsolute', { alpha: 90, beta: 135, gamma: 0, absolute: true });
   await settlesAt(corrected, 45);
-  // A flight only zooms: the learner turns the phone.
+  // A flight only zooms, and says which way to turn the phone when the sight is elsewhere:
+  // Orion stands in the south while the phone looks west.
   await point.evaluate(() => window.stjarnhimlen.flyTo(window.stjarnhimlen.catalog.byId.get('Ori').index));
   const flown = await facing();
   assert.ok(Math.abs(((flown.az - corrected + 540) % 360) - 180) < 0.5 && Math.abs(flown.alt - 45) < 0.5, 'the flight did not turn the view');
+  assert.match(await point.textContent('#toast'), /^Vänd telefonen mot (söder|sydost|sydväst), \d+° över horisonten\.$/);
+  // Off while looking into the ground, the view comes up to the sky.
+  await aimAt('deviceorientationabsolute', { alpha: 90, beta: 50, gamma: 0, absolute: true });
+  await point.waitForFunction(() => window.stjarnhimlen.view.alt < -30, null, { timeout: 10000 });
+  await point.click('#btn-point');
+  await point.waitForFunction(() => window.stjarnhimlen.view.alt > 0 && !window.stjarnhimlen.anim, null, { timeout: 10000 });
+  await point.click('#btn-point');
+  await aimAt('deviceorientationabsolute', { alpha: 90, beta: 135, gamma: 0, absolute: true });
+  await settlesAt(corrected, 45);
   // Off: readings no longer turn the view.
   await point.click('#btn-point');
   assert.equal(await point.getAttribute('#btn-point', 'aria-pressed'), 'false');
   await aimAt('deviceorientationabsolute', { alpha: 0, beta: 90, gamma: 0, absolute: true });
   await point.waitForTimeout(200);
   assert.ok(Math.abs((await facing()).alt - 45) < 0.5, 'off, the phone does not steer');
-  // A phone that gives no north: the sky starts where it was, and turns with the phone.
+  // A phone that gives no north: the sky starts where it was, turns with the phone, and
+  // after a second the learner is told.
   await point.click('#btn-point');
   await aimAt('deviceorientation', { alpha: 0, beta: 90, gamma: 0, absolute: false });
-  assert.match(await point.textContent('#toast'), /säger inte var norr är/);
   const start = (await facing()).az;
+  await point.waitForTimeout(1100);
   await aimAt('deviceorientation', { alpha: 90, beta: 90, gamma: 0, absolute: false });
+  assert.match(await point.textContent('#toast'), /säger inte var norr är/);
   await settlesAt((start + 270) % 360, 0);
+  await point.click('#btn-point');
+  // An iPhone: alpha counts from wherever the phone started, and the compass gives the
+  // heading of the top of the phone. Tilted back to look 45° up toward the east (magnetic
+  // 84°), the top points behind, at 264°; alpha here is 40° off its true value.
+  const iphone = (heading) => point.evaluate((h) => {
+    const e = new Event('deviceorientation');
+    Object.assign(e, { alpha: 276 - 40, beta: 135, gamma: 0, absolute: false, webkitCompassHeading: h, webkitCompassAccuracy: 10 });
+    window.dispatchEvent(e);
+  }, heading);
+  // (The correction dragged in earlier stays for as long as the page is open; it is let go
+  // here, to see the compass alone.)
+  await point.evaluate(() => { window.stjarnhimlen.pointing.turn = 0; });
+  await point.click('#btn-point');
+  for (let k = 0; k < 5; k++) await iphone(264);
+  await settlesAt(90, 45);
+  // A moment of a bad compass (a negative accuracy) keeps the north it had.
+  await point.evaluate(() => {
+    const e = new Event('deviceorientation');
+    Object.assign(e, { alpha: 236, beta: 135, gamma: 0, absolute: false, webkitCompassHeading: 0, webkitCompassAccuracy: -1 });
+    window.dispatchEvent(e);
+  });
+  await iphone(264);
+  await settlesAt(90, 45);
   await point.click('#btn-point');
   // A phone (or a page) that gives no readings: said so after a few seconds, and off again.
   await point.click('#btn-point');
   await point.waitForFunction(() => !window.stjarnhimlen.pointing.on, null, { timeout: 6000 });
-  assert.match(await point.textContent('#toast'), /^Telefonen ger ingen riktning här/);
+  // (Without sensors, as here, the browser sends empty readings; inside a page that keeps
+  // the sensors from it, none at all.)
+  assert.match(await point.textContent('#toast'), /^(Den här enheten känner inte av hur den hålls|Telefonen ger ingen riktning här)/);
   assert.equal(await point.getAttribute('#btn-point', 'aria-pressed'), 'false');
 
   assert.deepEqual(errors, [], 'no errors in the console');

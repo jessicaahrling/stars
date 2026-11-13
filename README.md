@@ -108,10 +108,13 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   höger. Tryck på den och håll upp telefonen, så vrider sig himlen efter hur du håller den
   och du ser stjärnbilderna där du tittar. Telefonens kompass visar mot magnetisk norr, så
   appen vrider om ungefär 6° till sann norr, och stämmer riktningen ändå inte drar man i
-  sidled för att rätta den; höjden följer alltid telefonen. Medan läget är på zoomar en
-  flygning till en stjärnbild bara, och man vänder själv telefonen dit. På iPhone frågar
-  telefonen först om lov. Saknar telefonen kompass börjar himlen där den stod och vrider
-  sig med telefonen. Sensorerna kräver att appen är öppnad som en egen sida över https, till
+  sidled för att rätta den (rättelsen gäller så länge sidan är öppen); höjden följer
+  alltid telefonen. Medan läget är på zoomar en flygning till en stjärnbild, till exempel
+  ett nytt kort i Träna, bara, och appen säger åt vilket håll man ska vända telefonen
+  ("Vänd telefonen mot sydost, 30° över horisonten"). På iPhone frågar telefonen först om
+  lov, och kompassen hittar norr när telefonen lutas bakåt mot himlen en stund. Saknar
+  telefonen kompass börjar himlen där den stod och vrider sig med telefonen. När läget
+  stängs av medan telefonen pekar ner i marken lyfts vyn upp till himlen. Sensorerna kräver att appen är öppnad som en egen sida över https, till
   exempel via GitHub Pages; visas den inuti en annan sida som inte släpper fram sensorerna,
   säger appen det efter några sekunder.
 - **Sikt:** stjärnknappen längst ner till höger öppnar en mätare för hur ljussvaga

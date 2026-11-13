@@ -326,3 +326,10 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 26px; box-sizing: b
 @media (prefers-reduced-motion: reduce) {
   .chip:active:not(:disabled) { translate: none; }
 }
+
+/* Narrow phones: the games' buttons a little tighter, so that all three fit beside the
+   compass and Sikt. */
+@media (max-width: 420px) {
+  .toggles { gap: 3px; }
+  .toggle { padding: 0 7px; letter-spacing: 0.03em; gap: 6px; }
+}

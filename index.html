@@ -297,9 +297,15 @@
 
     @media (max-width: 640px) {
       .panel-sky { left: var(--gutter-l); right: var(--gutter-r); width: auto; }
-      /* Narrow phones zoom with two fingers: the zoom buttons give their room to the games. */
+      /* Narrow phones zoom with two fingers: the zoom buttons give their room to the games,
+         and the compass and Sikt are a little smaller. */
       @media (max-width: 420px) {
         #zoom-out, #zoom-in { display: none; }
+        .bar .zoom { gap: 4px; }
+        .bar .zoom .round { width: 36px; min-height: 36px; height: 36px; }
+      }
+      @media (max-width: 360px) {
+        .bar .zoom .round { width: 34px; min-height: 34px; height: 34px; }
       }
       /* The skies along the gauge take two lines rather than run out of the panel. */
       @media (max-width: 360px) {

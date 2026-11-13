@@ -60,6 +60,8 @@
   box-shadow: 0 3px 0 var(--option-shadow); }
 .chip .muted { color: var(--ink-2); font-weight: 700; }
 .chip[aria-pressed="true"] .muted { color: rgba(8, 19, 31, 0.72); }
+/* A round button on (the compass) stays lit under a finger, whose touch leaves a hover behind. */
+.round[aria-pressed="true"]:not(:disabled):hover { border-color: #fff; background: var(--sky-blue); color: var(--on-bright); }
 .chip .sep { color: var(--ink-3); }
 .chip:disabled, .discover-foot .chip:disabled { opacity: 0.45; cursor: default; transform: none; }
 

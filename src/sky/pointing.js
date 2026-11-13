@@ -3,10 +3,12 @@
 // into the earth's east-north-up) gives the direction out of the back of the phone, the
 // way its camera looks: an altitude, and an azimuth from north through east. The sky
 // keeps its horizon level, so how the phone is turned about that direction is left out.
-// The azimuth leans on where the top of the screen points, so that it stays steady when
-// the phone looks straight up or down.
+// Close to straight up or down, the azimuth leans on where the top of the screen points,
+// so that it stays steady there.
 
 const RAD = Math.PI / 180;
+/** How much the top of the screen counts for the azimuth near straight up or down. */
+const UP_WEIGHT = 0.1;
 
 /** Rz(alpha) · Rx(beta) · Ry(gamma), row-major: device coordinates to east-north-up. */
 export function deviceToEarth(alpha, beta, gamma) {
@@ -37,10 +39,22 @@ export function pointingOf(alpha, beta, gamma, screenAngle = 0) {
   const theta = screenAngle * RAD;
   const up = apply(m, [Math.sin(theta), Math.cos(theta), 0]);
   const alt = Math.asin(Math.max(-1, Math.min(1, look[2])));
-  // Forward along the ground: where the camera looks, or, the higher it looks, the way the
-  // top of the screen leans away from.
-  const e = look[0] * Math.cos(alt) - up[0] * Math.sin(alt);
-  const n = look[1] * Math.cos(alt) - up[1] * Math.sin(alt);
+  // Forward along the ground: where the camera looks; only within a few degrees of
+  // straight up or down, where that runs out, the way the top of the screen leans away from.
+  const e = look[0] - UP_WEIGHT * Math.sin(alt) * up[0];
+  const n = look[1] - UP_WEIGHT * Math.sin(alt) * up[1];
   const az = ((Math.atan2(e, n) / RAD) % 360 + 360) % 360;
   return { az, alt: alt / RAD };
+}
+
+/**
+ * Where the top of the phone (as held upright in portrait) points along the ground: what
+ * an iPhone's compass heading measures. Null while the top points within about 15° of
+ * straight up or down, where that azimuth is unsteady.
+ * @returns {{az: number} | null}
+ */
+export function topAzimuthOf(alpha, beta, gamma) {
+  const top = apply(deviceToEarth(alpha, beta, gamma), [0, 1, 0]);
+  if (Math.hypot(top[0], top[1]) < 0.25) return null;
+  return { az: ((Math.atan2(top[0], top[1]) / RAD) % 360 + 360) % 360 };
 }

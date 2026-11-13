@@ -1,5 +1,5 @@
 // Stjärnhimlen: wires the sky renderer, the observer's view and the controls.
-import { azAltFromVec } from './astro/frames.js';
+import { azAltFromVec, compassName } from './astro/frames.js';
 import { angleBetween, clamp, mat3Apply, RAD, wrap180, wrap360 } from './astro/math.js';
 import { visibilityClass } from './astro/visibility.js';
 import { DEFAULT_PLACE_ID, PLACES } from './data/places.js';
@@ -13,7 +13,7 @@ import { groupColors, groupNeighbours } from './sky/discovery.js';
 import { figureState } from './sky/facts.js';
 import { groupOutline } from './sky/group-outline.js';
 import { findNeighbours } from './sky/neighbours.js';
-import { pointingOf } from './sky/pointing.js';
+import { pointingOf, topAzimuthOf } from './sky/pointing.js';
 import { winterOf } from './sky/winter.js';
 import { chunksOf, STAGES, stagesOf } from './sky/curriculum.js';
 import {
@@ -60,12 +60,19 @@ const TRAIN_FOV = DEFAULT_FOV;
 const TRAINING_LAYERS = new Set(['lines', 'names', 'art']);
 /**
  * "Rikta mot himlen": a compass reads magnetic north, which in Sweden lies about this many
- * degrees west of true north (roughly, for these years; a phone's compass is seldom better
- * than this anyway, and a sideways drag corrects the rest).
+ * degrees east of true north, so a true azimuth is the magnetic one plus this (roughly, for
+ * these years; a phone's compass is seldom better than this anyway, and a sideways drag
+ * corrects the rest).
  */
 const DECLINATION = 6;
+/** How slowly iOS's compass is followed (ms for about two thirds of a change): it lags the other sensors. */
+const COMPASS_EASE_MS = 1500;
+/** How long readings without north are followed before the learner is told there is none (ms). */
+const NORTH_WAIT_MS = 1000;
 /** How long to wait for the phone's first reading before saying it gives none (ms). */
 const POINTING_WAIT_MS = 3000;
+/** Said when no readings come, as where the page is shown inside another that keeps the sensors from it. */
+const NO_READINGS_HERE = 'Telefonen ger ingen riktning här. Det fungerar när appen är öppnad som en egen sida i mobilens webbläsare.';
 /** How quickly the view follows the phone (ms for it to come about two thirds of the way): it smooths the jitter. */
 const POINTING_EASE_MS = 90;
 
@@ -239,11 +246,15 @@ export class App {
     this.clock = { baseMs: Date.now(), baseAt: performance.now(), speed: 1, live: true };
     /**
      * "Rikta mot himlen": while on, the phone's orientation turns the view. target is where
-     * the phone looks (az, alt), compass how far true azimuths lie from the phone's own
-     * (iOS, or null), relative whether the phone has no north at all, and turn the
-     * learner's own correction, made by dragging sideways.
+     * the phone looks (az, alt); compass how far magnetic azimuths lie from the phone's own
+     * (iOS, or null); base the starting guess while no north has come (or null), relative
+     * whether the learner has been told there is none; turn the learner's own correction,
+     * made by dragging sideways; empty whether only empty readings came (no sensors).
      */
-    this.pointing = { on: false, target: null, compass: null, relative: false, turn: 0, heard: false, timer: 0 };
+    this.pointing = {
+      on: false, target: null, compass: null, compassAt: 0, base: null, firstAt: 0, relative: false, absolute: false,
+      turn: 0, heard: false, empty: false, timer: 0,
+    };
     this.onOrientation = this.onOrientation.bind(this);
 
     const view = new SkyView();
@@ -743,7 +754,7 @@ export class App {
       const wasBelow = t.below;
       this.trainingChanged();
       // Back on opaque ground, a view left looking below the horizon is lifted above it.
-      if (wasBelow && !this.layers.seeThrough) {
+      if (wasBelow && !this.layers.seeThrough && !this.pointing.on) {
         const v = this.view;
         const to = this.anim ? { ...this.anim.to } : { az: v.az, alt: v.alt, fov: v.fov };
         to.alt = Math.max(to.alt, Math.min(to.fov * 0.22, 20));
@@ -1375,7 +1386,14 @@ export class App {
       window.removeEventListener('deviceorientationabsolute', this.onOrientation);
       window.removeEventListener('deviceorientation', this.onOrientation);
       Object.assign(p, { on: false, target: null });
+      this.anim = null;
+      this.velocity = null;
+      // Left looking into the ground, the view comes up to the sky.
+      const v = this.view;
+      const lowest = Math.min(v.fov * 0.22, 20);
+      if (!this.seeThroughNow() && v.alt < lowest) this.anim = { from: { az: v.az, alt: v.alt, fov: v.fov }, to: { az: v.az, alt: lowest, fov: v.fov }, t0: null };
       this.syncPointing();
+      this.saveSoon();
       return;
     }
     const DOE = window.DeviceOrientationEvent;
@@ -1387,11 +1405,21 @@ export class App {
         // Not asked from a tap, or not allowed here.
       }
       if (answer !== 'granted') {
-        this.showToast('Telefonen gav inte lov att läsa av hur den hålls. Det går att ändra i webbläsarens inställningar för den här sidan.');
+        let framed = true;
+        try {
+          framed = window.top !== window.self;
+        } catch {
+          // A frame from elsewhere.
+        }
+        this.showToast(framed ? NO_READINGS_HERE
+          : 'Telefonen gav inte lov att läsa av hur den hålls. Stäng Safari helt och öppna sidan igen, så frågar den på nytt.');
         return;
       }
     }
-    Object.assign(p, { on: true, target: null, compass: null, relative: false, absolute: false, heard: false });
+    Object.assign(p, {
+      on: true, target: null, compass: null, compassAt: 0, base: null, firstAt: 0, relative: false, absolute: false, heard: false, empty: false,
+      headingSeen: false,
+    });
     this.anim = null;
     this.velocity = null;
     window.addEventListener('deviceorientationabsolute', this.onOrientation);
@@ -1399,39 +1427,71 @@ export class App {
     p.timer = setTimeout(() => {
       if (!p.on || p.heard) return;
       this.setPointing(false);
-      this.showToast('Telefonen ger ingen riktning här. Det fungerar när appen är öppnad som en egen sida i mobilens webbläsare.');
+      this.showToast(p.empty ? 'Den här enheten känner inte av hur den hålls, eller så är rörelsesensorerna avstängda.' : NO_READINGS_HERE);
     }, POINTING_WAIT_MS);
     this.showToast('Håll upp telefonen mot himlen, så visar appen det du tittar på. Stämmer inte riktningen kan du dra i sidled för att rätta den.');
     this.syncPointing();
   }
 
-  /** A reading of how the phone is held: where it looks becomes where the view turns. */
-  onOrientation(e) {
+  /**
+   * A reading of how the phone is held: where it looks becomes where the view turns. Three
+   * kinds of north: an absolute reading's own (Android); the compass that comes with a
+   * relative reading (iOS), compared slowly with where the top of the phone points, and
+   * kept between good headings; or none, where the sky starts from the view as it was.
+   */
+  onOrientation(e, now = performance.now()) {
     const p = this.pointing;
-    if (!p.on || e.alpha == null || e.beta == null || e.gamma == null) return;
+    if (!p.on) return;
+    if (e.alpha == null || e.beta == null || e.gamma == null) {
+      // A device without the sensors sends empty readings.
+      p.empty = true;
+      return;
+    }
     const absolute = e.type === 'deviceorientationabsolute' || e.absolute === true;
     // Once readings with north in them come, the others (from wherever the phone started) are left out.
     if (absolute) p.absolute = true;
     else if (p.absolute) return;
     const angle = window.screen?.orientation?.angle ?? window.orientation ?? 0;
     const { az, alt } = pointingOf(e.alpha, e.beta, e.gamma, angle);
-    let north;
+    let north = null;
     if (absolute) {
       north = DECLINATION;
-    } else if (typeof e.webkitCompassHeading === 'number' && e.webkitCompassHeading >= 0 && !(e.webkitCompassAccuracy < 0)) {
-      // iOS: alpha counts from wherever the phone pointed at first, and its compass says
-      // where north is; the two are compared, steadied over many readings.
-      const sample = wrap180(e.webkitCompassHeading - az);
-      p.compass = p.compass === null ? sample : p.compass + wrap180(sample - p.compass) * 0.1;
-      north = p.compass + DECLINATION;
     } else {
-      // No north at all: the sky starts where it was and turns with the phone.
-      if (!p.relative) {
-        p.relative = true;
-        p.turn = wrap180(this.view.az - az);
-        this.showToast('Telefonen säger inte var norr är, så himlen börjar där den stod. Dra i sidled för att rätta riktningen.');
+      const heading = e.webkitCompassHeading;
+      if (typeof heading === 'number' && heading >= 0 && !(e.webkitCompassAccuracy < 0)) {
+        p.headingSeen = true;
+        // iOS: the compass gives the heading of the top of the phone (as held upright in
+        // portrait). Where the top lies well away from straight up or down, its own
+        // azimuth is compared with it, steadied over a few seconds.
+        const top = topAzimuthOf(e.alpha, e.beta, e.gamma);
+        if (top) {
+          const sample = wrap180(heading - top.az);
+          const dt = p.compassAt ? clamp(now - p.compassAt, 0, 1000) : 0;
+          p.compass = p.compass === null ? sample : p.compass + wrap180(sample - p.compass) * (1 - Math.exp(-dt / COMPASS_EASE_MS));
+          p.compassAt = now;
+        }
       }
-      north = 0;
+      // Between good headings the last offset holds.
+      if (p.compass !== null) north = p.compass + DECLINATION;
+    }
+    if (north === null) {
+      // No north yet: the sky starts where it was and turns with the phone. If none comes
+      // within a second, the learner is told.
+      if (p.base === null) {
+        p.base = wrap180(this.view.az - az - p.turn);
+        p.firstAt = now;
+      }
+      north = p.base;
+      if (!p.relative && now - p.firstAt > NORTH_WAIT_MS) {
+        p.relative = true;
+        // An iPhone's compass needs the top of the phone off straight up to begin with.
+        this.showToast(p.headingSeen ? 'Luta telefonen bakåt mot himlen en stund, så hittar den norr.'
+          : 'Telefonen säger inte var norr är, så himlen börjar där den stod. Dra i sidled för att rätta riktningen.');
+      }
+    } else if (p.base !== null) {
+      // North has come: the starting guess is let go.
+      p.base = null;
+      p.relative = false;
     }
     const first = !p.target;
     p.heard = true;
@@ -1505,9 +1565,14 @@ export class App {
     // A group may take the widest view there is; one constellation stays short of it.
     const widest = members.length > 1 ? MAX_FOV : MAX_FOV - 10;
     const fov = fixedFov ?? clamp(Math.max(atLeast, reach * 2.5 * Math.min(aspect, 2.2)), 28, widest);
-    // While the phone steers the view, a flight only zooms: the learner turns the phone.
+    // While the phone steers the view, a flight only zooms, and says which way to turn the
+    // phone when what it was for is out of sight.
     if (this.pointing.on) {
       v.fov = fov;
+      v.update();
+      const p = { x: 0, y: 0, z: 0 };
+      const seen = v.projectEq(centerVec, p) && p.z > 0 && p.x > 0 && p.x < v.width && p.y > 0 && p.y < v.height;
+      if (!seen) this.showToast(`Vänd telefonen mot ${compassName(az)}, ${Math.abs(Math.round(alt))}° ${alt >= 0 ? 'över' : 'under'} horisonten.`);
       this.invalidate();
       return;
     }

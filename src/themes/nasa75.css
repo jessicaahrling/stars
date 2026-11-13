@@ -264,3 +264,10 @@ input[type="range"]:hover::-moz-range-thumb { box-shadow: 0 0 0 1px #fff; }
 @media (prefers-reduced-motion: reduce) {
   .chip, .icon-btn, .meter span { transition: none; }
 }
+
+/* Narrow phones: the games' buttons a little tighter, so that all three fit beside the
+   compass and Sikt. */
+@media (max-width: 420px) {
+  .toggles { gap: 4px; }
+  .toggle { padding: 0 8px; gap: 6px; }
+}
