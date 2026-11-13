@@ -1712,6 +1712,60 @@ try {
     return [at('#btn-sky-close'), at('#sky-meter'), getComputedStyle(document.getElementById('zoom-in')).display, over.right <= toggles.right + 1];
   }), [true, true, 'none', true]);
 
+  // "Rikta mot himlen": on a touch phone the compass button lets the phone's orientation
+  // turn the view; a sideways drag corrects the direction; a flight only zooms. On a
+  // computer there is no such button. Readings are made up here, as a phone would send them.
+  assert.equal(await sikt.isHidden('#btn-point'), true, 'no compass button on a computer');
+  const point = await openPage({ width: 390, height: 844 }, { touch: true });
+  assert.equal(await point.isVisible('#btn-point'), true);
+  const aimAt = (type, o) => point.evaluate(([t, r]) => window.dispatchEvent(new DeviceOrientationEvent(t, r)), [type, o]);
+  const facing = () => point.evaluate(() => ({ az: window.stjarnhimlen.view.az, alt: window.stjarnhimlen.view.alt, fov: window.stjarnhimlen.view.fov }));
+  /** Waits until the view has turned to the given azimuth and altitude. */
+  const settlesAt = (az, alt) => point.waitForFunction(([z, a]) => {
+    const v = window.stjarnhimlen.view;
+    return Math.abs(((v.az - z + 540) % 360) - 180) < 0.3 && Math.abs(v.alt - a) < 0.3;
+  }, [az, alt], { timeout: 10000 });
+  await point.click('#btn-point');
+  assert.equal(await point.getAttribute('#btn-point', 'aria-pressed'), 'true');
+  assert.match(await point.textContent('#toast'), /^Håll upp telefonen mot himlen/);
+  // Upright, its back to the west (alpha 90): west, on the horizon, with the compass's
+  // north turned to true north (about 6 degrees in Sweden).
+  await aimAt('deviceorientationabsolute', { alpha: 90, beta: 90, gamma: 0, absolute: true });
+  await settlesAt(276, 0);
+  // Tilted back 45 degrees: up at 45.
+  await aimAt('deviceorientationabsolute', { alpha: 90, beta: 135, gamma: 0, absolute: true });
+  await settlesAt(276, 45);
+  // A sideways drag corrects the direction and leaves the height to the phone.
+  const beforeDrag = await facing();
+  await point.evaluate(() => window.stjarnhimlen.pan(-120, 80));
+  const corrected = (await facing()).az;
+  assert.ok(Math.abs(((corrected - beforeDrag.az + 540) % 360) - 180) > 5, `the drag turned the view (${beforeDrag.az} -> ${corrected})`);
+  await aimAt('deviceorientationabsolute', { alpha: 90, beta: 135, gamma: 0, absolute: true });
+  await settlesAt(corrected, 45);
+  // A flight only zooms: the learner turns the phone.
+  await point.evaluate(() => window.stjarnhimlen.flyTo(window.stjarnhimlen.catalog.byId.get('Ori').index));
+  const flown = await facing();
+  assert.ok(Math.abs(((flown.az - corrected + 540) % 360) - 180) < 0.5 && Math.abs(flown.alt - 45) < 0.5, 'the flight did not turn the view');
+  // Off: readings no longer turn the view.
+  await point.click('#btn-point');
+  assert.equal(await point.getAttribute('#btn-point', 'aria-pressed'), 'false');
+  await aimAt('deviceorientationabsolute', { alpha: 0, beta: 90, gamma: 0, absolute: true });
+  await point.waitForTimeout(200);
+  assert.ok(Math.abs((await facing()).alt - 45) < 0.5, 'off, the phone does not steer');
+  // A phone that gives no north: the sky starts where it was, and turns with the phone.
+  await point.click('#btn-point');
+  await aimAt('deviceorientation', { alpha: 0, beta: 90, gamma: 0, absolute: false });
+  assert.match(await point.textContent('#toast'), /säger inte var norr är/);
+  const start = (await facing()).az;
+  await aimAt('deviceorientation', { alpha: 90, beta: 90, gamma: 0, absolute: false });
+  await settlesAt((start + 270) % 360, 0);
+  await point.click('#btn-point');
+  // A phone (or a page) that gives no readings: said so after a few seconds, and off again.
+  await point.click('#btn-point');
+  await point.waitForFunction(() => !window.stjarnhimlen.pointing.on, null, { timeout: 6000 });
+  assert.match(await point.textContent('#toast'), /^Telefonen ger ingen riktning här/);
+  assert.equal(await point.getAttribute('#btn-point', 'aria-pressed'), 'false');
+
   assert.deepEqual(errors, [], 'no errors in the console');
   console.log('e2e smoke: ok');
 } finally {

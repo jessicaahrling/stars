@@ -134,6 +134,10 @@
     /* "Sikt": a gauge of how faint the faintest stars seen are, above the zoom buttons. */
     .sky-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
     .sky-btn.limited svg { fill: currentColor; fill-opacity: 0.35; }
+    /* "Rikta mot himlen": a compass, its north needle filled while the phone steers the view. */
+    .point-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; }
+    .point-btn[aria-pressed="true"] svg .needle { fill: currentColor; }
+    #btn-point[hidden] { display: none; }
     .panel-sky { bottom: calc(var(--bottom) + 60px); right: var(--gutter-r); width: 320px; box-sizing: border-box;
       max-height: calc(100% - var(--top) - var(--bottom) - 120px); display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
     /* Two lines kept for the count, so that the gauge does not move under the pointer. */
@@ -563,6 +567,9 @@
       <button type="button" class="chip toggle" data-layer="seeThrough" aria-pressed="false">Se genom marken</button>
     </div>
     <div class="zoom">
+      <button id="btn-point" type="button" class="chip round point-btn" aria-label="Rikta mot himlen" aria-pressed="false" title="Rikta mot himlen: håll upp telefonen, så visar appen det du tittar på" hidden>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 3.6l2.4 6.4H7.6z" class="needle"/><path d="M7.6 10h4.8L10 16.4z"/></svg>
+      </button>
       <button id="btn-sky" type="button" class="chip round sky-btn" aria-label="Sikt" aria-expanded="false" aria-controls="panel-sky">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.5l1.9 5.2 5.6.2-4.4 3.4 1.6 5.4L10 12.6l-4.7 3.1 1.6-5.4L2.5 6.9l5.6-.2z"/></svg>
       </button>

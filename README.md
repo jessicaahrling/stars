@@ -104,6 +104,16 @@ och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till
   Vintergatan ritas ut och skogskanten vid horisonten är lägre åt söder.
 - **Plats och tid:** åtta orter från Malmö till Kiruna, valfritt datum och klockslag, och
   tiden kan gå i realtid, 10 min/s eller 1 tim/s.
+- **Rikta mot himlen:** på en mobil eller platta finns en kompassknapp längst ner till
+  höger. Tryck på den och håll upp telefonen, så vrider sig himlen efter hur du håller den
+  och du ser stjärnbilderna där du tittar. Telefonens kompass visar mot magnetisk norr, så
+  appen vrider om ungefär 6° till sann norr, och stämmer riktningen ändå inte drar man i
+  sidled för att rätta den; höjden följer alltid telefonen. Medan läget är på zoomar en
+  flygning till en stjärnbild bara, och man vänder själv telefonen dit. På iPhone frågar
+  telefonen först om lov. Saknar telefonen kompass börjar himlen där den stod och vrider
+  sig med telefonen. Sensorerna kräver att appen är öppnad som en egen sida över https, till
+  exempel via GitHub Pages; visas den inuti en annan sida som inte släpper fram sensorerna,
+  säger appen det efter några sekunder.
 - **Sikt:** stjärnknappen längst ner till höger öppnar en mätare för hur ljussvaga
   stjärnor som syns. Drar man den ända ner syns bara de allra klaraste (magnitud 1, femton
   stjärnor på hela himlen), och ju högre upp desto fler, ända till alla 5 045 som på en

@@ -1,6 +1,6 @@
 // Stjärnhimlen: wires the sky renderer, the observer's view and the controls.
 import { azAltFromVec } from './astro/frames.js';
-import { angleBetween, clamp, mat3Apply, RAD, wrap180 } from './astro/math.js';
+import { angleBetween, clamp, mat3Apply, RAD, wrap180, wrap360 } from './astro/math.js';
 import { visibilityClass } from './astro/visibility.js';
 import { DEFAULT_PLACE_ID, PLACES } from './data/places.js';
 import { GlLayer } from './render/gl-layer.js';
@@ -13,6 +13,7 @@ import { groupColors, groupNeighbours } from './sky/discovery.js';
 import { figureState } from './sky/facts.js';
 import { groupOutline } from './sky/group-outline.js';
 import { findNeighbours } from './sky/neighbours.js';
+import { pointingOf } from './sky/pointing.js';
 import { winterOf } from './sky/winter.js';
 import { chunksOf, STAGES, stagesOf } from './sky/curriculum.js';
 import {
@@ -57,6 +58,17 @@ const SECOND_TAP_MS = 400;
 const TRAIN_FOV = DEFAULT_FOV;
 /** Layers that "Träna" sets itself, step by step. */
 const TRAINING_LAYERS = new Set(['lines', 'names', 'art']);
+/**
+ * "Rikta mot himlen": a compass reads magnetic north, which in Sweden lies about this many
+ * degrees west of true north (roughly, for these years; a phone's compass is seldom better
+ * than this anyway, and a sideways drag corrects the rest).
+ */
+const DECLINATION = 6;
+/** How long to wait for the phone's first reading before saying it gives none (ms). */
+const POINTING_WAIT_MS = 3000;
+/** How quickly the view follows the phone (ms for it to come about two thirds of the way): it smooths the jitter. */
+const POINTING_EASE_MS = 90;
+
 /** Layers that Upptäck keeps its own: for every group, or else for the one pointed at or chosen. */
 const DISCOVER_LAYERS = new Set(['lines', 'names']);
 const DISCOVER_TITLES = {
@@ -225,6 +237,14 @@ export class App {
     this.selected = -1;
     this.hover = -1;
     this.clock = { baseMs: Date.now(), baseAt: performance.now(), speed: 1, live: true };
+    /**
+     * "Rikta mot himlen": while on, the phone's orientation turns the view. target is where
+     * the phone looks (az, alt), compass how far true azimuths lie from the phone's own
+     * (iOS, or null), relative whether the phone has no north at all, and turn the
+     * learner's own correction, made by dragging sideways.
+     */
+    this.pointing = { on: false, target: null, compass: null, relative: false, turn: 0, heard: false, timer: 0 };
+    this.onOrientation = this.onOrientation.bind(this);
 
     const view = new SkyView();
     view.lat = this.place.lat;
@@ -257,6 +277,9 @@ export class App {
     this.themePanel = new ThemePanel(this, $);
     this.skyPanel = new SkyPanel(this, $);
     this.skyPanel.sync();
+    this.pointButton = $('btn-point');
+    this.pointButton.addEventListener('click', () => this.setPointing(!this.pointing.on));
+    this.syncPointing();
     this.trainPanel = new TrainPanel(this, $);
     this.groupsPanel = new GroupsPanel(this, $);
     // The card is fitted again whenever it or a game's panel changes size (see fitCard),
@@ -356,7 +379,7 @@ export class App {
         this.setHover(-1);
       },
       fling: (vx, vy) => {
-        this.velocity = { vx, vy, t: null };
+        if (!this.pointing.on) this.velocity = { vx, vy, t: null };
       },
     });
     this.hudCanvas.addEventListener('pointerup', () => this.hudCanvas.classList.remove('dragging'));
@@ -1331,11 +1354,113 @@ export class App {
     return this.catalog.constellationAt(mat3Apply(this.view.horToEq, hor));
   }
 
+  // ------------------------------------------------------------------ pointing the phone at the sky
+
+  /** Whether this device can be held up to the sky: a touch screen that reports how it is held. */
+  get canPoint() {
+    return typeof window.DeviceOrientationEvent === 'function' && Boolean(matchMedia?.('(pointer: coarse)').matches);
+  }
+
+  /**
+   * Turns "Rikta mot himlen" on or off: on, the phone's orientation turns the view. On iOS
+   * the phone asks first (this runs from the button's tap). If no reading comes within a
+   * few seconds, as where the page is shown inside another page that keeps the phone's
+   * sensors from it, the app says so and turns it off again.
+   */
+  async setPointing(on) {
+    const p = this.pointing;
+    if (on === p.on) return;
+    clearTimeout(p.timer);
+    if (!on) {
+      window.removeEventListener('deviceorientationabsolute', this.onOrientation);
+      window.removeEventListener('deviceorientation', this.onOrientation);
+      Object.assign(p, { on: false, target: null });
+      this.syncPointing();
+      return;
+    }
+    const DOE = window.DeviceOrientationEvent;
+    if (typeof DOE?.requestPermission === 'function') {
+      let answer = 'denied';
+      try {
+        answer = await DOE.requestPermission();
+      } catch {
+        // Not asked from a tap, or not allowed here.
+      }
+      if (answer !== 'granted') {
+        this.showToast('Telefonen gav inte lov att läsa av hur den hålls. Det går att ändra i webbläsarens inställningar för den här sidan.');
+        return;
+      }
+    }
+    Object.assign(p, { on: true, target: null, compass: null, relative: false, absolute: false, heard: false });
+    this.anim = null;
+    this.velocity = null;
+    window.addEventListener('deviceorientationabsolute', this.onOrientation);
+    window.addEventListener('deviceorientation', this.onOrientation);
+    p.timer = setTimeout(() => {
+      if (!p.on || p.heard) return;
+      this.setPointing(false);
+      this.showToast('Telefonen ger ingen riktning här. Det fungerar när appen är öppnad som en egen sida i mobilens webbläsare.');
+    }, POINTING_WAIT_MS);
+    this.showToast('Håll upp telefonen mot himlen, så visar appen det du tittar på. Stämmer inte riktningen kan du dra i sidled för att rätta den.');
+    this.syncPointing();
+  }
+
+  /** A reading of how the phone is held: where it looks becomes where the view turns. */
+  onOrientation(e) {
+    const p = this.pointing;
+    if (!p.on || e.alpha == null || e.beta == null || e.gamma == null) return;
+    const absolute = e.type === 'deviceorientationabsolute' || e.absolute === true;
+    // Once readings with north in them come, the others (from wherever the phone started) are left out.
+    if (absolute) p.absolute = true;
+    else if (p.absolute) return;
+    const angle = window.screen?.orientation?.angle ?? window.orientation ?? 0;
+    const { az, alt } = pointingOf(e.alpha, e.beta, e.gamma, angle);
+    let north;
+    if (absolute) {
+      north = DECLINATION;
+    } else if (typeof e.webkitCompassHeading === 'number' && e.webkitCompassHeading >= 0 && !(e.webkitCompassAccuracy < 0)) {
+      // iOS: alpha counts from wherever the phone pointed at first, and its compass says
+      // where north is; the two are compared, steadied over many readings.
+      const sample = wrap180(e.webkitCompassHeading - az);
+      p.compass = p.compass === null ? sample : p.compass + wrap180(sample - p.compass) * 0.1;
+      north = p.compass + DECLINATION;
+    } else {
+      // No north at all: the sky starts where it was and turns with the phone.
+      if (!p.relative) {
+        p.relative = true;
+        p.turn = wrap180(this.view.az - az);
+        this.showToast('Telefonen säger inte var norr är, så himlen börjar där den stod. Dra i sidled för att rätta riktningen.');
+      }
+      north = 0;
+    }
+    const first = !p.target;
+    p.heard = true;
+    p.target = { az: wrap360(az + north + p.turn), alt };
+    // The first reading turns the view there at once; later ones are followed smoothly.
+    if (first) Object.assign(this.view, p.target);
+    this.invalidate();
+  }
+
+  /** The button follows whether the phone steers the view. */
+  syncPointing() {
+    this.pointButton.hidden = !this.canPoint;
+    this.pointButton.setAttribute('aria-pressed', String(this.pointing.on));
+  }
+
   // ------------------------------------------------------------------ camera
 
   pan(dx, dy) {
     const v = this.view;
     const k = RAD / v.s;
+    if (this.pointing.on) {
+      // The phone says where it looks; a sideways drag corrects where north is.
+      const turn = (dx * k) / Math.max(0.35, Math.cos((v.alt * Math.PI) / 180));
+      this.pointing.turn -= turn;
+      if (this.pointing.target) this.pointing.target.az -= turn;
+      v.az -= turn;
+      this.invalidate();
+      return;
+    }
     v.az -= (dx * k) / Math.max(0.35, Math.cos((v.alt * Math.PI) / 180));
     v.alt = clamp(v.alt + dy * k, -90, 90);
     this.anim = null;
@@ -1380,6 +1505,12 @@ export class App {
     // A group may take the widest view there is; one constellation stays short of it.
     const widest = members.length > 1 ? MAX_FOV : MAX_FOV - 10;
     const fov = fixedFov ?? clamp(Math.max(atLeast, reach * 2.5 * Math.min(aspect, 2.2)), 28, widest);
+    // While the phone steers the view, a flight only zooms: the learner turns the phone.
+    if (this.pointing.on) {
+      v.fov = fov;
+      this.invalidate();
+      return;
+    }
     let targetAlt = this.seeThroughNow() ? alt : Math.max(alt, Math.min(fov * 0.22, 20));
     // Centre the figure in the sky left free by the panel and the info card.
     const free = this.freeArea();
@@ -1401,7 +1532,21 @@ export class App {
   stepCamera(t) {
     const v = this.view;
     let moving = false;
-    if (this.anim) {
+    const lastT = this.pointing.lastT;
+    this.pointing.lastT = t;
+    const aim = this.pointing.on && this.pointing.target;
+    if (aim) {
+      // Toward the phone's reading, as fast whatever the frame rate.
+      const dt = lastT === undefined ? 16 : clamp(t - lastT, 0, 500);
+      const ease = 1 - Math.exp(-dt / POINTING_EASE_MS);
+      const dAz = wrap180(aim.az - v.az);
+      const dAlt = aim.alt - v.alt;
+      if (Math.abs(dAz) > 0.02 || Math.abs(dAlt) > 0.02) {
+        v.az += dAz * ease;
+        v.alt = clamp(v.alt + dAlt * ease, -90, 90);
+        moving = true;
+      }
+    } else if (this.anim) {
       if (this.anim.t0 === null) this.anim.t0 = t;
       const { from, to, t0 } = this.anim;
       const u = clamp((t - t0) / FLY_MS, 0, 1);
