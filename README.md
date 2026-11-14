@@ -16,6 +16,11 @@ npm run build    # bygger dist/stjarnhimlen.js och dist/stjarnhimlen-fristaende.
 `index.html` fungerar också genom att bara dubbelklicka på den (efter `npm run build`),
 och `dist/stjarnhimlen-fristaende.html` är en enda fil som går att skicka till någon.
 
+Appen ligger på **stjärnbilder.se** via GitHub Pages, som visar grenen som den är:
+`index.html` och den byggda `dist/`. Filen `CNAME` anger domänen (i sin tekniska form,
+`xn--stjrnbilder-n8a.se`), och `.nojekyll` gör att filerna visas oförändrade. Varje push till
+grenen syns på sidan efter någon minut, så bygg (`npm run build`) innan du committar.
+
 ## Vad som finns
 
 - **Upptäck himlen:** himlen i sina grupper, samma 28 grupper som i Träna. Varje grupp har
