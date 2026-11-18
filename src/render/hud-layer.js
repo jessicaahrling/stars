@@ -1,7 +1,7 @@
 // Top 2D canvas: constellation and star names, and the compass points on the ground.
 import { vecFromAzAlt } from '../astro/frames.js';
 import { mat3Apply } from '../astro/math.js';
-import { MARK_COLORS, SELECT_COLOR, SKY } from './palette.js';
+import { DEFAULT_SKY_LOOK, MARK_COLORS, SELECT_COLOR, SKY_LOOKS } from './palette.js';
 
 export const FONT_FAMILY = '"Jost", "Futura", "Century Gothic", "Avenir Next", system-ui, sans-serif';
 
@@ -70,6 +70,8 @@ export class HudLayer {
     this.scale = 1;
     this.starStyle = '';
     this.groupStyle = '';
+    /** The look of the sky, for the colours of the names: one of SKY_LOOKS. */
+    this.look = SKY_LOOKS[DEFAULT_SKY_LOOK];
     this.namedStars = Object.keys(catalog.starNames).map(Number).sort((a, b) => a - b);
   }
 
@@ -143,7 +145,7 @@ export class HudLayer {
       if (!special && !hover && !st.layers.names) continue;
       if (!special && !hover && st.namesOnly && !st.namesOnly.has(c.index)) continue;
       const text = c.sv.toUpperCase();
-      let color = SKY.label;
+      let color = this.look.colors.label;
       let size = small;
       let weight = 500;
       if (special) {
@@ -152,7 +154,7 @@ export class HudLayer {
         weight = 600;
       } else if (hover || focused) {
         // Hovered, or in a group pointed at or chosen.
-        color = SKY.labelHover;
+        color = this.look.colors.labelHover;
       }
       const font = `${weight} ${size}px ${this.fontFamily}`;
       for (const v of c.labelVecs) {
@@ -168,7 +170,8 @@ export class HudLayer {
 
   /**
    * Moves this.pt a line down or up when a name centred on it would lie on one of the
-   * brightest stars (those that glint), if it is clear of them there.
+   * brightest stars (those that glint in the star chart's look), if it is clear of them
+   * there.
    */
   clearOfStars(sky, text, font, spacingPx, size) {
     const { ctx, pt } = this;
@@ -216,7 +219,7 @@ export class HudLayer {
       placing: for (const v of o.spots) {
         for (const dy of [0, -(size + 5), size + 5]) {
           if (!this.onScreen(view, st, v, o.name, font, 0.3, size, dy) || this.covered(o.name, font, 0.3, size, taken)) continue;
-          this.label(o.name, pt.x, pt.y, font, focused ? SKY.labelHover : o.color, 0.3, true);
+          this.label(o.name, pt.x, pt.y, font, focused ? this.look.colors.labelHover : o.color, 0.3, true);
           break placing;
         }
       }
@@ -273,7 +276,7 @@ export class HudLayer {
         if (!view.projectEq(v, pt) || pt.z < view.cosCorner - 0.1) continue;
         if (st.groundOpaque && view.altOf(v) < -2) continue;
         this.covered(c.sv.toUpperCase(), font, size * this.tracking, size, boxes, false);
-        this.label(c.sv.toUpperCase(), pt.x, pt.y, font, SKY.labelHover, size * this.tracking, true);
+        this.label(c.sv.toUpperCase(), pt.x, pt.y, font, this.look.colors.labelHover, size * this.tracking, true);
       }
     }
     return boxes;
@@ -351,7 +354,7 @@ export class HudLayer {
           if (taken.some((b) => left + w + pad > b.left && left - pad < b.right && y + h + pad > b.top && y - h - pad < b.bottom)) continue;
           if (clearOfLines && crossesBox(sky.traced, left - 1, y - h * 0.7, left + w + 1, y + h * 0.7)) continue;
           taken.push({ left, right: left + w, top: y - h, bottom: y + h });
-          this.label(text, left, y, font, SKY.starName, 0.4, false);
+          this.label(text, left, y, font, this.look.colors.starName, 0.4, false);
           break placing;
         }
       }
@@ -373,7 +376,7 @@ export class HudLayer {
       const x = pt.x + ((below.x - pt.x) / len) * off;
       const y = pt.y + ((below.y - pt.y) / len) * off;
       const size = this.px(main ? 15 : 11);
-      const color = az === 0 ? SKY.north : SKY.cardinal;
+      const color = az === 0 ? this.look.colors.north : this.look.colors.cardinal;
       this.label(text, x, y, `${main ? 600 : 500} ${size}px ${this.fontFamily}`, color, size * 0.12, true);
     }
   }
@@ -382,10 +385,15 @@ export class HudLayer {
     const { ctx } = this;
     ctx.font = font;
     if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacingPx.toFixed(1)}px`;
-    ctx.lineWidth = halo ? 4 : 2.5;
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = halo ? SKY.halo : 'rgba(8, 10, 28, 0.6)';
-    ctx.strokeText(text, x, y);
+    // A dark halo behind the names that must stand out; behind the others a thin rim,
+    // where the look has one, so that a line crossing a name does not cut its letters.
+    const rim = halo ? this.look.colors.halo : this.look.colors.nameRim;
+    if (rim) {
+      ctx.lineWidth = halo ? 4 : 2.5;
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = rim;
+      ctx.strokeText(text, x, y);
+    }
     ctx.fillStyle = color;
     ctx.fillText(text, x, y);
   }

@@ -1,7 +1,8 @@
-// 2D canvas between the sky and the ground: stars, stick figures and boundaries, drawn
-// like a star chart at night. Bright stars glow and glint, the lines are a warm white, and
-// the closed parts of a figure are filled with a thin, cloudy colour, like a nebula.
-import { bvToRgb, EMBER, EMBER_DEEP, MARK_COLORS, SELECT_COLOR, SKY } from './palette.js';
+// 2D canvas between the sky and the ground: stars, stick figures and boundaries. In the
+// look of a star chart at night, bright stars glow and glint, the lines are a warm white,
+// and the closed parts of a figure are filled with a thin, cloudy colour, like a nebula;
+// the plainer look ("Klassisk") has blue lines and stars with a simple halo (see SKY_LOOKS).
+import { bvToRgb, DEFAULT_SKY_LOOK, EMBER, EMBER_DEEP, MARK_COLORS, SELECT_COLOR, SKY_LOOKS } from './palette.js';
 
 const COLOR_STEPS = 8;
 const ALPHA_STEPS = [0.22, 0.36, 0.52, 0.7, 0.86, 1];
@@ -45,10 +46,6 @@ const FACE_GLOW = 18;
 /** How strongly a figure's closed parts are filled: any figure, one that stands out, a training card's. */
 const FILL = { plain: 0.42, lit: 0.54, card: 0.58, context: 0.28, marked: 0.4 };
 
-/** The disc of a star. Bright stars keep a small core: their light is in the glow and the rays. */
-function radiusForMag(mag) {
-  return 0.45 + 0.36 * Math.pow(Math.max(0, 6.4 - mag), 1.12);
-}
 
 function alphaForMag(mag) {
   return Math.min(1, Math.max(0.15, 0.24 + (6.2 - mag) * 0.24));
@@ -87,12 +84,16 @@ export class SkyLayer {
       const t = (catalog.stars.bv[i] - bvMin) / (bvMax - bvMin);
       this.colorStep[i] = Math.max(0, Math.min(COLOR_STEPS - 1, Math.round(t * (COLOR_STEPS - 1))));
     }
+    /** The look of the sky drawn: one of SKY_LOOKS. */
+    this.look = SKY_LOOKS[DEFAULT_SKY_LOOK];
     this.colors = [];
-    this.glows = [];
+    /** The colour of each step as [r, g, b], and the glow sprites made of them for each look used. */
+    this.rgbs = [];
+    this.glowSets = new Map();
     for (let k = 0; k < COLOR_STEPS; k++) {
       const rgb = bvToRgb(bvMin + ((bvMax - bvMin) * k) / (COLOR_STEPS - 1));
       this.colors.push(`rgb(${rgb.join(',')})`);
-      this.glows.push(makeGlow(rgb));
+      this.rgbs.push(rgb);
     }
     this.buckets = Array.from({ length: COLOR_STEPS * ALPHA_STEPS.length }, () => []);
     this.pt = { x: 0, y: 0, z: 0 };
@@ -147,7 +148,8 @@ export class SkyLayer {
    *   as open lines of unit vectors, or null}, otherwise null
    */
   render(view, st) {
-    const { ctx, catalog } = this;
+    const { ctx, catalog, look } = this;
+    const SKY = look.colors;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.clearRect(0, 0, view.width, view.height);
     this.width = view.width;
@@ -161,7 +163,7 @@ export class SkyLayer {
 
     ctx.lineJoin = 'round';
     ctx.lineCap = 'butt';
-    this.drawGrid(view);
+    if (SKY.grid) this.drawGrid(view);
     if (st.anyArt) this.drawArt(view, st, special);
     const rv = st.reveal;
     const found = (c) => !rv || rv.con[c.index] === 1;
@@ -171,7 +173,7 @@ export class SkyLayer {
     // one solid line, drawn as one path so that where two groups meet it is not doubled.
     if (st.bounds === 'group' && st.groupBounds) {
       ctx.setLineDash([]);
-      ctx.lineWidth = 1.25;
+      ctx.lineWidth = look.groupLine;
       ctx.strokeStyle = SKY.groupFound;
       ctx.beginPath();
       this.tracePolyline(view, st.groupBounds, false);
@@ -257,30 +259,33 @@ export class SkyLayer {
       }
       if (hoverLit) lit.push(catalog.constellations[st.hover]);
     }
-    this.drawFaces(view, fills);
+    if (look.fills) this.drawFaces(view, fills);
 
-    // Stick figures (while training, only the target's, when the card shows them): a
-    // crisp warm line over a wider, fainter one, so that the lines seem to shine a little.
+    // Stick figures (while training, only the target's, when the card shows them). In the
+    // star chart's look a crisp warm line over a wider, fainter one, so that the lines
+    // seem to shine a little.
     ctx.lineCap = 'round';
-    const strokeFigures = (list, glowWidth, glowStyle, width, style) => {
+    const strokeFigures = (list, [under, glow, width, color]) => {
       if (!list.length) return;
       ctx.beginPath();
       for (const c of list) this.traceSegments(c.segments);
-      ctx.lineWidth = glowWidth;
-      ctx.strokeStyle = glowStyle;
-      ctx.stroke();
+      if (under > 0) {
+        ctx.lineWidth = under;
+        ctx.strokeStyle = glow;
+        ctx.stroke();
+      }
       ctx.lineWidth = width;
-      ctx.strokeStyle = style;
+      ctx.strokeStyle = color;
       ctx.stroke();
     };
     if (st.quiz) {
       // While a group is learnt, the ones of it already known stay with their lines.
-      strokeFigures(st.quiz.context.map((i) => catalog.constellations[i]), 5, SKY.lineGlow, 1.3, SKY.lineHover);
-      if (st.quiz.lines) strokeFigures(st.quiz.targets.map((i) => catalog.constellations[i]), 8, SKY.lineCardGlow, 2, SKY.lineCard);
+      strokeFigures(st.quiz.context.map((i) => catalog.constellations[i]), look.lines.context);
+      if (st.quiz.lines) strokeFigures(st.quiz.targets.map((i) => catalog.constellations[i]), look.lines.card);
     } else {
-      strokeFigures(plain, 5, SKY.lineGlow, 1.25, SKY.line);
+      strokeFigures(plain, look.lines.plain);
       // The constellations of the groups pointed at and chosen, and the one pointed at.
-      strokeFigures(lit, 7, SKY.lineHoverGlow, 1.5, SKY.lineHover);
+      strokeFigures(lit, look.lines.lit);
     }
     // Marked and selected figures in their colour, over a wider, fainter line of it (a
     // blurred shadow would cost many times as much with many marked).
@@ -304,7 +309,7 @@ export class SkyLayer {
     const { ctx } = this;
     ctx.setLineDash([]);
     ctx.lineWidth = 1;
-    ctx.strokeStyle = SKY.grid;
+    ctx.strokeStyle = this.look.colors.grid;
     ctx.beginPath();
     this.traceGrid(view);
     ctx.stroke();
@@ -459,6 +464,7 @@ export class SkyLayer {
     });
     const bright = st.artBright || new Set();
     const plain = visible.filter((c) => !special.has(c.index) && c.index !== st.hover && !bright.has(c.index));
+    const SKY = this.look.colors;
     ctx.save();
     ctx.lineCap = 'round';
     const stroke = (list, fine, style, width) => {
@@ -533,6 +539,8 @@ export class SkyLayer {
     const limit = chosen + (MAG_LIMIT - CATALOG_FAINTEST) * Math.max(0, 1 - below);
     const haze = below * HAZE_DIMMING;
     const fadeOver = Math.min(FADE, below);
+    this.haze = haze;
+    const [discBase, discScale, discPower] = this.look.stars.disc;
     // While training, the stars around the target stay as faint context.
     const target = st.quiz?.stars;
     for (const b of this.buckets) b.length = 0;
@@ -575,7 +583,7 @@ export class SkyLayer {
       if (!inSight || under) continue;
       const fade = fadeOver > 0 && !card ? Math.min(1, (limit - mag) / fadeOver + 0.3) : 1;
       mag += haze;
-      const r = radiusForMag(mag) * zoom * (context ? 0.8 : 1);
+      const r = (discBase + discScale * Math.pow(Math.max(0, 6.4 - mag), discPower)) * zoom * (context ? 0.8 : 1);
       this.px[i] = pt.x;
       this.py[i] = pt.y;
       this.pr[i] = r;
@@ -589,25 +597,41 @@ export class SkyLayer {
   }
 
   /**
-   * The stars: a soft glow round the brighter ones, the discs, a white heart in the
-   * brightest, and glints on them, thin rays up, down and to the sides that are longer the
-   * brighter the star, as a lens draws them.
+   * The stars: a soft glow round the brighter ones and the discs; in the star chart's look
+   * also a white heart in the brightest and glints on them, thin rays up, down and to the
+   * sides that are longer the brighter the star, as a lens draws them.
    */
   drawStars() {
     const { ctx, px, py, pr, pm } = this;
     const { mag } = this.catalog.stars;
     const zoom = this.zoom || 1;
+    const glint = this.look.colors.glint;
+    let glows = this.glowSets.get(this.look.id);
+    if (!glows) {
+      glows = this.rgbs.map((rgb) => makeGlow(rgb, this.look.stars.glow));
+      this.glowSets.set(this.look.id, glows);
+    }
     // Soft glows (the stars are sorted bright first, and none is seen brighter than it is).
-    let bright = 0;
-    for (let i = 0; i < mag.length && mag[i] <= GLOW_MAG; i++) {
-      bright = i + 1;
-      if (Number.isNaN(px[i]) || pm[i] > GLOW_MAG) continue;
-      // The faintest glows change next to nothing, and are a third of them all.
-      const alpha = Math.min(0.8, (GLOW_MAG - pm[i]) / 3.4 + 0.08);
-      if (alpha < GLOW_FAINTEST) continue;
-      const r = pr[i] * 3.2 + (GLOW_MAG - pm[i]) * 1.6 * zoom;
-      ctx.globalAlpha = alpha * (this.dim[i] ? 0.3 : 1);
-      ctx.drawImage(this.glows[this.colorStep[i]], px[i] - r, py[i] - r, 2 * r, 2 * r);
+    if (this.look.id === 'classic') {
+      // A halo behind the brightest stars only, by how bright the star is itself.
+      for (let i = 0; i < mag.length && mag[i] <= 2.2; i++) {
+        if (Number.isNaN(px[i])) continue;
+        const alpha = Math.min(0.55, (2.4 - mag[i] - this.haze) / 5);
+        if (alpha <= 0) continue;
+        const r = pr[i] * 4.2;
+        ctx.globalAlpha = alpha * (this.dim[i] ? 0.3 : 1);
+        ctx.drawImage(glows[this.colorStep[i]], px[i] - r, py[i] - r, 2 * r, 2 * r);
+      }
+    } else {
+      for (let i = 0; i < mag.length && mag[i] <= GLOW_MAG; i++) {
+        if (Number.isNaN(px[i]) || pm[i] > GLOW_MAG) continue;
+        // The faintest glows change next to nothing, and are a third of them all.
+        const alpha = Math.min(0.8, (GLOW_MAG - pm[i]) / 3.4 + 0.08);
+        if (alpha < GLOW_FAINTEST) continue;
+        const r = pr[i] * 3.2 + (GLOW_MAG - pm[i]) * 1.6 * zoom;
+        ctx.globalAlpha = alpha * (this.dim[i] ? 0.3 : 1);
+        ctx.drawImage(glows[this.colorStep[i]], px[i] - r, py[i] - r, 2 * r, 2 * r);
+      }
     }
     for (let c = 0; c < COLOR_STEPS; c++) {
       ctx.fillStyle = this.colors[c];
@@ -627,10 +651,10 @@ export class SkyLayer {
       }
     }
     // Glints and white hearts, for the stars in full light and for those kept as context.
-    ctx.fillStyle = SKY.glint;
-    for (const dim of [0, 1]) {
+    if (glint) ctx.fillStyle = glint;
+    for (const dim of glint ? [0, 1] : []) {
       const stars = [];
-      for (let i = 0; i < bright && mag[i] <= GLINT_MAG; i++) {
+      for (let i = 0; i < mag.length && mag[i] <= GLINT_MAG; i++) {
         if (!Number.isNaN(px[i]) && pm[i] <= GLINT_MAG && this.dim[i] === dim) stars.push(i);
       }
       if (!stars.length) continue;
@@ -678,6 +702,7 @@ export class SkyLayer {
     const { ctx, px, pr, qx, qy, corner } = this;
     // Room for the glow round a line.
     const edge = 12;
+    const { gap } = this.look;
     for (let k = 0; k < segments.length; k += 2) {
       const a = segments[k];
       const b = segments[k + 1];
@@ -689,8 +714,8 @@ export class SkyLayer {
       // Not one that lies wholly to one side of the screen.
       if (Math.max(x1, x2) < -edge || Math.min(x1, x2) > this.width + edge || Math.max(y1, y2) < -edge || Math.min(y1, y2) > this.height + edge) continue;
       const len = Math.hypot(x2 - x1, y2 - y1);
-      const ga = Number.isNaN(px[a]) ? 0 : Math.min(len * 0.3, pr[a] + 0.5);
-      const gb = Number.isNaN(px[b]) ? 0 : Math.min(len * 0.3, pr[b] + 0.5);
+      const ga = Number.isNaN(px[a]) ? 0 : Math.min(len * 0.3, pr[a] + gap);
+      const gb = Number.isNaN(px[b]) ? 0 : Math.min(len * 0.3, pr[b] + gap);
       if (len - ga - gb < 1) continue;
       const ux = (x2 - x1) / len;
       const uy = (y2 - y1) / len;
@@ -735,17 +760,15 @@ function northOf(v) {
   return out.map((x) => x / norm);
 }
 
-function makeGlow(rgb) {
+/** The sprite of the glow round a star of a colour, fading through `stops` ([how far out, how opaque]). */
+function makeGlow(rgb, stops) {
   const size = 64;
   const c = document.createElement('canvas');
   c.width = size;
   c.height = size;
   const g = c.getContext('2d');
   const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  grad.addColorStop(0, `rgba(${rgb.join(',')},0.85)`);
-  grad.addColorStop(0.16, `rgba(${rgb.join(',')},0.34)`);
-  grad.addColorStop(0.45, `rgba(${rgb.join(',')},0.09)`);
-  grad.addColorStop(1, `rgba(${rgb.join(',')},0)`);
+  for (const [at, alpha] of stops) grad.addColorStop(at, `rgba(${rgb.join(',')},${alpha})`);
   g.fillStyle = grad;
   g.fillRect(0, 0, size, size);
   return c;

@@ -163,6 +163,9 @@ input[type="range"]::-moz-range-thumb { width: 8px; height: 22px; border: 0; bor
 .btn-row { gap: 8px; }
 .btn-row .chip { min-height: 36px; padding: 0 12px; font-size: 12.5px; }
 .seg { gap: 6px; }
+/* The one chosen of a row of choices is underlined too, as a typist would: red alone
+   says little without colour. */
+.seg .chip[aria-pressed="true"] { text-decoration: underline; text-underline-offset: 3px; }
 .seg button { min-height: 34px; padding: 0 10px; font-size: 12px; }
 /* The four speeds as a two-by-two option table */
 #speed { display: grid; grid-template-columns: 1fr 1fr; }

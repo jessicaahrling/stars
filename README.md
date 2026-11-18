@@ -170,6 +170,7 @@ grenen syns på sidan efter någon minut, så bygg (`npm run build`) innan du co
   stjärnbildernas namn, varandra och helst också figurernas linjer: ett namn som inte får
   plats till höger om sin stjärna sätts ovanför eller till vänster, och annars utelämnas
   det. Ett stjärnbildsnamn som skulle hamna på en av de klaraste stjärnorna flyttas en rad.
+  (Det här är utseendet Stjärnkarta; det tidigare finns kvar, se Himlens utseende nedan.)
 - **Design:** knappen "Design" i övre raden byter utseende på knappar och paneler, och på
   namnen på himlen. Från början används **Stjärnatlas**: mörkblått glas med tunna kanter,
   rubriker och stjärnbildsnamn i spärrade versaler i antikva (EB Garamond), stjärnnamn och
@@ -181,6 +182,13 @@ grenen syns på sidan efter någon minut, så bygg (`npm run build`) innan du co
   glas och fem i stil med äldre NASA-gränssnitt: Mission Control 1969, Apollo DSKY,
   Bärnstensskärm, NASA 1975 och Checklista. Valet sparas. Den som hade förvalet sparat får
   det nya förvalet; den som själv valt en annan design behåller den.
+- **Himlens utseende:** under listan med designer väljer man hur själva himlen ritas,
+  vilken design man än har: **Stjärnkarta**, som ovan, eller **Klassisk**, en enklare
+  himmel: blå linjer som slutar en bit från stjärnorna, ett enkelt sken runt de klaraste
+  stjärnorna, en mörkare bakgrund, och inga fyllda former, inget rutnät och inga strålar
+  (så såg himlen ut innan stjärnkartan kom). Det som inte är utseende är lika i båda:
+  linjer fortsätter ut ur bild, och namnen håller sig undan varandra, linjerna och de
+  klaraste stjärnorna. Valet sparas.
 - **Infokort:** välj en stjärnbild i listan så vänder sig vyn dit och ett kort visar var
   den står nu, när den går upp, står högst och går ner, om den är cirkumpolär, vilken
   månad den står högst på kvällen och dess ljusstarkaste stjärna.
@@ -210,7 +218,9 @@ Ritordningen är fyra lager ovanpå varandra: himmel, färgmoln och Vintergatan 
 rutnät, fyllda former, linjer och stjärnor (2D), marken och skogskanten (WebGL), namn och
 väderstreck (2D). De slutna formerna i en figur hittas genom att gå runt varje yta som
 linjerna ringar in (`src/sky/faces.js`), och de fylls med ett moln som görs en gång och
-sitter fast på himlen vid sin figur: det flyttar sig, vrids och växer med den.
+sitter fast på himlen vid sin figur: det flyttar sig, vrids och växer med den. Vad himlens
+två utseenden består av (färger, linjer, stjärnornas skivor och sken, bakgrundens och
+markens färger) står i `SKY_LOOKS` i `src/render/palette.js`.
 
 Stjärnbildsgränserna är definierade i B1875-koordinater, där varje kant är en linje med
 konstant rektascension eller deklination. Därför avgörs vilken stjärnbild en punkt ligger

@@ -58,6 +58,9 @@
       white-space: nowrap; font-variant-numeric: tabular-nums; transition: background .15s, border-color .15s; }
     .chip:hover { background: var(--glass-strong); border-color: rgba(170, 190, 240, 0.32); }
     .chip[aria-expanded="true"], .chip[aria-pressed="true"] { border-color: rgba(245, 196, 107, 0.55); }
+    /* In this design, the base one, the one chosen of a row of choices is also filled a
+       little: the colour of a hairline alone is easy to miss. */
+    :root[data-theme="glas"] .seg .chip[aria-pressed="true"] { background: rgba(245, 196, 107, 0.16); color: var(--ink); }
     :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     .chip .sep { color: var(--ink-3); }
     .chip .muted { color: var(--ink-2); }
@@ -179,6 +182,10 @@
     .theme-name { font-weight: 500; }
     .theme-note { grid-column: 2; font-size: 13px; color: var(--ink-2); }
     .theme-foot { margin: 0; padding: 10px 18px 14px; font-size: 12px; color: var(--ink-3); border-top: 1px solid var(--hairline); }
+    /* The look of the sky: a choice of its own, whichever design is chosen. Its two buttons
+       stay together; the label goes above them where a design's type is too wide for one row. */
+    .theme-look { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+    .theme-look .seg { flex-wrap: nowrap; }
 
     .panel-discover { top: calc(var(--top) + 52px); left: var(--gutter-l); width: 300px; box-sizing: border-box;
       max-height: calc(100% - var(--top) - var(--bottom) - 120px); padding: 14px 16px; display: flex;
@@ -461,7 +468,15 @@
       <button id="btn-theme-close" class="icon-btn" type="button" aria-label="Stäng">×</button>
     </div>
     <div class="theme-scroll"><fieldset id="theme-list" class="theme-list"><legend class="sr-only">Välj design</legend></fieldset></div>
-    <p class="theme-foot">Jämför designerna och behåll den du gillar.</p>
+    <div class="theme-foot">
+      <div class="theme-look">
+        <span class="theme-look-label" id="look-label">Himlen:</span>
+        <div class="seg" id="sky-look" role="group" aria-labelledby="look-label">
+          <button type="button" class="chip" data-look="chart" aria-pressed="true" title="En stjärnkarta i natten: varmvita linjer, fyllda former och stjärnor som glimmar">Stjärnkarta</button>
+          <button type="button" class="chip" data-look="classic" aria-pressed="false" title="En enklare himmel: blå linjer, inga fyllda former, inget rutnät">Klassisk</button>
+        </div>
+      </div>
+    </div>
   </section>
 
   <section id="panel-discover" class="panel panel-discover" aria-label="Upptäck himlen" hidden>

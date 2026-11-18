@@ -6,7 +6,7 @@ import { DEFAULT_PLACE_ID, PLACES } from './data/places.js';
 import { GlLayer } from './render/gl-layer.js';
 import { FONT_FAMILY, HudLayer } from './render/hud-layer.js';
 import { buildMask, MASK_H, MASK_W } from './render/mask.js';
-import { GROUP_COLORS, MARK_COLORS, SELECT_COLOR } from './render/palette.js';
+import { GROUP_COLORS, MARK_COLORS, SELECT_COLOR, SKY_LOOKS, skyLookOf } from './render/palette.js';
 import { SkyLayer } from './render/sky-layer.js';
 import { buildCatalog } from './sky/catalog.js';
 import { groupColors, groupNeighbours } from './sky/discovery.js';
@@ -74,6 +74,20 @@ const NORTH_WAIT_MS = 1000;
 /** How long to wait for the phone's first reading before saying it gives none (ms). */
 const POINTING_WAIT_MS = 3000;
 /** Said when no readings come, as where the page is shown inside another that keeps the sensors from it. */
+/**
+ * What to say when the browser does not let the page read how the phone is held: the
+ * question was left unanswered ('prompt'), or the answer was no. A no is undone in
+ * different ways: on an iPhone or iPad the browser asks again once it has been closed;
+ * elsewhere the page's leave is a setting of the browser.
+ */
+function noLeaveText(answer) {
+  if (answer === 'prompt') return 'Telefonen fick inget svar på frågan om att läsa av hur den hålls. Tryck på knappen igen och välj Tillåt.';
+  const apple = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+  return apple
+    ? 'Telefonen gav inte lov att läsa av hur den hålls. Stäng webbläsaren helt och öppna sidan igen, så frågar den på nytt.'
+    : 'Telefonen gav inte lov att läsa av hur den hålls. Tillåt rörelsesensorer för sidan i webbläsarens inställningar.';
+}
+
 const NO_READINGS_HERE = 'Telefonen ger ingen riktning här. Det fungerar när appen är öppnad som en egen sida i mobilens webbläsare.';
 /** How quickly the view follows the phone (ms for it to come about two thirds of the way): it smooths the jitter. */
 const POINTING_EASE_MS = 90;
@@ -276,6 +290,10 @@ export class App {
     this.skyLayer = new SkyLayer($('layer-stars'), this.catalog);
     this.glGround = new GlLayer($('layer-ground'), 'ground');
     this.hud = new HudLayer($('layer-hud'), this.catalog);
+    // The look of the sky is a choice of its own, kept whichever design is chosen.
+    this.skyLook = skyLookOf(saved.skyLook);
+    this.skyLayer.look = SKY_LOOKS[this.skyLook];
+    this.hud.look = SKY_LOOKS[this.skyLook];
     this.hudCanvas = $('layer-hud');
 
     this.milkyWayImage = null;
@@ -1446,8 +1464,7 @@ export class App {
         } catch {
           // A frame from elsewhere.
         }
-        this.showToast(framed ? NO_READINGS_HERE
-          : 'Telefonen gav inte lov att läsa av hur den hålls. Stäng Safari helt och öppna sidan igen, så frågar den på nytt.');
+        this.showToast(framed ? NO_READINGS_HERE : noLeaveText(answer));
         return;
       }
     }
@@ -1798,6 +1815,17 @@ export class App {
     this.saveSoon();
   }
 
+  /** The look of the sky: 'chart', a star chart at night, or 'classic', the plainer sky of before (SKY_LOOKS). */
+  setSkyLook(id) {
+    if (skyLookOf(id) !== id || id === this.skyLook) return;
+    this.skyLook = id;
+    this.skyLayer.look = SKY_LOOKS[id];
+    this.hud.look = SKY_LOOKS[id];
+    this.themePanel.sync();
+    this.invalidate();
+    this.saveSoon();
+  }
+
   /** The names on the sky are set as the design says (--sky-font and the like), redrawn once the font has loaded. */
   syncSkyFont() {
     const css = getComputedStyle(this.doc.documentElement);
@@ -1936,6 +1964,7 @@ export class App {
         limitMag: this.limitMag,
         theme: this.theme,
         themes: THEMES_VERSION,
+        skyLook: this.skyLook,
         training: {
           v: 2,
           on: this.training.on,
@@ -2157,6 +2186,7 @@ export class App {
       // The Milky Way is the first thing a hazy or bright sky takes away.
       milkyWayFade: clamp((this.limitMag - 4.3) / 1.5, 0, 1),
       groundAlpha: this.seeThroughNow() ? 0.42 : 1,
+      look: SKY_LOOKS[this.skyLook],
     };
     this.glSky.render(gl);
     this.skyLayer.render(v, st);

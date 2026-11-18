@@ -10,7 +10,7 @@ import mcc from '../themes/mcc.css';
 import nasa75 from '../themes/nasa75.css';
 
 export const THEMES = [
-  { id: 'atlas', name: 'Stjärnatlas', note: 'Djupblå natt, tunna linjer och små stjärnor som tänds, som en stjärnkarta', css: atlas },
+  { id: 'atlas', name: 'Stjärnatlas', note: 'Djupblå natt, tunna linjer och små stjärnor som tänds', css: atlas },
   { id: 'lekfull', name: 'Lekfull', note: 'Glada färgknappar och pratbubblor, i stil med jonasgeografi.se', css: lekfull },
   { id: 'glas', name: 'Mjukt glas', note: 'Den tidigare designen, som genom en kikare', css: '' },
   { id: 'mcc', name: 'Mission Control 1969', note: 'Konsoler med upplysta tryckknappar', css: mcc },

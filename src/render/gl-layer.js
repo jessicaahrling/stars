@@ -2,7 +2,8 @@
 //  - 'sky':    night-sky gradient, Milky Way and the tint of marked constellations
 //  - 'ground': the landscape below the horizon, a forest edge, drawn above the stars
 // Both read the same uniforms; each lives on its own canvas so the 2D star layer can
-// sit between them.
+// sit between them. Their colours are those of the sky's look.
+import { DEFAULT_SKY_LOOK, SKY_LOOKS } from './palette.js';
 
 const VERT = `
 attribute vec2 aPos;
@@ -32,17 +33,24 @@ uniform sampler2D uMask;
 uniform sampler2D uNebula;
 uniform float uMilkyWayStrength;
 uniform float uMaskStrength;
+// The colours of the sky's look (SKY_LOOKS in palette.js).
+uniform vec3 uZenith;
+uniform vec3 uHorizon;
+uniform float uCurve;
+uniform vec3 uHaze;
+uniform float uHazeFall;
+uniform float uClouds;
+uniform vec3 uMilkyWayTint;
+uniform float uVignette;
 
 void main() {
   vec3 hor = uCamToHor * camDir();
   float alt = asin(clamp(hor.z, -1.0, 1.0));
   float h = clamp(alt / (0.5 * PI), 0.0, 1.0);
-  // A deep navy night: nearly black overhead, bluer toward the horizon.
-  vec3 zenith = vec3(0.022, 0.030, 0.078);
-  vec3 horizon = vec3(0.082, 0.102, 0.216);
-  vec3 col = mix(horizon, zenith, pow(h, 0.5));
+  // The night: darkest overhead, lighter toward the horizon.
+  vec3 col = mix(uHorizon, uZenith, pow(h, uCurve));
   // Faint glow of distant towns and airglow low over the horizon.
-  col += vec3(0.070, 0.048, 0.066) * exp(-max(alt, 0.0) * 14.0);
+  col += uHaze * exp(-max(alt, 0.0) * uHazeFall);
 
   vec3 eq = uHorToEq * hor;
   float ra = atan(eq.y, eq.x);
@@ -50,14 +58,14 @@ void main() {
   vec2 uv = vec2(ra / (2.0 * PI), 0.5 - dec / PI);
   float extinction = smoothstep(-0.02, 0.25, alt);
   // Thin clouds of colour that turn with the stars, so that the night is not flat.
-  col += texture2D(uNebula, uv).rgb * 0.12 * mix(0.45, 1.0, extinction);
+  col += texture2D(uNebula, uv).rgb * uClouds * mix(0.45, 1.0, extinction);
   float mw = texture2D(uMilkyWay, uv).r;
-  col += vec3(0.58, 0.62, 0.84) * mw * uMilkyWayStrength * mix(0.35, 1.0, extinction);
+  col += uMilkyWayTint * mw * uMilkyWayStrength * mix(0.35, 1.0, extinction);
   vec4 tint = texture2D(uMask, uv);
   col += tint.rgb * uMaskStrength;
   // Darker toward the corners of the screen, as through an eyepiece.
   vec2 off = (gl_FragCoord.xy - 0.5 * uRes) / max(uRes.x, uRes.y);
-  col *= 1.0 - 0.42 * smoothstep(0.28, 0.78, length(off));
+  col *= 1.0 - uVignette * smoothstep(0.28, 0.78, length(off));
   // A grain of one step of colour, so that the slow gradients of a dark sky show no bands.
   col += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
   gl_FragColor = vec4(col, 1.0);
@@ -68,6 +76,10 @@ void main() {
 // towards the south, where the view is kept open for the low southern constellations.
 const GROUND_FRAG = COMMON + `
 uniform float uGroundAlpha;
+// The colours of the sky's look (SKY_LOOKS in palette.js).
+uniform vec3 uGroundNear;
+uniform vec3 uGroundFar;
+uniform vec3 uTrees;
 
 float hash(float n) { return fract(sin(n) * 43758.5453); }
 
@@ -104,8 +116,8 @@ void main() {
   float cover = smoothstep(edge + pixelDeg, edge - pixelDeg, alt);
   if (cover <= 0.0) discard;
   float depth = clamp(-alt / 25.0, 0.0, 1.0);
-  vec3 col = mix(vec3(0.014, 0.020, 0.040), vec3(0.006, 0.008, 0.018), depth);
-  if (alt > 0.0) col = vec3(0.005, 0.007, 0.016); // tree silhouettes
+  vec3 col = mix(uGroundNear, uGroundFar, depth);
+  if (alt > 0.0) col = uTrees; // tree silhouettes
   float a = cover * uGroundAlpha;
   gl_FragColor = vec4(col * a, a);
 }
@@ -244,7 +256,8 @@ export class GlLayer {
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
     for (const name of ['uRes', 'uScale', 'uCamToHor', 'uHorToEq', 'uMilkyWay', 'uMask', 'uNebula',
-      'uMilkyWayStrength', 'uMaskStrength', 'uGroundAlpha']) {
+      'uMilkyWayStrength', 'uMaskStrength', 'uGroundAlpha', 'uZenith', 'uHorizon', 'uCurve', 'uHaze', 'uHazeFall',
+      'uClouds', 'uMilkyWayTint', 'uVignette', 'uGroundNear', 'uGroundFar', 'uTrees']) {
       this.u[name] = gl.getUniformLocation(prog, name);
     }
     if (mode === 'sky') {
@@ -302,9 +315,11 @@ export class GlLayer {
    * @param {number[]} p.horToEq  row-major, horizontal -> J2000
    * @param {boolean} p.milkyWay
    * @param {number} [p.milkyWayFade]  0-1: how much of the Milky Way a hazy or bright sky leaves
+   * @param {object} [p.look]  the sky's look, one of SKY_LOOKS (the default one if left out)
    */
   render(p) {
     const gl = this.gl;
+    const look = p.look || SKY_LOOKS[DEFAULT_SKY_LOOK];
     const { width, height } = this.canvas;
     gl.viewport(0, 0, width, height);
     gl.useProgram(this.prog);
@@ -313,6 +328,15 @@ export class GlLayer {
     gl.uniformMatrix3fv(this.u.uCamToHor, false, colMajor(p.camToHor));
     gl.uniformMatrix3fv(this.u.uHorToEq, false, colMajor(p.horToEq));
     if (this.mode === 'sky') {
+      const { sky } = look;
+      gl.uniform3fv(this.u.uZenith, sky.zenith);
+      gl.uniform3fv(this.u.uHorizon, sky.horizon);
+      gl.uniform1f(this.u.uCurve, sky.curve);
+      gl.uniform3fv(this.u.uHaze, sky.haze);
+      gl.uniform1f(this.u.uHazeFall, sky.hazeFall);
+      gl.uniform1f(this.u.uClouds, sky.clouds);
+      gl.uniform3fv(this.u.uMilkyWayTint, sky.milkyWay);
+      gl.uniform1f(this.u.uVignette, sky.vignette);
       gl.uniform1f(this.u.uMilkyWayStrength, p.milkyWay ? 0.2 * (p.milkyWayFade ?? 1) : 0);
       gl.uniform1f(this.u.uMaskStrength, 0.16);
       gl.activeTexture(gl.TEXTURE0);
@@ -322,6 +346,10 @@ export class GlLayer {
       gl.activeTexture(gl.TEXTURE2);
       gl.bindTexture(gl.TEXTURE_2D, this.nebulaTex);
     } else {
+      const { ground } = look;
+      gl.uniform3fv(this.u.uGroundNear, ground.near);
+      gl.uniform3fv(this.u.uGroundFar, ground.far);
+      gl.uniform3fv(this.u.uTrees, ground.trees);
       gl.uniform1f(this.u.uGroundAlpha, p.groundAlpha);
       gl.clear(gl.COLOR_BUFFER_BIT);
     }

@@ -19,9 +19,13 @@ const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '-
 const errors = [];
 
 /** A page at a fixed time. Most checks need the whole sky facing south, so "Upptäck" is
- * turned off unless `discover` is set; then the page keeps the view it opened with. */
-async function openPage(viewport, { discover = false, touch = false } = {}) {
-  const page = await browser.newPage({ viewport, ...(touch ? { hasTouch: true, isMobile: true } : {}) });
+ * turned off unless `discover` is set; then the page keeps the view it opened with. A
+ * phone (`touch`) lets the page read how it is held, as its owner would when the browser
+ * asks (`sensors` 'allowed'); or its owner says no ('refused') or does not answer
+ * ('unanswered'). `agent` is the browser the page takes itself to be in. */
+async function openPage(viewport, { discover = false, touch = false, sensors = 'allowed', agent = null } = {}) {
+  const leave = sensors === 'unanswered' ? {} : { permissions: sensors === 'allowed' ? ['accelerometer', 'gyroscope', 'magnetometer'] : [] };
+  const page = await browser.newPage({ viewport, ...(touch ? { hasTouch: true, isMobile: true, ...leave } : {}), ...(agent ? { userAgent: agent } : {}) });
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
     // Web fonts are optional and blocked here (see below).
@@ -1686,6 +1690,130 @@ try {
   assert.deepEqual([up.filled, setting.filled, setting.opaque], [1, 0, true], 'the square of Pegasus is filled while all four stars show');
   await chart.close();
 
+  // The look of the sky is a choice of its own, below the designs: the star chart, or the
+  // plainer sky of before ("Klassisk"): blue lines, a simple halo round the brightest
+  // stars, and no fills, grid, rays or coloured clouds.
+  const looks = await openPage({ width: 1280, height: 800 });
+  const skyDrawn = () => looks.evaluate(() => {
+    const a = window.stjarnhimlen;
+    const sl = a.skyLayer;
+    const seen = { faces: 0, grid: 0, strokes: new Set(), fills: new Set(), rims: 0, set: [null, null] };
+    const { traceFace, traceGrid } = sl;
+    const { stroke, fill } = sl.ctx;
+    const names = a.hud.ctx;
+    const { strokeText } = names;
+    const { gl, u } = a.glSky;
+    const { uniform1f } = gl;
+    sl.traceFace = function (...args) {
+      seen.faces++;
+      return traceFace.apply(this, args);
+    };
+    sl.traceGrid = function (...args) {
+      seen.grid++;
+      return traceGrid.apply(this, args);
+    };
+    sl.ctx.stroke = function (...args) {
+      seen.strokes.add(String(this.strokeStyle));
+      return stroke.apply(this, args);
+    };
+    sl.ctx.fill = function (...args) {
+      seen.fills.add(String(this.fillStyle));
+      return fill.apply(this, args);
+    };
+    // The thin rim round a name without a halo (the halo is wider).
+    names.strokeText = function (...args) {
+      if (this.lineWidth < 3) seen.rims++;
+      return strokeText.apply(this, args);
+    };
+    // What the sky's WebGL pass is given: the coloured clouds and the vignette.
+    gl.uniform1f = function (where, x) {
+      if (where === u.uClouds) seen.set[0] = x;
+      if (where === u.uVignette) seen.set[1] = x;
+      return uniform1f.call(this, where, x);
+    };
+    a.draw();
+    for (const name of ['traceFace', 'traceGrid']) delete sl[name];
+    for (const name of ['stroke', 'fill']) delete sl.ctx[name];
+    delete names.strokeText;
+    delete gl.uniform1f;
+    // The disc of the brightest star drawn: larger in the plainer look.
+    const brightest = sl.px.findIndex((x) => !Number.isNaN(x));
+    return {
+      look: a.skyLook, layer: sl.look.id, names: a.hud.look.id,
+      faces: seen.faces, grid: seen.grid, rims: seen.rims, set: seen.set, disc: Math.round(sl.pr[brightest] * 100) / 100,
+      warm: seen.strokes.has('rgba(240, 230, 218, 0.58)'), blue: seen.strokes.has('rgba(132, 160, 214, 0.5)'),
+      rays: seen.fills.has('#fffbf2'),
+    };
+  });
+  /** What tells the plainer look as drawn: by the app, both canvas layers and the WebGL pass. */
+  const classicDrawn = (r) => [r.look, r.layer, r.names, r.faces, r.grid, r.warm, r.blue, r.rays, r.rims, r.set];
+  const CLASSIC = ['classic', 'classic', 'classic', 0, 0, false, true, false, 0, [0, 0]];
+  const lookChips = () => looks.$$eval('#sky-look .chip', (els) => els.map((e) => `${e.textContent}:${e.getAttribute('aria-pressed')}`));
+  const asChart = await skyDrawn();
+  assert.deepEqual([asChart.look, asChart.layer, asChart.names, asChart.grid, asChart.warm, asChart.blue, asChart.rays], ['chart', 'chart', 'chart', 1, true, false, true]);
+  assert.ok(asChart.faces > 0 && asChart.rims > 0 && asChart.set[0] > 0 && asChart.set[1] > 0, `the star chart: ${JSON.stringify(asChart)}`);
+  await looks.click('#btn-theme');
+  assert.deepEqual(await lookChips(), ['Stjärnkarta:true', 'Klassisk:false']);
+  // The tap itself has the sky drawn anew.
+  await settle(looks);
+  await looks.evaluate(() => {
+    const a = window.stjarnhimlen;
+    const { draw } = a;
+    a.frames = 0;
+    a.draw = function () {
+      a.frames++;
+      return draw.call(this);
+    };
+  });
+  await looks.click('#sky-look [data-look="classic"]');
+  await looks.waitForFunction(() => window.stjarnhimlen.frames > 0);
+  await looks.evaluate(() => {
+    delete window.stjarnhimlen.draw;
+  });
+  assert.deepEqual(await lookChips(), ['Stjärnkarta:false', 'Klassisk:true']);
+  const asClassic = await skyDrawn();
+  assert.deepEqual(classicDrawn(asClassic), CLASSIC);
+  assert.ok(asClassic.disc > asChart.disc, `the stars' discs as before: ${asChart.disc} -> ${asClassic.disc}`);
+  // It is not the design's: another design keeps the sky chosen, and the star atlas too.
+  for (const themeId of ['lekfull', 'atlas']) {
+    assert.equal(await looks.evaluate((id) => {
+      window.stjarnhimlen.setTheme(id);
+      return window.stjarnhimlen.skyLook;
+    }, themeId), 'classic');
+  }
+  // It is remembered.
+  await looks.waitForFunction(() => JSON.parse(localStorage.getItem('stjarnhimlen:v1') || '{}').skyLook === 'classic');
+  await looks.reload();
+  await looks.waitForFunction(() => window.stjarnhimlen);
+  assert.deepEqual(classicDrawn(await skyDrawn()), CLASSIC, 'the look saved is drawn, not only remembered');
+  await looks.click('#btn-theme');
+  assert.deepEqual(await lookChips(), ['Stjärnkarta:false', 'Klassisk:true']);
+  await looks.click('#sky-look [data-look="chart"]');
+  const asChartAgain = await skyDrawn();
+  assert.deepEqual([asChartAgain.look, asChartAgain.layer, asChartAgain.names, asChartAgain.grid, asChartAgain.warm, asChartAgain.faces > 0, asChartAgain.set[1] > 0], ['chart', 'chart', 'chart', 1, true, true, true]);
+  // A look saved that is not known gives the star chart.
+  await looks.evaluate(() => {
+    clearTimeout(window.stjarnhimlen.saveTimer);
+    localStorage.setItem('stjarnhimlen:v1', JSON.stringify({ skyLook: 'constructor' }));
+  });
+  await looks.reload();
+  await looks.waitForFunction(() => window.stjarnhimlen);
+  assert.equal(await looks.evaluate(() => window.stjarnhimlen.skyLook), 'chart');
+  // Opened, the panel has the design chosen in sight, also the last of a list longer than
+  // its room; closed with its own button, it gives the focus back to the one that opens it.
+  await looks.evaluate(() => window.stjarnhimlen.setTheme('checklista'));
+  await looks.click('#btn-theme');
+  assert.deepEqual(await looks.evaluate(() => {
+    const box = document.querySelector('.theme-scroll').getBoundingClientRect();
+    const chosen = document.querySelector('#theme-list label:has(input:checked)').getBoundingClientRect();
+    const scroller = document.querySelector('.theme-scroll');
+    return [document.querySelector('#theme-list input:checked').value, scroller.scrollHeight > scroller.clientHeight, chosen.top >= box.top - 1 && chosen.bottom <= box.bottom + 1];
+  }), ['checklista', true, true]);
+  await looks.focus('#btn-theme-close');
+  await looks.keyboard.press('Enter');
+  assert.deepEqual(await looks.evaluate(() => [document.getElementById('panel-theme').hidden, document.activeElement.id]), [true, 'btn-theme']);
+  await looks.close();
+
   // On a phone on its side the panel of place and time ends above the bottom row and
   // scrolls to its last choices, in every design.
   const low = await openPage({ width: 844, height: 390 }, { touch: true });
@@ -1839,7 +1967,13 @@ try {
     const v = window.stjarnhimlen.view;
     return Math.abs(((v.az - z + 540) % 360) - 180) < 0.3 && Math.abs(v.alt - a) < 0.3;
   }, [az, alt], { timeout: 10000 });
-  await point.click('#btn-point');
+  /** Taps the compass button and waits until it is on, or off: a browser that asks for
+   * leave to read how the phone is held answers a moment later. */
+  const tapPoint = async (on) => {
+    await point.click('#btn-point');
+    await point.waitForFunction((want) => window.stjarnhimlen.pointing.on === want, on);
+  };
+  await tapPoint(true);
   assert.equal(await point.getAttribute('#btn-point', 'aria-pressed'), 'true');
   assert.match(await point.textContent('#toast'), /^Håll upp telefonen mot himlen/);
   // A reading without north that comes before the first with north (Android sends the two
@@ -1868,27 +2002,27 @@ try {
   // Off while looking into the ground, the view comes up to the sky.
   await aimAt('deviceorientationabsolute', { alpha: 90, beta: 50, gamma: 0, absolute: true });
   await point.waitForFunction(() => window.stjarnhimlen.view.alt < -30, null, { timeout: 10000 });
-  await point.click('#btn-point');
+  await tapPoint(false);
   await point.waitForFunction(() => window.stjarnhimlen.view.alt > 0 && !window.stjarnhimlen.anim, null, { timeout: 10000 });
-  await point.click('#btn-point');
+  await tapPoint(true);
   await aimAt('deviceorientationabsolute', { alpha: 90, beta: 135, gamma: 0, absolute: true });
   await settlesAt(corrected, 45);
   // Off: readings no longer turn the view.
-  await point.click('#btn-point');
+  await tapPoint(false);
   assert.equal(await point.getAttribute('#btn-point', 'aria-pressed'), 'false');
   await aimAt('deviceorientationabsolute', { alpha: 0, beta: 90, gamma: 0, absolute: true });
   await point.waitForTimeout(200);
   assert.ok(Math.abs((await facing()).alt - 45) < 0.5, 'off, the phone does not steer');
   // A phone that gives no north: the sky starts where it was, turns with the phone, and
   // after a second the learner is told.
-  await point.click('#btn-point');
+  await tapPoint(true);
   await aimAt('deviceorientation', { alpha: 0, beta: 90, gamma: 0, absolute: false });
   const start = (await facing()).az;
   await point.waitForTimeout(1100);
   await aimAt('deviceorientation', { alpha: 90, beta: 90, gamma: 0, absolute: false });
   assert.match(await point.textContent('#toast'), /säger inte var norr är/);
   await settlesAt((start + 270) % 360, 0);
-  await point.click('#btn-point');
+  await tapPoint(false);
   // An iPhone: alpha counts from wherever the phone started, and the compass gives the
   // heading of the top of the phone. Tilted back to look 45° up toward the east (magnetic
   // 84°), the top points behind, at 264°; alpha here is 40° off its true value.
@@ -1900,7 +2034,7 @@ try {
   // (The correction dragged in earlier stays for as long as the page is open; it is let go
   // here, to see the compass alone.)
   await point.evaluate(() => { window.stjarnhimlen.pointing.turn = 0; });
-  await point.click('#btn-point');
+  await tapPoint(true);
   for (let k = 0; k < 5; k++) await iphone(264);
   await settlesAt(90, 45);
   // A moment of a bad compass (a negative accuracy) keeps the north it had.
@@ -1911,14 +2045,37 @@ try {
   });
   await iphone(264);
   await settlesAt(90, 45);
-  await point.click('#btn-point');
+  await tapPoint(false);
   // A phone (or a page) that gives no readings: said so after a few seconds, and off again.
-  await point.click('#btn-point');
+  await tapPoint(true);
   await point.waitForFunction(() => !window.stjarnhimlen.pointing.on, null, { timeout: 6000 });
   // (Without sensors, as here, the browser sends empty readings; inside a page that keeps
   // the sensors from it, none at all.)
   assert.match(await point.textContent('#toast'), /^(Den här enheten känner inte av hur den hålls|Telefonen ger ingen riktning här)/);
   assert.equal(await point.getAttribute('#btn-point', 'aria-pressed'), 'false');
+  // A phone whose owner does not let the page read how it is held, or leaves the question
+  // unanswered (in a browser that asks): said so, with what to do about it, in a note short
+  // enough to be read before it goes; and not turned on.
+  // (An iPhone asks again once its browser has been closed; elsewhere the leave is a
+  // setting of the browser.)
+  const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+  for (const [sensors, says, agent] of [
+    ['refused', /^Telefonen gav inte lov att läsa av hur den hålls\. Tillåt rörelsesensorer för sidan i webbläsarens inställningar\.$/, null],
+    ['refused', /^Telefonen gav inte lov att läsa av hur den hålls\. Stäng webbläsaren helt och öppna sidan igen, så frågar den på nytt\.$/, IPHONE],
+    ['unanswered', /^Telefonen fick inget svar på frågan om att läsa av hur den hålls\. Tryck på knappen igen och välj Tillåt\.$/, null],
+  ]) {
+    const noLeave = await openPage({ width: 390, height: 844 }, { touch: true, sensors, agent });
+    if (await noLeave.evaluate(() => typeof window.DeviceOrientationEvent?.requestPermission === 'function')) {
+      await noLeave.click('#btn-point');
+      await noLeave.waitForFunction(() => !document.getElementById('toast').hidden);
+      const note = await noLeave.textContent('#toast');
+      assert.match(note, says, sensors);
+      // (The numbers are those of App.showToast: 1.5 s and 55 ms a character, 8 s at most.)
+      assert.ok(1500 + 55 * note.length <= 8000, `the note stays long enough to be read (${note.length} characters)`);
+      assert.equal(await noLeave.getAttribute('#btn-point', 'aria-pressed'), 'false');
+    }
+    await noLeave.close();
+  }
 
   assert.deepEqual(errors, [], 'no errors in the console');
   console.log('e2e smoke: ok');

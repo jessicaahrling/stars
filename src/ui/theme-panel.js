@@ -1,9 +1,10 @@
-// The "Design" panel: a list of interface designs to switch between.
+// The "Design" panel: a list of interface designs to switch between, and below it the
+// look of the sky, which is a choice of its own.
 import { THEMES } from './themes.js';
 
 export class ThemePanel {
   /**
-   * @param {object} app  see App: theme, setTheme, closeList, closeWhen, closeGroups, closeSky, layoutChanged
+   * @param {object} app  see App: theme, setTheme, skyLook, setSkyLook, closeList, closeWhen, closeGroups, closeSky, layoutChanged
    * @param {(id: string) => HTMLElement} $
    */
   constructor(app, $) {
@@ -28,8 +29,14 @@ export class ThemePanel {
       label.append(input, name, note);
       this.list.append(label);
     }
+    this.looks = [...$('sky-look').querySelectorAll('[data-look]')];
+    for (const b of this.looks) b.addEventListener('click', () => app.setSkyLook(b.dataset.look));
     this.button.addEventListener('click', () => this.toggle());
-    $('btn-theme-close').addEventListener('click', () => this.toggle(false));
+    // Closed with its own button, the panel gives the focus back to the one that opens it.
+    $('btn-theme-close').addEventListener('click', () => {
+      this.toggle(false);
+      this.button.focus();
+    });
   }
 
   get open() {
@@ -46,11 +53,14 @@ export class ThemePanel {
       this.app.closeGroups();
       this.app.closeSky();
       this.sync();
+      // The design chosen is in sight, also where the list is longer than its room.
+      this.list.querySelector('input:checked')?.closest('label').scrollIntoView?.({ block: 'nearest' });
     }
     this.app.layoutChanged();
   }
 
   sync() {
     for (const input of this.list.querySelectorAll('input')) input.checked = input.value === this.app.theme;
+    for (const b of this.looks) b.setAttribute('aria-pressed', String(b.dataset.look === this.app.skyLook));
   }
 }
