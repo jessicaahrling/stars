@@ -71,6 +71,29 @@ test('rasterizing a ring that crosses RA 0 paints both edges of the map', () => 
   assert.deepEqual([...cols].sort((a, b) => a - b), [0, 35]);
 });
 
+test('rasterizing paints the cells whose middle is inside, for every constellation', () => {
+  // An odd grid, so that no cell's middle lies on a boundary (those run along round numbers).
+  const width = 97;
+  const height = 45;
+  for (const c of catalog.constellations) {
+    const painted = new Uint8Array(width * height);
+    rasterizeRings(c.ringsJ2000, width, height, (col, r0, r1) => {
+      assert.ok(col >= 0 && col < width && r0 >= 0 && r1 < height && r0 <= r1, `${c.id}: a run inside the grid`);
+      for (let r = r0; r <= r1; r++) painted[r * width + col] ^= 1;
+    });
+    let wrong = 0;
+    for (let r = 0; r < height; r++) {
+      for (let col = 0; col < width; col++) {
+        const ra = ((col + 0.5) * 360) / width;
+        const dec = 90 - ((r + 0.5) * 180) / height;
+        const inside = c.ringsJ2000.reduce((acc, ring) => acc !== pointInRing(ring, ra, dec), false);
+        if (inside !== (painted[r * width + col] === 1)) wrong++;
+      }
+    }
+    assert.equal(wrong, 0, `${c.id}: cells painted wrongly`);
+  }
+});
+
 test('what can be seen from Stockholm', () => {
   const vis = (id) => visibilityClass(catalog.byId.get(id).figureDecs, 59.33);
   assert.equal(vis('Cas'), 'circumpolar');

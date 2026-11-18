@@ -8,7 +8,7 @@
   <meta name="description" content="Titta runt på den svenska natthimlen och lär dig stjärnbilderna. Realistiska positioner för vald ort och tid.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital@1&family=Jost:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..700&family=Jost:wght@400;500;600&display=swap">
   <style>
     /* Layout: the sky fills the screen; controls float at its edges like instruments around an eyepiece. */
     :root {
@@ -86,6 +86,11 @@
 
     .panel-when { top: calc(var(--top) + 52px); right: var(--gutter-r); width: 330px; padding: 18px;
       display: grid; gap: 14px; }
+    /* Low screens (a phone on its side): the panel ends above the bottom row and scrolls to
+       its last choices. */
+    @media (max-height: 600px) {
+      .panel-when { max-height: calc(100% - var(--top) - var(--bottom) - 148px); overflow-y: auto; }
+    }
     .field { display: grid; gap: 6px; }
     fieldset.field { border: 0; padding: 0; margin: 0; min-width: 0; }
     fieldset.field legend { padding: 0; margin-bottom: 6px; }
@@ -163,7 +168,9 @@
     .sky-note { margin: 4px 18px 16px; font-size: 12px; color: var(--ink-3); }
     .panel-theme { top: calc(var(--top) + 52px); right: var(--gutter-r); width: 300px; box-sizing: border-box;
       max-height: calc(100% - var(--top) - var(--bottom) - 120px); display: flex; flex-direction: column; overflow: hidden; }
-    .theme-list { border: 0; margin: 0; padding: 0 8px 8px; display: grid; gap: 2px; overflow-y: auto; min-height: 0; }
+    /* The list scrolls in a box of its own when it does not fit (a fieldset itself does not scroll). */
+    .theme-scroll { overflow-y: auto; min-height: 0; }
+    .theme-list { border: 0; margin: 0; padding: 0 8px 8px; min-width: 0; display: grid; gap: 2px; }
     .theme-option { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; align-items: center;
       padding: 9px 10px; border-radius: 10px; cursor: pointer; }
     .theme-option input { grid-row: span 2; margin: 0; accent-color: var(--gold); width: 16px; height: 16px; }
@@ -272,6 +279,10 @@
     .train-story .story { margin-top: 8px; }
     .card { max-height: calc(100% - var(--top) - var(--bottom) - 130px); overflow-y: auto; }
 
+    /* In a window too narrow for the card and the list side by side, the card moves aside. */
+    @media (min-width: 641px) and (max-width: 1150px) {
+      #panel-list:not([hidden]) ~ #card { left: calc(50vw - 177px); width: min(430px, calc(100vw - 386px)); }
+    }
     .card { position: fixed; z-index: 4; left: 50%; transform: translateX(-50%);
       bottom: calc(var(--bottom) + 60px); width: min(430px, calc(100vw - 32px)); box-sizing: border-box;
       padding: 16px 18px; background: var(--glass-strong); border: 1px solid var(--hairline);
@@ -449,7 +460,7 @@
       <h2>Design</h2>
       <button id="btn-theme-close" class="icon-btn" type="button" aria-label="Stäng">×</button>
     </div>
-    <fieldset id="theme-list" class="theme-list"><legend class="sr-only">Välj design</legend></fieldset>
+    <div class="theme-scroll"><fieldset id="theme-list" class="theme-list"><legend class="sr-only">Välj design</legend></fieldset></div>
     <p class="theme-foot">Jämför designerna och behåll den du gillar.</p>
   </section>
 

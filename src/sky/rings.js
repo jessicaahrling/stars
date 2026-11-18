@@ -91,25 +91,50 @@ export function pointInRing(ring, ra, dec) {
  * (c + 0.5) * 360 / width, row r covers Dec around 90 - (r + 0.5) * 180 / height).
  * Calls `paint(col, rowStart, rowEnd)` (inclusive) for every run of rows inside a
  * ring. Rings are painted independently; XOR the runs for even-odd semantics.
+ *
+ * The crossings of each column's meridian are found edge by edge: an edge is asked about
+ * only at the columns it can cross (with the test meridianCrossings makes), not at every
+ * column of the ring. All 88 constellations are rasterized before the first frame.
  */
 export function rasterizeRings(rings, width, height, paint) {
   const rowOf = (dec) => ((90 - dec) * height) / 180 - 0.5;
-  const hits = [];
+  const none = [];
   for (const ring of rings) {
     // Only the columns whose centre lies in the ring's RA range can be inside it.
     const c0 = ring.polar ? 0 : Math.ceil((ring.raStart * width) / 360 - 0.5);
     const c1 = ring.polar ? width - 1 : Math.floor(((ring.raStart + ring.raWidth) * width) / 360 - 0.5);
-    for (let c = c0; c <= c1; c++) {
-      const col = ((c % width) + width) % width;
-      const ra = ((col + 0.5) * 360) / width;
-      hits.length = 0;
-      meridianCrossings(ring, ra, hits);
+    const count = c1 - c0 + 1;
+    if (count <= 0) continue;
+    /** For each of the ring's columns, the declinations where its meridian crosses the ring. */
+    const crossings = new Array(count);
+    const { x1, dx, y1, y2 } = ring;
+    for (let i = 0; i < x1.length; i++) {
+      const d = dx[i];
+      if (d === 0) continue;
+      const west = d > 0 ? x1[i] : x1[i] + d;
+      const len = Math.abs(d);
+      // The columns whose centre may lie in [west, west + len), and one more on each side.
+      const from = Math.ceil((west * width) / 360 - 0.5) - 1;
+      const to = Math.min(from + width - 1, Math.floor(((west + len) * width) / 360 - 0.5) + 1);
+      for (let c = from; c <= to; c++) {
+        const col = ((c % width) + width) % width;
+        const k = (((col - c0) % width) + width) % width;
+        if (k >= count) continue;
+        const u = wrap360(((col + 0.5) * 360) / width - west);
+        if (u >= len) continue;
+        const f = d > 0 ? u / len : 1 - u / len;
+        (crossings[k] || (crossings[k] = [])).push(y1[i] + (y2[i] - y1[i]) * f);
+      }
+    }
+    for (let k = 0; k < count; k++) {
+      const hits = crossings[k] || none;
       if (!hits.length && !ring.polar) continue;
+      const col = (((c0 + k) % width) + width) % width;
       hits.sort((a, b) => b - a);
       let inside = ring.northInside;
       let top = 90;
-      for (let k = 0; k <= hits.length; k++) {
-        const bottom = k < hits.length ? hits[k] : -90;
+      for (let j = 0; j <= hits.length; j++) {
+        const bottom = j < hits.length ? hits[j] : -90;
         if (inside) {
           const r0 = Math.max(0, Math.ceil(rowOf(top)));
           const r1 = Math.min(height - 1, Math.floor(rowOf(bottom)));

@@ -436,18 +436,23 @@ try {
   await sky.screenshot({ path: path.join(shots, 'discover-start.png') });
 
   // One frame drawn while recording whose figures, outlines, illustrations and names are
-  // traced, which groups' lines and names, and how much of the sky is tinted.
+  // traced, whose closed parts are filled, which groups' lines and names, and how much of
+  // the sky is tinted.
   const drawnParts = (hover = null, page = sky) => page.evaluate((hoverId) => {
     const a = window.stjarnhimlen;
     a.hover = hoverId ? a.catalog.byId.get(hoverId).index : -1;
     const sl = a.skyLayer;
     const owner = new Map();
-    for (const c of a.catalog.constellations) for (const part of [c.segments, c.outlines, c.art]) owner.set(part, c.id);
+    for (const c of a.catalog.constellations) for (const part of [c.segments, c.outlines, c.art, ...c.faces]) owner.set(part, c.id);
     const names = new Map(a.catalog.constellations.map((c) => [c.sv.toUpperCase(), c.id]));
     const groupNames = new Set(a.chunks.map((ch) => ch.name));
-    const seen = { segments: new Set(), outlines: new Set(), art: new Set(), names: new Set(), texts: new Set(), focus: new Set(), groups: new Set() };
+    const seen = { segments: new Set(), outlines: new Set(), art: new Set(), names: new Set(), texts: new Set(), focus: new Set(), groups: new Set(), faces: new Set() };
     const obstacles = a.labelObstacles();
     const boxes = [];
+    // The names of stars (the only ones set from the left): where each is, to see that
+    // none is on another name.
+    const starNames = new Set(Object.values(a.catalog.starNames));
+    const starBoxes = [];
     let covered = 0;
     let tinted = 0;
     // Lines of the boundary round the group being learnt, and round the groups shown.
@@ -472,8 +477,16 @@ try {
       else if (a.discovering) groupLined += rings.length;
     });
     wrap(sl, 'traceArt', (view, lines) => owner.has(lines) && seen.art.add(owner.get(lines)));
+    // Only the faces to fill are traced: those with all their stars shown, and in sight.
+    wrap(sl, 'traceFace', (face) => seen.faces.add(owner.get(face)));
+    let grid = 0;
+    wrap(sl, 'traceGrid', () => { grid++; });
     wrap(a.hud, 'label', (text, x, y) => {
       seen.texts.add(text);
+      if (a.hud.ctx.textAlign === 'left' && starNames.has(text)) {
+        starBoxes.push([x, x + a.hud.ctx.measureText(text).width, y - 5, y + 5]);
+        return;
+      }
       const id = names.get(text);
       if (!id && !groupNames.has(text)) return;
       if (id) seen.names.add(id);
@@ -489,14 +502,23 @@ try {
     a.maskDirty = true;
     a.draw();
     a.hover = -1;
-    for (const name of ['traceSegments', 'tracePolyline', 'traceArt']) delete sl[name];
+    for (const name of ['traceSegments', 'tracePolyline', 'traceArt', 'traceFace', 'traceGrid']) delete sl[name];
     delete a.hud.label;
     delete a.glSky.setMask;
+    const meet = (p, q) => p[0] < q[1] && q[0] < p[1] && p[2] < q[3] && q[2] < p[3];
     let overlaps = 0;
     boxes.forEach((p, i) => boxes.slice(i + 1).forEach((q) => {
-      if (p[0] < q[1] && q[0] < p[1] && p[2] < q[3] && q[2] < p[3]) overlaps++;
+      if (meet(p, q)) overlaps++;
     }));
-    return { ...Object.fromEntries(Object.entries(seen).map(([k, v]) => [k, [...v].sort()])), covered, overlaps, tinted, outlined, groupLined, underBar };
+    // Names of stars on another name: of a constellation or a group, or of another star.
+    let starOverlaps = 0;
+    starBoxes.forEach((p, i) => {
+      if (boxes.some((q) => meet(p, q)) || starBoxes.slice(i + 1).some((q) => meet(p, q))) starOverlaps++;
+    });
+    return {
+      ...Object.fromEntries(Object.entries(seen).map(([k, v]) => [k, [...v].sort()])),
+      covered, overlaps, tinted, outlined, groupLined, underBar, grid, starsNamed: starBoxes.length, starOverlaps,
+    };
   }, hover);
   /** The tint of a constellation on the sky's mask, or null. */
   const tintOf = (id) => sky.evaluate((c) => {
@@ -509,7 +531,8 @@ try {
   // Nothing pointed at: lines round the groups and their names, but no figures and no
   // names of constellations.
   const plain = await drawnParts();
-  assert.deepEqual([plain.segments, plain.names, plain.outlines, plain.focus], [[], [], [], []]);
+  assert.deepEqual([plain.segments, plain.names, plain.outlines, plain.focus, plain.faces], [[], [], [], [], []]);
+  assert.equal(plain.grid, 1, 'the faint grid of the chart is drawn');
   assert.ok(plain.groupLined > 0 && plain.groups.length >= 3, `groups named: ${plain.groups}`);
   assert.deepEqual([plain.covered, plain.overlaps, plain.underBar], [0, 0, 0], 'names keep clear of the panel, the buttons and each other');
   // Pointing at Cassiopeja shows all of her group: its line stands out, and the lines and
@@ -521,6 +544,15 @@ try {
   assert.deepEqual(pointed.segments, perseus.members, 'the lines of every constellation in the group');
   assert.deepEqual(pointed.focus, ['Perseus räddar Andromeda'], 'the line round the group stands out');
   assert.deepEqual(pointed.names, perseus.members, 'and the names of every constellation in it');
+  // The closed parts of their figures are filled, like a nebula behind the lines: those of
+  // Perseus and Cepheus (Cassiopeja's W and Andromeda's lines close nothing).
+  assert.deepEqual(pointed.faces, ['Cep', 'Per'], 'the closed parts of the figures in the group are filled');
+  // A closed part is filled only while every star round it shows: on a hazy sky ("Sikt")
+  // that hides the fainter corners of both figures, neither is filled.
+  await sky.evaluate(() => window.stjarnhimlen.setLimitMag(3));
+  assert.deepEqual((await drawnParts('Cas')).faces, [], 'no fill round a star too faint to show');
+  await sky.evaluate(() => window.stjarnhimlen.setLimitMag(6));
+  assert.deepEqual((await drawnParts('Cas')).faces, ['Cep', 'Per']);
   assert.deepEqual(pointed.art, [], 'but not their illustrations: those come with a click');
   assert.ok(pointed.groups.includes('Perseus räddar Andromeda'));
   assert.deepEqual([pointed.covered, pointed.overlaps], [0, 0]);
@@ -652,6 +684,8 @@ try {
   const everything = await drawnParts();
   assert.ok(everything.segments.length > 15 && everything.names.length > 15, `${everything.segments.length} figures, ${everything.names.length} names`);
   assert.deepEqual([everything.overlaps, everything.covered, everything.underBar], [0, 0, 0]);
+  // The names of stars go where the other names leave room: none is on another name.
+  assert.ok(everything.starsNamed >= 5 && everything.starOverlaps === 0, `${everything.starsNamed} stars named, ${everything.starOverlaps} on another name`);
   await sky.click('[data-layer="lines"]');
   await sky.click('[data-layer="names"]');
   assert.deepEqual((await drawnParts()).segments, []);
@@ -848,6 +882,7 @@ try {
   await settle(phoneSky);
   const phoneNames = await drawnParts(null, phoneSky);
   assert.ok(phoneNames.names.length > 15 && phoneNames.overlaps === 0, `${phoneNames.names.length} names, ${phoneNames.overlaps} overlapping`);
+  assert.ok(phoneNames.starsNamed >= 3 && phoneNames.starOverlaps === 0, `${phoneNames.starsNamed} stars named, ${phoneNames.starOverlaps} on another name`);
 
   const phone = await openPage({ width: 390, height: 844 });
   await phone.evaluate(() => window.stjarnhimlen.select(window.stjarnhimlen.catalog.byId.get('UMa').index, { fly: true }));
@@ -917,7 +952,7 @@ try {
   assert.equal(await quiz.isDisabled('[data-layer="lines"]'), true);
   assert.equal(await quiz.getAttribute('[data-layer="lines"]', 'aria-pressed'), 'false');
   let seenNow = await quizParts();
-  assert.deepEqual([seenNow.segments, seenNow.outlines, seenNow.art, seenNow.names], [[], [], [], []], 'stars only: no lines, outlines, drawings or names');
+  assert.deepEqual([seenNow.segments, seenNow.outlines, seenNow.art, seenNow.names, seenNow.faces], [[], [], [], [], []], 'stars only: no lines, fills, outlines, drawings or names');
   assert.equal(seenNow.outlined, 1, 'but the boundary round the group, which the panel names anyway');
   await unnamed(seenNow);
   assert.match(await quiz.textContent('#train-prompt'), /En ny stjärnbild/);
@@ -941,6 +976,7 @@ try {
   seenNow = await quizParts();
   assert.deepEqual([(await quizState()).on, (await quizState()).step], [true, 2]);
   assert.deepEqual([seenNow.segments, seenNow.names, seenNow.art], [['UMa'], [], []], 'its lines, still without its name or drawing');
+  assert.deepEqual(seenNow.faces, ['UMa'], 'and the closed parts of its figure filled: the bowl of the Big Dipper');
   await unnamed(seenNow);
   await quiz.keyboard.press('1');
   assert.equal((await quizState()).step, 2);
@@ -1448,11 +1484,11 @@ try {
   // "Design": a list of interface designs. Each one is put on the page when chosen, keeps
   // the layout in one piece on a desktop and a phone, and is remembered.
   const themeIds = await phone.evaluate(() => [...document.querySelectorAll('#theme-list input')].map((i) => i.value));
-  assert.deepEqual(themeIds, ['lekfull', 'glas', 'mcc', 'dsky', 'crt', 'nasa75', 'checklista']);
+  assert.deepEqual(themeIds, ['atlas', 'lekfull', 'glas', 'mcc', 'dsky', 'crt', 'nasa75', 'checklista']);
   for (const [page, kind] of [[await openPage({ width: 1280, height: 800 }, { discover: true }), 'desktop'], [phone, 'phone']]) {
     await page.click('#btn-theme');
     assert.equal(await page.isVisible('#panel-theme'), true);
-    assert.equal(await page.isChecked('#theme-list input[value="lekfull"]'), true, 'the playful design is chosen at first');
+    assert.equal(await page.isChecked('#theme-list input[value="atlas"]'), true, 'the star atlas is the design at first');
     for (const themeId of themeIds) {
       await page.click(`#theme-list input[value="${themeId}"]`);
       const state = await page.evaluate(() => ({
@@ -1469,6 +1505,16 @@ try {
       await page.waitForTimeout(250); // colour transitions between designs
       await page.screenshot({ path: path.join(shots, `design-${themeId}-${kind}.png`) });
     }
+    // The list scrolls when it does not fit: its last design can be brought up from under the foot.
+    const lastDesign = await page.evaluate(() => {
+      const scroller = document.querySelector('.theme-scroll');
+      const last = document.querySelector('#theme-list label:last-child');
+      scroller.scrollTop = scroller.scrollHeight;
+      const r = last.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.bottom - 6);
+      return { fits: scroller.scrollHeight <= scroller.clientHeight, scrolled: scroller.scrollTop > 0, clear: last.contains(hit) };
+    });
+    assert.ok(lastDesign.clear && (lastDesign.fits || lastDesign.scrolled), `the last design can be reached on a ${kind}: ${JSON.stringify(lastDesign)}`);
     // Escape closes the list of designs; opening the constellation list closes it too.
     await page.keyboard.press('Escape');
     assert.equal(await page.isHidden('#panel-theme'), true);
@@ -1497,8 +1543,18 @@ try {
   }, themeIds);
   for (const id of themeIds) {
     const base = id === 'glas';
-    assert.deepEqual(hostedLooks[id], { round: base, jost: base, dot: base }, `${id} restyles the buttons on the published page`);
+    // (The star atlas keeps the base font for its buttons; its titles are in a serif.)
+    assert.deepEqual(hostedLooks[id], { round: base, jost: base || id === 'atlas', dot: base }, `${id} restyles the buttons on the published page`);
   }
+  // The names on the sky follow the design: the star atlas sets them in a serif, widely
+  // spaced, with the names of stars in italic; the glass design in the base font.
+  const skyType = (id) => phone.evaluate((theme) => {
+    const a = window.stjarnhimlen;
+    a.setTheme(theme);
+    return [a.hud.fontFamily.split(',')[0].replaceAll('"', ''), a.hud.tracking, a.hud.scale, a.hud.starStyle];
+  }, id);
+  assert.deepEqual(await skyType('atlas'), ['EB Garamond', 0.3, 1.18, 'italic ']);
+  assert.deepEqual(await skyType('glas'), ['Jost', 0.18, 1, '']);
 
   // The choice is remembered.
   await phone.evaluate(() => window.stjarnhimlen.setTheme('crt'));
@@ -1508,9 +1564,13 @@ try {
   assert.equal(await phone.evaluate(() => document.documentElement.dataset.theme), 'crt');
   await phone.click('#btn-theme');
   assert.equal(await phone.isChecked('#theme-list input[value="crt"]'), true);
-  // Saved before the playful design came, the glass design was only the default, and the
-  // new default takes its place; chosen since, it stays.
-  for (const [saved, shown] of [[{ theme: 'glas' }, 'lekfull'], [{ theme: 'glas', themes: 2 }, 'glas']]) {
+  // A design saved while it was the default was not a choice, and the new default takes its
+  // place: the glass design from before the playful one came, and the playful one from
+  // before the star atlas did. Chosen since, or another design, it stays.
+  for (const [saved, shown] of [
+    [{ theme: 'glas' }, 'atlas'], [{ theme: 'glas', themes: 2 }, 'glas'], [{ theme: 'lekfull', themes: 2 }, 'atlas'],
+    [{ theme: 'lekfull', themes: 3 }, 'lekfull'], [{ theme: 'glas', themes: 3 }, 'glas'], [{ theme: 'crt', themes: 2 }, 'crt'], [{}, 'atlas'],
+  ]) {
     await phone.evaluate((s) => {
       clearTimeout(window.stjarnhimlen.saveTimer);
       localStorage.setItem('stjarnhimlen:v1', JSON.stringify(s));
@@ -1589,6 +1649,60 @@ try {
   assert.deepEqual([(await overState()).on, (await overState()).scope], [true, 'winter']);
   await over.click('#btn-discover');
   assert.deepEqual([(await overState()).on, (await overState()).panel, (await overState()).discovering], [false, false, true]);
+
+  // The chart's lines and fills where a figure runs out of what shows. Zoomed in on the
+  // Big Dipper, the stars of the figure that are off the screen still end its lines and
+  // close its filled parts.
+  const chart = await openPage({ width: 1280, height: 800 });
+  const figure = (id, { fov = null, at = null, limit = 6 } = {}) => chart.evaluate(([cid, f, t, lim]) => {
+    const a = window.stjarnhimlen;
+    const c = a.catalog.byId.get(cid);
+    if (t) {
+      a.setTime(t);
+      a.setSpeed(0);
+    }
+    a.setLimitMag(lim);
+    a.flyTo(c.index, { instant: true, ...(f ? { fov: f } : {}) });
+    a.draw();
+    const sl = a.skyLayer;
+    const ends = c.figureStars.filter((i) => sl.corner[i]);
+    return {
+      drawn: ends.filter((i) => !Number.isNaN(sl.px[i])).length,
+      away: ends.filter((i) => Number.isNaN(sl.px[i])).length,
+      filled: c.faces.filter((face) => sl.faceInSight(a.view, face)).length,
+      opaque: !a.seeThroughNow(),
+    };
+  }, [id, fov, at, limit]);
+  const close = await figure('UMa', { fov: 12 });
+  assert.ok(close.away > 0 && close.filled > 0, `close up: ${close.drawn} of the figure's stars drawn, ${close.away} off the screen ending lines, ${close.filled} parts filled`);
+  // A star too faint for the sky chosen ("Sikt") takes its lines and its closed part with
+  // it wherever it is: off the screen as well as on it.
+  assert.deepEqual([(await figure('UMa', { fov: 12, limit: 3 })).filled, (await figure('UMa', { fov: 60, limit: 3 })).filled], [0, 0]);
+  // A figure that sets loses its fill once, when a corner fades out near the horizon; the
+  // fill does not come back when that star is under the ground. Pegasus, an hour and
+  // twenty minutes on: Markab has set.
+  const up = await figure('Peg');
+  const setting = await figure('Peg', { at: Date.UTC(2026, 0, 15, 22, 20) });
+  assert.deepEqual([up.filled, setting.filled, setting.opaque], [1, 0, true], 'the square of Pegasus is filled while all four stars show');
+  await chart.close();
+
+  // On a phone on its side the panel of place and time ends above the bottom row and
+  // scrolls to its last choices, in every design.
+  const low = await openPage({ width: 844, height: 390 }, { touch: true });
+  await low.click('#btn-when');
+  for (const themeId of ['atlas', 'lekfull', 'mcc']) {
+    const when = await low.evaluate((id) => {
+      window.stjarnhimlen.setTheme(id);
+      const panel = document.getElementById('panel-when');
+      const bar = document.querySelector('.bar-bottom .chip').getBoundingClientRect();
+      panel.scrollTop = panel.scrollHeight;
+      const last = panel.querySelector('[data-speed="3600"]').getBoundingClientRect();
+      const box = panel.getBoundingClientRect();
+      return { clear: box.bottom <= bar.top, reached: last.bottom <= box.bottom && last.top >= box.top, scrolls: panel.scrollHeight > panel.clientHeight };
+    }, themeId);
+    assert.deepEqual(when, { clear: true, reached: true, scrolls: true }, `place and time on a low screen, ${themeId}`);
+  }
+  await low.close();
 
   // "Sikt": a gauge of how faint the faintest stars seen are. Dragged down, only the
   // brightest are left and the Milky Way goes; up again, every star. Remembered.

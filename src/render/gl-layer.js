@@ -29,6 +29,7 @@ vec3 camDir() {
 const SKY_FRAG = COMMON + `
 uniform sampler2D uMilkyWay;
 uniform sampler2D uMask;
+uniform sampler2D uNebula;
 uniform float uMilkyWayStrength;
 uniform float uMaskStrength;
 
@@ -36,21 +37,29 @@ void main() {
   vec3 hor = uCamToHor * camDir();
   float alt = asin(clamp(hor.z, -1.0, 1.0));
   float h = clamp(alt / (0.5 * PI), 0.0, 1.0);
-  vec3 zenith = vec3(0.010, 0.016, 0.042);
-  vec3 horizon = vec3(0.045, 0.068, 0.130);
-  vec3 col = mix(horizon, zenith, pow(h, 0.42));
+  // A deep navy night: nearly black overhead, bluer toward the horizon.
+  vec3 zenith = vec3(0.022, 0.030, 0.078);
+  vec3 horizon = vec3(0.082, 0.102, 0.216);
+  vec3 col = mix(horizon, zenith, pow(h, 0.5));
   // Faint glow of distant towns and airglow low over the horizon.
-  col += vec3(0.060, 0.050, 0.060) * exp(-max(alt, 0.0) * 16.0);
+  col += vec3(0.070, 0.048, 0.066) * exp(-max(alt, 0.0) * 14.0);
 
   vec3 eq = uHorToEq * hor;
   float ra = atan(eq.y, eq.x);
   float dec = asin(clamp(eq.z, -1.0, 1.0));
   vec2 uv = vec2(ra / (2.0 * PI), 0.5 - dec / PI);
   float extinction = smoothstep(-0.02, 0.25, alt);
+  // Thin clouds of colour that turn with the stars, so that the night is not flat.
+  col += texture2D(uNebula, uv).rgb * 0.12 * mix(0.45, 1.0, extinction);
   float mw = texture2D(uMilkyWay, uv).r;
-  col += vec3(0.55, 0.62, 0.80) * mw * uMilkyWayStrength * mix(0.35, 1.0, extinction);
+  col += vec3(0.58, 0.62, 0.84) * mw * uMilkyWayStrength * mix(0.35, 1.0, extinction);
   vec4 tint = texture2D(uMask, uv);
   col += tint.rgb * uMaskStrength;
+  // Darker toward the corners of the screen, as through an eyepiece.
+  vec2 off = (gl_FragCoord.xy - 0.5 * uRes) / max(uRes.x, uRes.y);
+  col *= 1.0 - 0.42 * smoothstep(0.28, 0.78, length(off));
+  // A grain of one step of colour, so that the slow gradients of a dark sky show no bands.
+  col += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
   gl_FragColor = vec4(col, 1.0);
 }
 `;
@@ -95,12 +104,83 @@ void main() {
   float cover = smoothstep(edge + pixelDeg, edge - pixelDeg, alt);
   if (cover <= 0.0) discard;
   float depth = clamp(-alt / 25.0, 0.0, 1.0);
-  vec3 col = mix(vec3(0.020, 0.034, 0.040), vec3(0.008, 0.012, 0.016), depth);
-  if (alt > 0.0) col = vec3(0.006, 0.010, 0.014); // tree silhouettes
+  vec3 col = mix(vec3(0.014, 0.020, 0.040), vec3(0.006, 0.008, 0.018), depth);
+  if (alt > 0.0) col = vec3(0.005, 0.007, 0.016); // tree silhouettes
   float a = cover * uGroundAlpha;
   gl_FragColor = vec4(col * a, a);
 }
 `;
+
+/**
+ * Size of the map of the sky's thin clouds of colour (powers of two, needed for REPEAT in
+ * WebGL 1). Small: the clouds are smooth, and the map is made before the first frame.
+ */
+const NEBULA_W = 256;
+const NEBULA_H = 128;
+
+/**
+ * The thin clouds of colour in the night sky: an equirectangular map (right ascension
+ * across, declination down, as the Milky Way's) of the light they add, in blue, violet and
+ * a little rose. Smooth noise over the sphere itself, so that the map has no seam and no
+ * pinch at the poles, and always the same, so that the sky looks the same each time.
+ * @returns {Uint8Array} RGBA
+ */
+export function makeNebula(w, h) {
+  let seed = 88;
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  // A lattice of 32 x 32 x 32 values that repeats in every direction.
+  const lattice = Float32Array.from({ length: 32 * 32 * 32 }, random);
+  const at = (x, y, z) => lattice[((z & 31) << 10) | ((y & 31) << 5) | (x & 31)];
+  const smooth = (t) => t * t * (3 - 2 * t);
+  const noise = (x, y, z) => {
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    const z0 = Math.floor(z);
+    const sx = smooth(x - x0);
+    const sy = smooth(y - y0);
+    const sz = smooth(z - z0);
+    const row = (yy, zz) => at(x0, yy, zz) * (1 - sx) + at(x0 + 1, yy, zz) * sx;
+    const face = (zz) => row(y0, zz) * (1 - sy) + row(y0 + 1, zz) * sy;
+    return face(z0) * (1 - sz) + face(z0 + 1) * sz;
+  };
+  // Layers of noise, each twice as fine and half as strong, in 0 to 1.
+  const clouds = (x, y, z, layers) => {
+    let sum = 0;
+    let weight = 1;
+    let total = 0;
+    for (let k = 0; k < layers; k++, weight /= 2) {
+      const f = 2 ** k;
+      sum += noise(x * f + 7.3 * k, y * f + 3.1 * k, z * f + 5.7 * k) * weight;
+      total += weight;
+    }
+    return sum / total;
+  };
+  const step = (lo, hi, v) => smooth(Math.min(1, Math.max(0, (v - lo) / (hi - lo))));
+  const out = new Uint8Array(w * h * 4);
+  for (let j = 0; j < h; j++) {
+    const dec = (0.5 - (j + 0.5) / h) * Math.PI;
+    for (let i = 0; i < w; i++) {
+      const ra = ((i + 0.5) / w) * 2 * Math.PI;
+      const x = Math.cos(dec) * Math.cos(ra);
+      const y = Math.cos(dec) * Math.sin(ra);
+      const z = Math.sin(dec);
+      const dense = step(0.36, 0.84, clouds(x * 1.5 + 11, y * 1.5 + 17, z * 1.5 + 23, 3));
+      const hue = clouds(x * 1.3 + 31, y * 1.3 + 41, z * 1.3 + 53, 3);
+      const rose = step(0.56, 0.8, hue);
+      // Blue clouds, turning violet, and rose in a few places.
+      const k = (i + j * w) * 4;
+      // (Stored four times as strong as it is added, to keep the faint steps fine.)
+      out[k] = Math.round(255 * 4 * dense * (0.016 + 0.034 * rose));
+      out[k + 1] = Math.round(255 * 4 * dense * (0.022 - 0.006 * rose));
+      out[k + 2] = Math.round(255 * 4 * dense * (0.066 - 0.012 * rose));
+      out[k + 3] = 255;
+    }
+  }
+  return out;
+}
 
 function compile(gl, type, src) {
   const sh = gl.createShader(type);
@@ -130,6 +210,25 @@ export class GlLayer {
     const gl = canvas.getContext('webgl', { alpha: mode === 'ground', premultipliedAlpha: true, antialias: false });
     if (!gl) throw new Error('WebGL saknas');
     this.gl = gl;
+    /**
+     * Called once a context the browser took away (a tab long in the background on a
+     * phone) is back and set up again: what was given from outside, the Milky Way and the
+     * tints, must be given again, and the frame drawn.
+     * @type {(() => void) | null}
+     */
+    this.onRestore = null;
+    // Without preventDefault the browser never gives a lost context back.
+    canvas.addEventListener('webglcontextlost', (e) => e.preventDefault());
+    canvas.addEventListener('webglcontextrestored', () => {
+      this.init();
+      if (this.onRestore) this.onRestore();
+    });
+    this.init();
+  }
+
+  /** Sets up the program, the quad and the textures: at the start, and again after a lost context. */
+  init() {
+    const { gl, mode } = this;
     const prog = gl.createProgram();
     gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT));
     gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, mode === 'sky' ? SKY_FRAG : GROUND_FRAG));
@@ -144,15 +243,17 @@ export class GlLayer {
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const name of ['uRes', 'uScale', 'uCamToHor', 'uHorToEq', 'uMilkyWay', 'uMask',
+    for (const name of ['uRes', 'uScale', 'uCamToHor', 'uHorToEq', 'uMilkyWay', 'uMask', 'uNebula',
       'uMilkyWayStrength', 'uMaskStrength', 'uGroundAlpha']) {
       this.u[name] = gl.getUniformLocation(prog, name);
     }
     if (mode === 'sky') {
       this.mwTex = this.createTexture(1, 1, new Uint8Array([0, 0, 0, 255]));
       this.maskTex = this.createTexture(1, 1, new Uint8Array([0, 0, 0, 0]));
+      this.nebulaTex = this.createTexture(NEBULA_W, NEBULA_H, makeNebula(NEBULA_W, NEBULA_H));
       gl.uniform1i(this.u.uMilkyWay, 0);
       gl.uniform1i(this.u.uMask, 1);
+      gl.uniform1i(this.u.uNebula, 2);
     } else {
       gl.clearColor(0, 0, 0, 0);
     }
@@ -218,6 +319,8 @@ export class GlLayer {
       gl.bindTexture(gl.TEXTURE_2D, this.mwTex);
       gl.activeTexture(gl.TEXTURE1);
       gl.bindTexture(gl.TEXTURE_2D, this.maskTex);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, this.nebulaTex);
     } else {
       gl.uniform1f(this.u.uGroundAlpha, p.groundAlpha);
       gl.clear(gl.COLOR_BUFFER_BIT);

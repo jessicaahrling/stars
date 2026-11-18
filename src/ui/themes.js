@@ -1,6 +1,7 @@
 // The interface designs one can switch between under "Design". Apart from the glass look
 // of the base styles, each is a style sheet in src/themes/ that is added to the page when
-// chosen. The playful one is the default.
+// chosen. The star atlas is the default.
+import atlas from '../themes/atlas.css';
 import checklista from '../themes/checklista.css';
 import crt from '../themes/crt.css';
 import dsky from '../themes/dsky.css';
@@ -9,6 +10,7 @@ import mcc from '../themes/mcc.css';
 import nasa75 from '../themes/nasa75.css';
 
 export const THEMES = [
+  { id: 'atlas', name: 'Stjärnatlas', note: 'Djupblå natt, tunna linjer och små stjärnor som tänds, som en stjärnkarta', css: atlas },
   { id: 'lekfull', name: 'Lekfull', note: 'Glada färgknappar och pratbubblor, i stil med jonasgeografi.se', css: lekfull },
   { id: 'glas', name: 'Mjukt glas', note: 'Den tidigare designen, som genom en kikare', css: '' },
   { id: 'mcc', name: 'Mission Control 1969', note: 'Konsoler med upplysta tryckknappar', css: mcc },
@@ -18,7 +20,7 @@ export const THEMES = [
   { id: 'checklista', name: 'Checklista', note: 'Apollos maskinskrivna färdpärmar', css: checklista },
 ];
 
-export const DEFAULT_THEME = 'lekfull';
+export const DEFAULT_THEME = 'atlas';
 
 /**
  * Puts a design on the page: data-theme on <html> and its style sheet in <style id="theme-style">.

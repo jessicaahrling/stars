@@ -8,10 +8,47 @@ export const FONT_FAMILY = '"Jost", "Futura", "Century Gothic", "Avenir Next", s
 /** Polstjärnan is named at every zoom level; it is the one star everyone should find. */
 const POLARIS_HIP = 11767;
 
+/**
+ * Where a star's name goes beside it, in the order tried: right and below the star, right
+ * and above, left and below, left and above ([side, up or down]).
+ */
+const STAR_NAME_SIDES = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+
 const CARDINALS = [
   [0, 'N', true], [45, 'NO', false], [90, 'Ö', true], [135, 'SO', false],
   [180, 'S', true], [225, 'SV', false], [270, 'V', true], [315, 'NV', false],
 ];
+
+/** Whether one of the lines [x1, y1, x2, y2, ...] runs through a box. */
+function crossesBox(lines, left, top, right, bottom) {
+  for (let k = 0; k < lines.length; k += 4) {
+    const x1 = lines[k];
+    const y1 = lines[k + 1];
+    const x2 = lines[k + 2];
+    const y2 = lines[k + 3];
+    // Most lines lie wholly to one side of the box.
+    if ((x1 < left && x2 < left) || (x1 > right && x2 > right) || (y1 < top && y2 < top) || (y1 > bottom && y2 > bottom)) continue;
+    // The part of the line between the box's sides, then between its top and bottom.
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    let t0 = 0;
+    let t1 = 1;
+    if (dx !== 0) {
+      const a = (left - x1) / dx;
+      const b = (right - x1) / dx;
+      t0 = Math.max(t0, Math.min(a, b));
+      t1 = Math.min(t1, Math.max(a, b));
+    }
+    if (dy !== 0) {
+      const a = (top - y1) / dy;
+      const b = (bottom - y1) / dy;
+      t0 = Math.max(t0, Math.min(a, b));
+      t1 = Math.min(t1, Math.max(a, b));
+    }
+    if (t1 > t0) return true;
+  }
+  return false;
+}
 
 export class HudLayer {
   /**
@@ -23,8 +60,16 @@ export class HudLayer {
     this.ctx = canvas.getContext('2d');
     this.catalog = catalog;
     this.pt = { x: 0, y: 0, z: 0 };
-    /** Font of the names on the sky; a design can change it (--sky-font). */
+    /**
+     * How the names on the sky are set; a design can change it (--sky-font and the like):
+     * the font, how wide capitals are spaced (in ems), how large the names are, and a
+     * style ('italic ' or none) for the names of stars and of groups.
+     */
     this.fontFamily = FONT_FAMILY;
+    this.tracking = 0.18;
+    this.scale = 1;
+    this.starStyle = '';
+    this.groupStyle = '';
     this.namedStars = Object.keys(catalog.starNames).map(Number).sort((a, b) => a - b);
   }
 
@@ -49,26 +94,35 @@ export class HudLayer {
     ctx.clearRect(0, 0, view.width, view.height);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    // While training, names would give the answer away until the last step.
+    // Names never run into each other or into the boxes in st.avoid: `taken` holds the
+    // boxes of the ones placed so far. Constellations and groups first; a star's name goes
+    // where they leave room. While training, names would give the answer away until the
+    // last step.
     const quiz = st.quiz;
-    if (st.layers.starNames && (!quiz || quiz.step === 3)) this.drawStarNames(view, sky, quiz && quiz.stars);
+    const taken = st.avoid ? [...st.avoid] : [];
     if (quiz) {
-      this.drawContextNames(view, st);
-      if (quiz.step === 3) this.drawQuizName(view, st);
+      const around = this.drawContextNames(view, st);
+      if (quiz.step === 3) this.drawQuizName(view, st, taken);
+      taken.push(...around);
     } else {
-      this.drawConstellationNames(view, st);
+      this.drawConstellationNames(view, st, taken, sky);
     }
+    if (st.layers.starNames && (!quiz || quiz.step === 3)) this.drawStarNames(view, sky, quiz && quiz.stars, taken);
     this.drawCardinals(view);
   }
 
-  drawConstellationNames(view, st) {
+  /** A size in pixels as the design scales the names, to the half pixel. */
+  px(size) {
+    return Math.round(size * this.scale * 2) / 2;
+  }
+
+  drawConstellationNames(view, st, taken, sky) {
     const { pt } = this;
-    const small = view.fov > 110 ? 10 : 11;
-    // Names never run into each other or into the boxes in st.avoid. The more important
-    // ones go first: marked and selected ones, the hovered one, those of the groups pointed
-    // at and chosen while discovering, the names of those groups, then the names of the
-    // other groups and the rest; with every name on, the rest go before the other groups.
-    const taken = st.avoid ? [...st.avoid] : [];
+    const small = this.px(view.fov > 110 ? 10 : 11);
+    // The more important names go first: marked and selected ones, the hovered one, those
+    // of the groups pointed at and chosen while discovering, the names of those groups,
+    // then the names of the other groups and the rest; with every name on, the rest go
+    // before the other groups.
     const focus = st.focusMembers;
     const rank = (c) => (st.marks.has(c.index) || c.index === st.selected ? 1
       : c.index === st.hover ? 2
@@ -94,7 +148,7 @@ export class HudLayer {
       let weight = 500;
       if (special) {
         color = mark !== undefined ? MARK_COLORS[mark % MARK_COLORS.length].hex : SELECT_COLOR.hex;
-        size = selected ? 15 : 13;
+        size = this.px(selected ? 15 : 13);
         weight = 600;
       } else if (hover || focused) {
         // Hovered, or in a group pointed at or chosen.
@@ -103,12 +157,37 @@ export class HudLayer {
       const font = `${weight} ${size}px ${this.fontFamily}`;
       for (const v of c.labelVecs) {
         if (!this.onSky(view, st, v)) continue;
-        if (this.covered(text, font, size * 0.18, size, taken)) continue;
-        this.label(text, pt.x, pt.y, font, color, size * 0.18, special);
+        this.clearOfStars(sky, text, font, size * this.tracking, size);
+        if (this.covered(text, font, size * this.tracking, size, taken)) continue;
+        this.label(text, pt.x, pt.y, font, color, size * this.tracking, special);
       }
     }
     if (!grouped) this.drawGroupNames(view, st, taken, small, allNames ? 'focus' : 'all');
     if (allNames) this.drawGroupNames(view, st, taken, small, 'rest');
+  }
+
+  /**
+   * Moves this.pt a line down or up when a name centred on it would lie on one of the
+   * brightest stars (those that glint), if it is clear of them there.
+   */
+  clearOfStars(sky, text, font, spacingPx, size) {
+    const { ctx, pt } = this;
+    const { mag } = this.catalog.stars;
+    ctx.font = font;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacingPx.toFixed(1)}px`;
+    const w = ctx.measureText(text).width / 2 + 3;
+    const h = size / 2 + 3;
+    const y0 = pt.y;
+    for (const dy of [0, size + 8, -(size + 8)]) {
+      pt.y = y0 + dy;
+      let hit = false;
+      // The stars are sorted, the brightest first.
+      for (let i = 0; i < mag.length && mag[i] <= 2.9 && !hit; i++) {
+        hit = sky.pm[i] <= 2.9 && Math.abs(sky.px[i] - pt.x) < w && Math.abs(sky.py[i] - pt.y) < h;
+      }
+      if (!hit) return;
+    }
+    pt.y = y0;
   }
 
   /** Whether a point on the sky is drawn on the screen now, putting it in this.pt. */
@@ -133,7 +212,7 @@ export class HudLayer {
     ];
     for (const o of groups) {
       const focused = inFocus.has(o.group);
-      const font = `${focused ? 700 : 600} ${size}px ${this.fontFamily}`;
+      const font = `${this.groupStyle}${focused ? 700 : 600} ${size}px ${this.fontFamily}`;
       placing: for (const v of o.spots) {
         for (const dy of [0, -(size + 5), size + 5]) {
           if (!this.onScreen(view, st, v, o.name, font, 0.3, size, dy) || this.covered(o.name, font, 0.3, size, taken)) continue;
@@ -165,47 +244,53 @@ export class HudLayer {
 
   /**
    * Whether a name centred on this.pt would run into one of the screen boxes in `taken`;
-   * if not, its own box is added there.
+   * if not, its own box is added there. With `check` off the box is added whatever is there.
    */
-  covered(text, font, spacingPx, size, taken) {
+  covered(text, font, spacingPx, size, taken, check = true) {
     const { ctx, pt } = this;
     ctx.font = font;
     if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacingPx.toFixed(1)}px`;
     const w = ctx.measureText(text).width / 2;
     const h = size / 2;
     const pad = 4;
-    if (taken.some((r) => pt.x + w + pad > r.left && pt.x - w - pad < r.right && pt.y + h + pad > r.top && pt.y - h - pad < r.bottom)) return true;
+    if (check && taken.some((r) => pt.x + w + pad > r.left && pt.x - w - pad < r.right && pt.y + h + pad > r.top && pt.y - h - pad < r.bottom)) return true;
     taken.push({ left: pt.x - w, right: pt.x + w, top: pt.y - h, bottom: pt.y + h });
     return false;
   }
 
-  /** While a group is learnt, the names of the ones of it already known, around the card. */
+  /**
+   * While a group is learnt, the names of the ones of it already known, around the card.
+   * @returns {object[]} the screen boxes of the names drawn
+   */
   drawContextNames(view, st) {
     const { pt } = this;
-    const font = `500 12px ${this.fontFamily}`;
+    const size = this.px(12);
+    const font = `500 ${size}px ${this.fontFamily}`;
+    const boxes = [];
     for (const i of st.quiz.context) {
       const c = this.catalog.constellations[i];
       for (const v of c.labelVecs) {
         if (!view.projectEq(v, pt) || pt.z < view.cosCorner - 0.1) continue;
         if (st.groundOpaque && view.altOf(v) < -2) continue;
-        this.label(c.sv.toUpperCase(), pt.x, pt.y, font, SKY.labelHover, 12 * 0.18, true);
+        this.covered(c.sv.toUpperCase(), font, size * this.tracking, size, boxes, false);
+        this.label(c.sv.toUpperCase(), pt.x, pt.y, font, SKY.labelHover, size * this.tracking, true);
       }
     }
+    return boxes;
   }
 
   /**
    * The training card's name once it is revealed, or the names of a group shown together,
    * or of a whole step (quiz.crowd: smaller, and a name that finds no room is left out).
    */
-  drawQuizName(view, st) {
+  drawQuizName(view, st, taken) {
     const { ctx, pt } = this;
     const crowd = Boolean(st.quiz.crowd);
-    const size = crowd ? 13 : 16;
+    const size = this.px(crowd ? 13 : 16);
     const font = `600 ${size}px ${this.fontFamily}`;
-    const spacing = size * 0.18;
+    const spacing = size * this.tracking;
     // A group's names keep clear of each other and inside the screen: one that would run
     // into another moves a line up or down, and none is left out.
-    const taken = st.avoid ? [...st.avoid] : [];
     for (const i of st.quiz.targets) {
       const c = this.catalog.constellations[i];
       const text = c.sv.toUpperCase();
@@ -219,29 +304,57 @@ export class HudLayer {
         if (crowd && (pt.x < half || pt.x > view.width - half)) continue;
         pt.x = Math.min(Math.max(pt.x, half), view.width - half);
         const y0 = pt.y;
-        const clear = (crowd ? [0, 18, -18] : [0, 22, -22, 44, -44]).some((dy) => {
+        const line = Math.round(size * 1.38);
+        const clear = (crowd ? [0, line, -line] : [0, line, -line, 2 * line, -2 * line]).some((dy) => {
           pt.y = y0 + dy;
           return !this.covered(text, font, spacing, size, taken);
         });
         if (!clear && crowd) continue;
-        if (!clear) pt.y = y0;
+        if (!clear) {
+          pt.y = y0;
+          this.covered(text, font, spacing, size, taken, false);
+        }
         this.label(text, pt.x, pt.y, font, SELECT_COLOR.hex, spacing, true);
       }
     }
   }
 
-  /** Names of the bright stars; `only` limits them to some stars (a Uint8Array, 1 to name). */
-  drawStarNames(view, sky, only = null) {
+  /**
+   * Names of the bright stars, the brightest first, each beside its star on the first side
+   * where no other name is (STAR_NAME_SIDES); one with no room on any side is left out.
+   * `only` limits them to some stars (a Uint8Array, 1 to name); `taken` holds the boxes of
+   * the names already placed.
+   */
+  drawStarNames(view, sky, only, taken) {
     const { ctx } = this;
     const limit = view.fov > 100 ? 1.6 : view.fov > 60 ? 2.4 : view.fov > 30 ? 3.4 : 4.5;
+    const size = this.px(11);
+    const font = `${this.starStyle}400 ${size}px ${this.fontFamily}`;
+    const h = size / 2;
+    const pad = 2;
     ctx.textAlign = 'left';
+    ctx.font = font;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0.4px';
     for (const i of this.namedStars) {
       if (only && !only[i]) continue;
       if (this.catalog.stars.mag[i] > limit && this.catalog.stars.hip[i] !== POLARIS_HIP) continue;
       const x = sky.px[i];
       if (Number.isNaN(x)) continue;
       const r = sky.pr[i];
-      this.label(this.catalog.starNames[i], x + r + 5, sky.py[i] + r * 0.6 + 6, `400 11px ${this.fontFamily}`, SKY.starName, 0.4, false);
+      const text = this.catalog.starNames[i];
+      const w = ctx.measureText(text).width;
+      // First a side where no figure line runs through the name; failing that, any free side.
+      placing: for (const clearOfLines of [true, false]) {
+        for (const [side, down] of STAR_NAME_SIDES) {
+          const left = side > 0 ? x + r + 5 : x - r - 5 - w;
+          const y = sky.py[i] + down * (r * 0.6 + 6);
+          if (taken.some((b) => left + w + pad > b.left && left - pad < b.right && y + h + pad > b.top && y - h - pad < b.bottom)) continue;
+          if (clearOfLines && crossesBox(sky.traced, left - 1, y - h * 0.7, left + w + 1, y + h * 0.7)) continue;
+          taken.push({ left, right: left + w, top: y - h, bottom: y + h });
+          this.label(text, left, y, font, SKY.starName, 0.4, false);
+          break placing;
+        }
+      }
     }
     ctx.textAlign = 'center';
   }
@@ -259,7 +372,7 @@ export class HudLayer {
       const off = main ? 20 : 17;
       const x = pt.x + ((below.x - pt.x) / len) * off;
       const y = pt.y + ((below.y - pt.y) / len) * off;
-      const size = main ? 15 : 11;
+      const size = this.px(main ? 15 : 11);
       const color = az === 0 ? SKY.north : SKY.cardinal;
       this.label(text, x, y, `${main ? 600 : 500} ${size}px ${this.fontFamily}`, color, size * 0.12, true);
     }
@@ -269,12 +382,10 @@ export class HudLayer {
     const { ctx } = this;
     ctx.font = font;
     if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacingPx.toFixed(1)}px`;
-    if (halo) {
-      ctx.lineWidth = 4;
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = SKY.halo;
-      ctx.strokeText(text, x, y);
-    }
+    ctx.lineWidth = halo ? 4 : 2.5;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = halo ? SKY.halo : 'rgba(8, 10, 28, 0.6)';
+    ctx.strokeText(text, x, y);
     ctx.fillStyle = color;
     ctx.fillText(text, x, y);
   }

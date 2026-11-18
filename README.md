@@ -151,16 +151,36 @@ grenen syns på sidan efter någon minut, så bygg (`npm run build`) innan du co
   hunden, Haren, Lejonet och Vattenormen hör dit, liksom de som aldrig går ned, som Stora
   björnen och Cassiopeja. Herkules är uppe kl. 22 en månad i Stockholm men inte i Göteborg
   och väntar därför till nästa steg. Listan kan visa bara vinterhimlen.
-- **Design:** knappen "Design" i övre raden byter utseende på knappar och paneler.
-  Från början används **Lekfull**, inspirerad av jonasgeografi.se: djupt rymdblått, tjocka
+- **Himlen som en stjärnkarta i natten:** himlen är djupt marinblå, nästan svart rakt upp
+  och blåare mot horisonten, med svaga, långsamma skiftningar i färg som följer stjärnorna
+  (svagare än Vintergatan, så att den går att känna igen) och ett tunt rutnät av
+  rektascension och deklination, som blir finare när man zoomar in. De ljusare stjärnorna
+  har ett mjukt sken, och de klaraste glimmar med tunna strålar uppåt, nedåt och åt
+  sidorna, längre ju klarare stjärnan är. Stjärnbildernas linjer är varmt vita med ett svagt
+  sken och går ända in till stjärnorna, och där en figurs linjer sluter sig (Karlavagnens
+  skopa, Pegasus kvadrat, Orions kropp: 47 av de 88 har en sådan form) fylls formen med en
+  tunn, molnig, rödbrun färg, som en nebulosa bakom linjerna. Fyllningen är starkare och
+  lyser lite för den stjärnbild man pekar på, har öppnat kortet för eller tränar på och för
+  gruppen man valt i Upptäck; en markerad stjärnbild fylls i sin markerings färg.
+  Fyllningen följer linjerna: syns inte en av formens stjärnor (för dålig sikt, för nära
+  horisonten, eller Bara figurstjärnor utan den) fylls den inte. Linjer och fyllningar
+  fortsätter ut ur bild och ner bakom marken när bara en del av figuren syns, så att de
+  inte försvinner när man zoomar in. Illustrationerna ritas i en sval blågrå ton, så att
+  figurens egna linjer går att skilja från teckningen. Stjärnornas namn håller sig undan
+  stjärnbildernas namn, varandra och helst också figurernas linjer: ett namn som inte får
+  plats till höger om sin stjärna sätts ovanför eller till vänster, och annars utelämnas
+  det. Ett stjärnbildsnamn som skulle hamna på en av de klaraste stjärnorna flyttas en rad.
+- **Design:** knappen "Design" i övre raden byter utseende på knappar och paneler, och på
+  namnen på himlen. Från början används **Stjärnatlas**: mörkblått glas med tunna kanter,
+  rubriker och stjärnbildsnamn i spärrade versaler i antikva (EB Garamond), stjärnnamn och
+  det appen säger i kursiv, en varmvit huvudknapp, och små fyruddiga stjärnor som tänds
+  för det som är på. Grupperna i Upptäck har sin färg på himlen som en liten lampa på
+  knappen. **Lekfull**, inspirerad av jonasgeografi.se, finns kvar: djupt rymdblått, tjocka
   rundade knappar i fet stil, en gul huvudknapp som ser ut att gå att trycka ner, glada
-  pastellfärgade knappar (varje knapp i raden längst ner har sin färg, ifylld när den är på,
-  och grupperna i Upptäck har samma färg som på himlen), runda ikonknappar med blå ring och
-  vita pratbubblor med mörk text för det appen säger: ledtråden i Upptäck, frågan i Träna
-  och meddelandena. Paneler och infokort är mörkblå, som menyerna i ett spel, så att inget
-  stort lyser upp natthimlen. Den tidigare designen finns kvar som Mjukt glas, och dessutom
-  fem i stil med äldre NASA-gränssnitt: Mission Control 1969, Apollo DSKY, Bärnstensskärm,
-  NASA 1975 och Checklista. Valet sparas.
+  pastellfärgade knappar och vita pratbubblor för det appen säger. Dessutom finns Mjukt
+  glas och fem i stil med äldre NASA-gränssnitt: Mission Control 1969, Apollo DSKY,
+  Bärnstensskärm, NASA 1975 och Checklista. Valet sparas. Den som hade förvalet sparat får
+  det nya förvalet; den som själv valt en annan design behåller den.
 - **Infokort:** välj en stjärnbild i listan så vänder sig vyn dit och ett kort visar var
   den står nu, när den går upp, står högst och går ner, om den är cirkumpolär, vilken
   månad den står högst på kvällen och dess ljusstarkaste stjärna.
@@ -186,8 +206,11 @@ scripts/        bygge, datagenerering och verktyg för illustrationerna och desi
 test/           enhetstester (node --test) och ett webbläsartest (Playwright)
 ```
 
-Ritordningen är fyra lager ovanpå varandra: himmel och Vintergatan (WebGL), stjärnor och
-linjer (2D), marken och skogskanten (WebGL), namn och väderstreck (2D).
+Ritordningen är fyra lager ovanpå varandra: himmel, färgmoln och Vintergatan (WebGL),
+rutnät, fyllda former, linjer och stjärnor (2D), marken och skogskanten (WebGL), namn och
+väderstreck (2D). De slutna formerna i en figur hittas genom att gå runt varje yta som
+linjerna ringar in (`src/sky/faces.js`), och de fylls med ett moln som görs en gång och
+sitter fast på himlen vid sin figur: det flyttar sig, vrids och växer med den.
 
 Stjärnbildsgränserna är definierade i B1875-koordinater, där varje kant är en linje med
 konstant rektascension eller deklination. Därför avgörs vilken stjärnbild en punkt ligger

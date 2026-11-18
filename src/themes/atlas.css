@@ -1,0 +1,287 @@
+@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..700&display=swap");
+
+/* Design "atlas": a star chart at night, after a picture of a constellation drawn in
+   light. Deep navy glass with hairline rims, titles in spaced serif capitals like the names
+   on the chart, what the app says in a serif italic, and small four-pointed stars that
+   light up in warm white for what is on. Quiet, so that the sky is the picture. */
+
+:root {
+  --cream: #f4dfb2;          /* starlight: what is on, the main button */
+  --cream-hi: #fff3d8;
+  --cream-ink: #161a38;      /* type on cream */
+  --ember: #e39577;          /* the colour the figures are filled with: small accents */
+  --ink: #eceffa;
+  --ink-2: #bcc4e0;          /* 9:1 on the panels */
+  --ink-3: #939dc4;          /* 6:1 on the panels */
+  --rim: rgba(214, 222, 255, 0.16);          /* lines that part one thing from another */
+  --rim-control: rgba(214, 222, 255, 0.4);   /* the outline of a button or a field: 3:1 on the night */
+  --rim-lit: rgba(244, 223, 178, 0.7);
+  --well: rgba(6, 9, 28, 0.6);
+
+  --font-display: "EB Garamond", "Garamond", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-latin: var(--font-display);
+  /* The names on the sky: serif capitals, widely spaced; star and group names in italic. */
+  --sky-font: "EB Garamond", "Garamond", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --sky-tracking: 0.3;
+  --sky-size: 1.18;
+  --sky-star-style: italic;
+  --sky-group-style: italic;
+
+  /* The base tokens, in this design's colours. */
+  --night: #060920;
+  --glass: rgba(13, 18, 48, 0.8);
+  --glass-strong: rgba(15, 20, 52, 0.94);
+  --hairline: var(--rim);
+  --gold: var(--cream);
+  --up: #a2e6c4;
+  --radius: 18px;
+
+  /* A four-pointed star, hollow and lit. */
+  --star-off: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2C12.7 8 16 11.3 22 12C16 12.7 12.7 16 12 22C11.3 16 8 12.7 2 12C8 11.3 11.3 8 12 2Z' fill='none' stroke='%23939dc4' stroke-width='1.7' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --star-on: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1C12.8 7.6 16.4 11.2 23 12C16.4 12.8 12.8 16.4 12 23C11.2 16.4 7.6 12.8 1 12C7.6 11.2 11.2 7.6 12 1Z' fill='%23fff0cf'/%3E%3C/svg%3E");
+}
+
+:focus-visible { outline: 2px solid var(--cream); outline-offset: 2px; }
+
+/* ---- The name, set like the names on the chart ---- */
+.brand { gap: 12px; font-family: var(--font-display); font-size: 16px; font-weight: 500; letter-spacing: 0.44em;
+  color: #f2ecdd; text-shadow: 0 1px 12px rgba(4, 6, 22, 0.95); }
+.brand svg { filter: drop-shadow(0 0 3px rgba(255, 236, 196, 0.75)); }
+.brand svg polyline { stroke: var(--cream); stroke-opacity: 0.75; }
+.brand svg circle { fill: #fff; }
+
+/* ---- Buttons: thin rims on navy glass; warm light for what is on ---- */
+/* (No blurred backdrop behind the buttons: there are dozens, and each would be one more
+   pass for every frame in which the sky moves. The glass is dense instead.) */
+.chip { border-radius: 22px; border: 1px solid var(--rim-control); background: var(--glass); color: var(--ink-2);
+  font-weight: 500; letter-spacing: 0.02em;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  transition: background-color .18s, border-color .18s, color .18s, box-shadow .18s; }
+.chip[aria-expanded="true"], .chip[aria-pressed="true"] { border-color: var(--rim-lit); color: var(--cream-hi);
+  background: linear-gradient(180deg, rgba(244, 223, 178, 0.2), rgba(244, 223, 178, 0.08)), rgba(13, 18, 48, 0.72);
+  box-shadow: 0 0 18px rgba(244, 223, 178, 0.1); }
+.chip .muted { color: var(--ink-3); }
+.chip[aria-pressed="true"] .muted { color: rgba(255, 243, 216, 0.72); }
+.chip .sep { color: var(--ink-3); }
+.chip:disabled, .discover-foot .chip:disabled { opacity: 0.42; cursor: default; }
+
+/* Under a pointer only: on a touch screen "hover" stays on the button last tapped, and one
+   just turned off must not seem lit. What is on stays lit under the pointer. */
+@media (hover: hover) {
+  .chip:not(:disabled):hover { background: rgba(26, 33, 78, 0.82); border-color: rgba(244, 223, 178, 0.45); color: var(--ink); }
+  .chip[aria-expanded="true"]:not(:disabled):hover, .chip[aria-pressed="true"]:not(:disabled):hover { border-color: var(--cream-hi);
+    color: #fff; background: linear-gradient(180deg, rgba(244, 223, 178, 0.28), rgba(244, 223, 178, 0.12)), rgba(13, 18, 48, 0.72); }
+  .icon-btn:hover { border-color: rgba(244, 223, 178, 0.5); background: rgba(244, 223, 178, 0.08); color: #fff; }
+  .con-list li:hover, .theme-option:hover { background: rgba(255, 255, 255, 0.04); }
+  #discover-next .chip:not(:disabled):hover { border-color: var(--c); background: rgba(26, 33, 78, 0.82); color: #fff; }
+}
+
+/* The main button: starlight itself. */
+.chip.primary { background: linear-gradient(180deg, #f9e9c4, #ecd09a); border-color: var(--cream); color: var(--cream-ink);
+  font-weight: 600; box-shadow: 0 0 24px rgba(244, 223, 178, 0.24); }
+.chip.primary:not(:disabled):hover { background: linear-gradient(180deg, #fff4da, #f4dcab); border-color: #fff; color: var(--cream-ink); }
+
+.round { color: var(--ink-2); }
+.icon-btn { border: 1px solid var(--rim-control); color: var(--ink-2); }
+.panel-head .icon-btn { width: 32px; height: 32px; font-size: 19px; line-height: 1; }
+
+.count { background: var(--cream); color: var(--cream-ink); font-weight: 600; }
+.live { color: var(--up); }
+.live::before { background: var(--up); box-shadow: 0 0 8px var(--up); }
+
+/* ---- The row at the bottom: each switch has a small star that lights up ---- */
+.toggle { min-height: 36px; padding: 0 13px 0 10px; gap: 6px; font-size: 13px; letter-spacing: 0.03em; color: var(--ink-2); }
+.toggle::before { content: ""; flex: none; width: 15px; height: 15px; margin: 0 -1px; border: 0; border-radius: 0;
+  background: var(--star-off) center / 11px 11px no-repeat; }
+.toggle[aria-pressed="true"] { color: var(--cream-hi); }
+.toggle[aria-pressed="true"]::before { border: 0;
+  background: var(--star-on) center / 13px 13px no-repeat,
+    radial-gradient(circle closest-side, rgba(255, 226, 170, 0.6), rgba(255, 226, 170, 0)) center / 100% 100% no-repeat; }
+.toggles { gap: 6px; padding: 4px; margin: -2px; }
+/* The row scrolls sideways when it does not fit, and fades out at an end where it goes on
+   (the app marks those ends). A switch scrolled to keeps clear of the fade. */
+.toggles { --fade: 36px; --fade-l: #000; --fade-r: #000; scroll-padding-inline: 42px;
+  -webkit-mask-image: linear-gradient(90deg, var(--fade-l), #000 var(--fade), #000 calc(100% - var(--fade)), var(--fade-r));
+  mask-image: linear-gradient(90deg, var(--fade-l), #000 var(--fade), #000 calc(100% - var(--fade)), var(--fade-r)); }
+.toggles.more-left { --fade-l: transparent; }
+.toggles.more-right { --fade-r: transparent; }
+@media (max-width: 640px) {
+  .toggles { --fade: 22px; scroll-padding-inline: 28px; }
+}
+
+/* Scroll bars thin and in the design's own colours. */
+.con-list, .discover-next, .discover-body, .theme-scroll, .train-story, .card, .panel-sky, .panel-when {
+  scrollbar-width: thin; scrollbar-color: rgba(188, 196, 224, 0.32) transparent; }
+/* Inside the boxes that scroll, room for the ring round a button reached with the keyboard
+   (4 px) and for the glow of what is lit; a button scrolled to keeps its ring inside. */
+@media (min-width: 641px) {
+  .panel-train .discover-body, .panel-overview .discover-body { overflow-x: hidden; margin: -4px -12px; padding: 4px 12px; }
+  .discover-next { padding: 4px; margin: -4px; }
+  #panel-discover #discover-next { padding: 4px 12px; margin: -4px -12px; }
+  .train-story { margin: -4px; padding: 4px; }
+  /* The row of answers never scrolls, so it need not cut the main button's glow. */
+  .train-actions { overflow: visible; }
+}
+.discover-next, .con-list, .theme-scroll { scroll-padding-block: 6px; }
+
+/* ---- Panels and the card: navy glass, a hairline rim, titles in spaced capitals ---- */
+.panel, .card { background: linear-gradient(180deg, rgba(22, 28, 68, 0.93), rgba(12, 16, 46, 0.95));
+  border: 1px solid rgba(214, 222, 255, 0.15); border-radius: 18px;
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  box-shadow: 0 24px 60px rgba(2, 4, 18, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.05); }
+.panel h2 { font-family: var(--font-display); font-size: 15px; font-weight: 500; letter-spacing: 0.32em; color: #ebe5d6; }
+.panel-foot { border-top-color: var(--rim); flex-wrap: nowrap; }
+/* The list's two buttons share one row (their words wrap if they must), so that the list
+   keeps its room on a small screen. */
+.panel-foot .chip { flex: 1 1 auto; min-width: 0; padding: 4px 12px; justify-content: center; text-align: center;
+  white-space: normal; line-height: 1.15; }
+.panel-foot .chip:last-child { flex: 0 1 auto; }
+
+/* Fields */
+select, input[type="date"], input[type="search"] { background: var(--well); border: 1px solid var(--rim-control); border-radius: 12px;
+  color: var(--ink); }
+select:focus, input[type="date"]:focus, input[type="search"]:focus { border-color: rgba(244, 223, 178, 0.6); }
+input[type="search"]::placeholder { color: var(--ink-3); }
+input[type="range"] { accent-color: var(--cream); }
+.field label, .field legend { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+.field output { font-family: var(--font-display); font-size: 28px; font-weight: 500; line-height: 1; color: var(--cream-hi); }
+
+/* Lists: a row lights up; the chosen one has a line of starlight at its edge. */
+.con-list { border-top-color: var(--rim); }
+.con-list li.is-selected { background: rgba(244, 223, 178, 0.1); box-shadow: inset 2px 0 0 var(--cream); }
+.con-name strong { font-weight: 500; letter-spacing: 0.01em; }
+.con-name em { font-family: var(--font-display); font-style: italic; font-size: 15.5px; color: var(--ink-3); }
+.state { color: var(--ink-3); }
+.state.up { color: var(--up); }
+.mark-box span { border-color: var(--ink-3); }
+.group-stage { font-family: var(--font-display); font-size: 14px; letter-spacing: 0.24em; color: #ebe5d6; }
+/* The step's name keeps a line of its own: what is done of it, and its button, go below. */
+.group-stage-name { flex: 1 0 100%; }
+.group-stage-state { font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.06em; color: var(--cream); }
+.group-practice { font-family: var(--font-sans); }
+.group-members, .list-note { color: var(--ink-2); }
+.empty { color: var(--ink-2); }
+
+/* The list of designs. */
+.theme-option:has(input:checked) { background: rgba(244, 223, 178, 0.1); box-shadow: inset 2px 0 0 var(--cream); }
+.theme-option input { accent-color: var(--cream); }
+.theme-name { font-family: var(--font-display); font-size: 18px; font-weight: 500; letter-spacing: 0.01em; color: var(--ink); }
+.theme-note { color: var(--ink-2); }
+.theme-foot { color: var(--ink-3); border-top-color: var(--rim); }
+
+/* ---- Upptäck, Träna and Överblick ---- */
+.discover-progress { color: var(--ink-2); }
+.discover-progress b { color: var(--cream); font-weight: 500; }
+/* Progress is a thin line of light with a star at its end. */
+.meter { height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); overflow: visible; margin: 3px 6px 3px 0; }
+.meter span { position: relative; border-radius: 2px; background: linear-gradient(90deg, rgba(244, 223, 178, 0.35), var(--cream));
+  box-shadow: 0 0 10px rgba(244, 223, 178, 0.45); }
+.meter span::after { content: ""; position: absolute; right: -7px; top: 50%; width: 15px; height: 15px; transform: translateY(-50%);
+  background: var(--star-on) center / 13px 13px no-repeat,
+    radial-gradient(circle closest-side, rgba(255, 226, 170, 0.65), rgba(255, 226, 170, 0)) center / 100% 100% no-repeat; }
+.discover-hint, .discover-why { color: var(--ink-2); }
+/* What the app says to the learner: a serif italic, like a note in the margin of the chart. */
+#discover-hint, #train-prompt, #overview-hint { font-family: var(--font-display); font-style: italic; font-size: 18px;
+  line-height: 1.25; color: #f4eedf; }
+#discover-hint:empty { display: none; }
+
+/* The groups: each button carries its group's colour on the sky as a small light. */
+#discover-next .chip { --c: #ffd166; padding: 0 12px 0 10px; gap: 7px; color: var(--ink);
+  border-color: color-mix(in srgb, var(--c) 46%, transparent); background: rgba(13, 18, 48, 0.5); }
+#discover-next .chip::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c);
+  box-shadow: 0 0 8px var(--c); }
+#discover-next .chip[data-hue="1"] { --c: #06d6a0; }
+#discover-next .chip[data-hue="2"] { --c: #ef7674; }
+#discover-next .chip[data-hue="3"] { --c: #74b9ff; }
+#discover-next .chip[data-hue="4"] { --c: #f4a261; }
+#discover-next .chip[data-hue="5"] { --c: #b39ddb; }
+#discover-next .chip[aria-pressed="true"], #discover-next .chip[aria-pressed="true"]:not(:disabled):hover { border-color: var(--c);
+  color: #fff; background: color-mix(in srgb, var(--c) 26%, rgba(13, 18, 48, 0.8));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--c) 32%, transparent); }
+#discover-next .state { color: var(--ink-3); }
+/* Below the horizon: a dashed rim and a dimmer light. */
+#discover-next .chip.below { border-style: dashed; color: var(--ink-2); }
+#discover-next .chip.below::before { opacity: 0.45; box-shadow: none; }
+#discover-next .chip.below[aria-pressed="true"] { border-style: solid; color: #fff; }
+
+/* Milestones reached: small lights in a row. */
+.train-milestones { color: var(--cream); letter-spacing: 0.06em; }
+.group-stage-state { color: var(--cream); }
+
+/* Training: the name, once shown, in the chart's lettering and the stars' light. */
+.train-group b { color: var(--ink); }
+.train-name { font-family: var(--font-display); font-size: 31px; font-weight: 500; letter-spacing: 0.03em; line-height: 1.05;
+  color: #ffeecb; text-shadow: 0 0 24px rgba(255, 214, 150, 0.35); }
+.train-answer .latin, .card .latin { font-family: var(--font-display); font-style: italic; font-size: 18px; color: var(--ink-2); }
+/* The answers: a miss in the nebula's colour, known for good in the green of what is up. */
+.panel-train[data-step="3"] .train-actions .chip:first-child:not(.primary) { border-color: rgba(227, 149, 119, 0.6); color: #f6c3b0; }
+.panel-train[data-step="3"] .train-actions .chip:last-child:not(.primary) { border-color: rgba(162, 230, 196, 0.55); color: #c4f0da; }
+.train-story summary { font-family: var(--font-display); font-size: 17px; font-weight: 500; color: #f2ecdd; }
+.story-origin { color: var(--ember); }
+
+/* The card: the constellation's name in the chart's lettering. */
+.card h3 { font-family: var(--font-display); font-size: 31px; font-weight: 500; letter-spacing: 0.02em; color: #fff3d8; }
+.card .facts { color: var(--ink-2); }
+.card .facts b { color: var(--ink); }
+
+.toast { background: rgba(15, 20, 52, 0.95); border: 1px solid rgba(244, 223, 178, 0.3); border-radius: 16px; color: var(--ink);
+  box-shadow: 0 14px 40px rgba(2, 4, 18, 0.6); }
+
+/* "Sikt": the bars light up from the nebula's colour to starlight. */
+.sky-readout { font-family: var(--font-display); font-style: italic; font-size: 18px; line-height: 1.25; min-height: 2.5em; color: #f4eedf; }
+.sky-meter { background: var(--well); border-color: var(--rim); }
+.sky-bar { background: var(--ink-3); opacity: 0.28; }
+.sky-bar.lit { background: linear-gradient(90deg, var(--ember), var(--cream)); opacity: 0.95; }
+.sky-handle { border-top-color: #fff; }
+.sky-handle::after { background: var(--cream-hi); box-shadow: 0 0 12px rgba(255, 236, 196, 0.85); }
+.sky-preset[aria-pressed="true"] { color: var(--cream-hi); }
+.sky-note { color: var(--ink-3); }
+.sky-btn.limited svg { fill: var(--cream); fill-opacity: 0.5; }
+.sky-btn.limited { color: var(--cream-hi); }
+
+/* A landscape phone or a narrow window: the top bar a little tighter, and under 768 px
+   only the mark, as on a phone held upright: the name would push the buttons off the edge. */
+@media (min-width: 641px) and (max-width: 860px) {
+  .bar-top { gap: 8px; }
+  .bar-top .chip { padding: 0 11px; font-size: 14px; }
+  .brand { font-size: 14px; letter-spacing: 0.3em; }
+}
+@media (min-width: 641px) and (max-width: 767px) {
+  .brand span { display: none; }
+}
+@media (max-width: 640px) {
+  #discover-hint, #train-prompt, #overview-hint { font-size: 17px; }
+  .train-name, .card h3 { font-size: 27px; }
+  .bar-top { gap: 8px; }
+  .bar-top .chip { padding: 0 12px; }
+  .train-actions .chip, .card .btn-row .chip { padding: 0 11px; font-size: 13.5px; }
+}
+/* Narrow phones: the three games fit beside the round buttons; lit when on, without the star. */
+@media (max-width: 420px) {
+  #btn-discover::before, #btn-train::before, #btn-overview::before { display: none; }
+  :is(#btn-discover, #btn-train, #btn-overview) { padding: 0 11px; }
+  /* The top row tighter, with room for the count of marks. */
+  .bar-top { gap: 6px; }
+  .bar-top .chip { padding: 0 9px; font-size: 13.5px; }
+  .brand svg { width: 32px; }
+  .count { min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; font-size: 11px; }
+}
+/* Small phones with marks counted: the mark of the app gives way to the count. */
+@media (max-width: 380px) {
+  .bar-top:has(#mark-count:not([hidden])) .brand { display: none; }
+  .bar-top:has(#mark-count:not([hidden])) .chip-theme { margin-left: auto; }
+}
+@media (max-width: 350px) {
+  .bar-top .chip { padding: 0 8px; font-size: 13px; }
+  :is(#btn-discover, #btn-train, #btn-overview) { padding: 0 8px; letter-spacing: 0; }
+}
+/* The smallest phones: the mark gives way always, so that the buttons keep their room. */
+@media (max-width: 340px) {
+  .brand { display: none; }
+  .bar-top .chip-theme { margin-left: auto; }
+}
+/* Low screens (a phone on its side): what the app says a little smaller. */
+@media (max-height: 480px) {
+  #discover-hint, #train-prompt, #overview-hint { font-size: 16px; }
+  .train-name { font-size: 25px; }
+}

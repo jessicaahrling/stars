@@ -56,6 +56,8 @@ const SECOND_TAP_MS = 400;
  * so that no card is zoomed in on and each is seen at its true size among its neighbours.
  */
 const TRAIN_FOV = DEFAULT_FOV;
+/** Counts the times the default design has changed, so that a saved default follows the new one (see the constructor). */
+const THEMES_VERSION = 3;
 /** Layers that "Träna" sets itself, step by step. */
 const TRAINING_LAYERS = new Set(['lines', 'names', 'art']);
 /**
@@ -94,9 +96,12 @@ export class App {
     const saved = loadSettings();
 
     // The chosen design goes on first, so that every panel is measured in it.
-    // Saved before the playful design came (themes: 2), 'glas' was the default rather than a
-    // choice, so the new default takes its place; any other design chosen stays.
-    const savedTheme = saved.theme === 'glas' && saved.themes !== 2 ? null : saved.theme;
+    // A design saved while it was the default was not a choice, so the new default takes
+    // its place: the playful one from before the star atlas came (themes: 3), and the glass
+    // one from before the playful one did (themes: 2). Any other design saved stays.
+    const wasDefault = saved.themes !== THEMES_VERSION
+      && (saved.theme === 'lekfull' || (saved.theme === 'glas' && saved.themes !== 2));
+    const savedTheme = wasDefault ? null : saved.theme;
     this.theme = applyTheme(THEMES.some((t) => t.id === savedTheme) ? savedTheme : DEFAULT_THEME, doc).id;
     this.layers = { ...DEFAULT_LAYERS };
     for (const k of Object.keys(DEFAULT_LAYERS)) if (typeof saved.layers?.[k] === 'boolean') this.layers[k] = saved.layers[k];
@@ -273,12 +278,21 @@ export class App {
     this.hud = new HudLayer($('layer-hud'), this.catalog);
     this.hudCanvas = $('layer-hud');
 
+    this.milkyWayImage = null;
     const img = new Image();
     img.onload = () => {
+      this.milkyWayImage = img;
       this.glSky.setMilkyWay(img);
       this.invalidate();
     };
     img.src = this.catalog.milkyWayPng;
+    // A WebGL context given back by the browser starts empty.
+    this.glSky.onRestore = () => {
+      if (this.milkyWayImage) this.glSky.setMilkyWay(this.milkyWayImage);
+      this.maskDirty = true;
+      this.invalidate();
+    };
+    this.glGround.onRestore = () => this.invalidate();
 
     this.list = new ListPanel(this, $);
     this.card = new InfoCard(this, $);
@@ -310,6 +324,27 @@ export class App {
     if (listScope !== 'year') this.list.setScope(listScope);
 
     this.toggleButtons = [...$('toggles').querySelectorAll('[data-layer]')];
+    // The row of switches scrolls sideways when it does not fit: with an ordinary mouse
+    // wheel too, and a switch reached with the keyboard comes into view whole. The row says
+    // at which ends it goes on (more-left, more-right), for a design to fade it there.
+    const row = $('toggles');
+    const syncRow = () => {
+      row.classList.toggle('more-left', row.scrollLeft > 1);
+      row.classList.toggle('more-right', row.scrollLeft < row.scrollWidth - row.clientWidth - 1);
+    };
+    row.addEventListener('scroll', syncRow, { passive: true });
+    row.addEventListener('wheel', (e) => {
+      if (e.deltaX || !e.deltaY || e.ctrlKey || row.scrollWidth <= row.clientWidth) return;
+      row.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
+    row.addEventListener('focusin', (e) => e.target.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }));
+    if (typeof ResizeObserver === 'function') {
+      // The switches too: they change width when a design's font arrives.
+      const watch = new ResizeObserver(syncRow);
+      for (const el of [row, ...row.children]) watch.observe(el);
+    }
+    syncRow();
     for (const b of this.toggleButtons) {
       b.addEventListener('click', (e) => {
         // While training, "Gränser" is the boundary round the group. Clicked, focus goes
@@ -1650,8 +1685,10 @@ export class App {
       // Keys belong to the field, but Escape leaves it. In the design list (radio buttons)
       // Escape goes on to close the list, as it does from anywhere else.
       if (e.key !== 'Escape') return;
-      t.blur();
-      if (t.type !== 'radio') return;
+      if (t.type !== 'radio') {
+        t.blur();
+        return;
+      }
     }
     // Training: Space does what a tap on the sky does (the next step, and once the card is
     // named, Kan för tillfället), once per press: held down it goes no further. 1, 2 and 3
@@ -1696,14 +1733,21 @@ export class App {
       '=': () => this.zoomAt(1 / 1.2, v.width / 2, v.height / 2),
       '-': () => this.zoomAt(1.2, v.width / 2, v.height / 2),
       Escape: () => {
+        // A panel closed from inside gives the focus back to the button that opens it,
+        // so that the keyboard goes on from there. Not the groups of the training: there
+        // Space is to go on with the card, not to open the groups again.
+        const close = (p) => {
+          const inside = p.panel.contains(this.doc.activeElement);
+          p.toggle(false);
+          if (inside) p.button.focus();
+        };
         if (this.groupsPanel.open) this.groupsPanel.toggle(false);
-        else if (this.themePanel.open) this.themePanel.toggle(false);
+        else if (this.themePanel.open) close(this.themePanel);
         else if (this.skyPanel.open) {
           this.skyPanel.toggle(false);
           this.skyPanel.button.focus();
-        }
-        else if (this.list.open) this.list.toggle(false);
-        else if (this.when.open) this.when.toggle(false);
+        } else if (this.list.open) close(this.list);
+        else if (this.when.open) close(this.when);
         else this.select(-1);
       },
     };
@@ -1754,11 +1798,25 @@ export class App {
     this.saveSoon();
   }
 
-  /** The names on the sky use the design's --sky-font, redrawn once it has loaded. */
+  /** The names on the sky are set as the design says (--sky-font and the like), redrawn once the font has loaded. */
   syncSkyFont() {
-    const font = getComputedStyle(this.doc.documentElement).getPropertyValue('--sky-font').trim() || FONT_FAMILY;
-    this.hud.fontFamily = font;
-    this.doc.fonts?.load?.(`500 12px ${font}`).then(() => this.invalidate(), () => {});
+    const css = getComputedStyle(this.doc.documentElement);
+    const font = css.getPropertyValue('--sky-font').trim() || FONT_FAMILY;
+    const number = (name, fallback) => {
+      const v = parseFloat(css.getPropertyValue(name));
+      return Number.isFinite(v) && v > 0 ? v : fallback;
+    };
+    const italic = (name) => (css.getPropertyValue(name).trim() === 'italic' ? 'italic ' : '');
+    // How wide the capitals are spaced (in ems), how large the names are, and whether the
+    // names of stars and of groups are in italic: a design's choices too.
+    Object.assign(this.hud, {
+      fontFamily: font,
+      tracking: number('--sky-tracking', 0.18),
+      scale: number('--sky-size', 1),
+      starStyle: italic('--sky-star-style'),
+      groupStyle: italic('--sky-group-style'),
+    });
+    for (const style of ['500', 'italic 500']) this.doc.fonts?.load?.(`${style} 12px ${font}`).then(() => this.invalidate(), () => {});
     this.invalidate();
   }
 
@@ -1877,7 +1935,7 @@ export class App {
         listScope: this.list.scope,
         limitMag: this.limitMag,
         theme: this.theme,
-        themes: 2,
+        themes: THEMES_VERSION,
         training: {
           v: 2,
           on: this.training.on,

@@ -26,24 +26,36 @@ export const GROUP_COLORS = [
   { name: 'lila', rgb: [179, 157, 219] },
 ].map((c) => ({ ...c, label: `rgb(${c.rgb.map((x) => Math.round(x + (255 - x) * 0.45)).join(', ')})` }));
 
+/** The colour figures are filled with, like a warm nebula. */
+export const EMBER = { hex: '#dc705a', rgb: [220, 112, 90] };
+/** The same for a figure that does not stand out: thin, it lets the navy through, so it is deeper and has less blue. */
+export const EMBER_DEEP = { hex: '#d0541e', rgb: [208, 84, 30] };
+
 export const SKY = {
-  line: 'rgba(132, 160, 214, 0.5)',
-  lineHover: 'rgba(176, 198, 240, 0.85)',
-  bound: 'rgba(112, 134, 186, 0.28)',
-  art: 'rgba(228, 208, 168, 0.42)',
-  artFine: 'rgba(228, 208, 168, 0.24)',
-  artHover: 'rgba(240, 226, 196, 0.7)',
-  artHoverFine: 'rgba(240, 226, 196, 0.42)',
-  boundHover: 'rgba(214, 226, 255, 0.45)',
-  groupBound: 'rgba(200, 214, 250, 0.5)',
-  groupFound: 'rgba(214, 226, 255, 0.62)',
-  groupFocus: 'rgba(240, 245, 255, 0.95)',
-  label: 'rgba(168, 188, 232, 0.62)',
-  labelHover: 'rgba(222, 232, 255, 0.95)',
-  starName: 'rgba(206, 214, 236, 0.72)',
-  halo: 'rgba(3, 6, 16, 0.85)',
-  cardinal: 'rgba(196, 210, 240, 0.85)',
-  north: '#f5c46b',
+  // Figure lines: a warm white over a wider, fainter glow.
+  line: 'rgba(240, 230, 218, 0.58)',
+  lineGlow: 'rgba(255, 222, 200, 0.06)',
+  lineHover: 'rgba(255, 247, 234, 0.95)',
+  lineHoverGlow: 'rgba(255, 214, 188, 0.16)',
+  lineCard: 'rgb(255, 246, 230)',
+  lineCardGlow: 'rgba(255, 206, 176, 0.22)',
+  grid: 'rgba(190, 202, 255, 0.05)',
+  glint: 'rgb(255, 251, 242)',
+  bound: 'rgba(150, 166, 220, 0.3)',
+  art: 'rgba(152, 172, 228, 0.46)',
+  artFine: 'rgba(152, 172, 228, 0.26)',
+  artHover: 'rgba(188, 204, 246, 0.74)',
+  artHoverFine: 'rgba(188, 204, 246, 0.44)',
+  boundHover: 'rgba(224, 230, 255, 0.5)',
+  groupBound: 'rgba(214, 222, 252, 0.52)',
+  groupFound: 'rgba(222, 230, 255, 0.46)',
+  groupFocus: 'rgba(244, 246, 255, 0.95)',
+  label: 'rgba(206, 212, 236, 0.72)',
+  labelHover: 'rgba(240, 242, 252, 0.97)',
+  starName: 'rgba(214, 220, 240, 0.74)',
+  halo: 'rgba(8, 10, 28, 0.82)',
+  cardinal: 'rgba(206, 214, 242, 0.85)',
+  north: '#f3d9a4',
 };
 
 /** Approximate star colour for a B-V colour index, softened toward white. */

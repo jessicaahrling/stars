@@ -5,6 +5,7 @@ import { ART, ART_QUANT } from '../data/art-data.js';
 import { angleBetween, mat3Apply, raDecFromVec, vecFromRaDec } from '../astro/math.js';
 import { B1875_TO_J2000, J2000_TO_B1875 } from '../astro/precession.js';
 import { artFrame, fromArt } from './art-frame.js';
+import { figureFaces, flatMapAt } from './faces.js';
 import { pointInRing, prepareRing } from './rings.js';
 
 /** Longest boundary step after densifying, in degrees. */
@@ -92,6 +93,7 @@ function buildStars() {
  * @property {number} radius  degrees from the centre to the farthest figure star
  * @property {number[][]} labelVecs
  * @property {Uint16Array} segments  pairs of star indices
+ * @property {number[][]} faces  the closed parts of the stick figure, each as the star indices round it
  * @property {number[]} figureStars  unique star indices of the stick figure
  * @property {number} brightest      star index of the brightest star inside the boundary
  * @property {number[][][]} outlines J2000 unit vectors along each boundary ring
@@ -118,6 +120,7 @@ export function buildCatalog() {
     }
     const figureStars = [...fig];
     const centerVec = vecFromRaDec(c.center[0], c.center[1]);
+    const flatMap = flatMapAt(centerVec);
     let radius = 5;
     for (const i of figureStars) radius = Math.max(radius, angleBetween(centerVec, starVec(i)));
     const outlines = c.bounds.map(densifyRing);
@@ -135,6 +138,7 @@ export function buildCatalog() {
       radius,
       labelVecs: c.labels.map(([ra, dec]) => vecFromRaDec(ra, dec)),
       segments: Uint16Array.from(segs),
+      faces: figureFaces(segs, (i) => flatMap(starVec(i))),
       figureStars,
       figureDecs: figureStars.map((i) => stars.dec[i]),
       brightest: brightest[index],
