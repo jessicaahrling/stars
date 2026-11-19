@@ -47,8 +47,9 @@ export const EMBER_DEEP = { hex: '#d0541e', rgb: [208, 84, 30] };
  *    the stops the glow round a star fades through ([how far out, how opaque]);
  *  - fills: whether the closed parts of figures are filled;
  *  - sky and ground: the colours of the two WebGL passes (see gl-layer.js).
- * What is not a matter of look is the same in both: lines run on to stars off the screen,
- * and names keep clear of each other, of the lines and of the brightest stars.
+ * What is not a matter of look is the same in both: a figure is drawn whole, its lines
+ * running on to stars off the screen or too faint to show, and names keep clear of each
+ * other, of the lines and of the brightest stars.
  */
 export const SKY_LOOKS = {
   chart: {

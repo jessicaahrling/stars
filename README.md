@@ -129,10 +129,11 @@ grenen syns på sidan efter någon minut, så bygg (`npm run build`) innan du co
   ljusstyrka, tända så långt man har valt, och himlar att välja direkt: mörk himmel på
   landet, förort, stad, mitt i storstan, disigt eller tunna moln och bara de klaraste. Som
   i verkligheten tonar de svagaste stjärnorna som är kvar ut, alla stjärnor blir lite
-  svagare i diset, Vintergatan försvinner först, och nära horisonten syns färre. Linjer
-  ritas bara mellan stjärnor som syns. I Träna syns kortets egna stjärnor ändå, så att det
-  alltid finns något att svara på. Mätaren går också med piltangenterna, Page Up/Down och
-  Home/End, och valet sparas.
+  svagare i diset, Vintergatan försvinner först, och nära horisonten syns färre.
+  Stjärnbilderna ritas ändå hela: linjerna och de fyllda formerna går fram till stjärnor
+  som inte syns. I Träna syns kortets egna stjärnor ändå, så att det alltid finns något att
+  svara på. Mätaren går också med piltangenterna, Page Up/Down och Home/End, och valet
+  sparas.
 - **Bara figurstjärnor:** dölj alla stjärnor som inte ingår i någon stjärnbilds figur, så att
   mönstren framträder tydligt (fungerar med och utan linjer).
 - **Illustrationer:** en linjeteckning av vad varje stjärnbild föreställer, ritad över de
@@ -162,11 +163,10 @@ grenen syns på sidan efter någon minut, så bygg (`npm run build`) innan du co
   tunn, molnig, rödbrun färg, som en nebulosa bakom linjerna. Fyllningen är starkare och
   lyser lite för den stjärnbild man pekar på, har öppnat kortet för eller tränar på och för
   gruppen man valt i Upptäck; en markerad stjärnbild fylls i sin markerings färg.
-  Fyllningen följer linjerna: syns inte en av formens stjärnor (för dålig sikt, för nära
-  horisonten, eller Bara figurstjärnor utan den) fylls den inte. Linjer och fyllningar
-  fortsätter ut ur bild och ner bakom marken när bara en del av figuren syns, så att de
-  inte försvinner när man zoomar in. Illustrationerna ritas i en sval blågrå ton, så att
-  figurens egna linjer går att skilja från teckningen. Stjärnornas namn håller sig undan
+  Linjer och fyllningar ritas hela även när några av figurens stjärnor inte syns, för att
+  sikten är dålig eller stjärnan står nära horisonten, och de fortsätter ut ur bild och ner
+  bakom marken, så att figuren inte försvinner när man zoomar in. Illustrationerna ritas i
+  en sval blågrå ton, så att figurens egna linjer går att skilja från teckningen. Stjärnornas namn håller sig undan
   stjärnbildernas namn, varandra och helst också figurernas linjer: ett namn som inte får
   plats till höger om sin stjärna sätts ovanför eller till vänster, och annars utelämnas
   det. Ett stjärnbildsnamn som skulle hamna på en av de klaraste stjärnorna flyttas en rad.
@@ -187,8 +187,8 @@ grenen syns på sidan efter någon minut, så bygg (`npm run build`) innan du co
   himmel: blå linjer som slutar en bit från stjärnorna, ett enkelt sken runt de klaraste
   stjärnorna, en mörkare bakgrund, och inga fyllda former, inget rutnät och inga strålar
   (så såg himlen ut innan stjärnkartan kom). Det som inte är utseende är lika i båda:
-  linjer fortsätter ut ur bild, och namnen håller sig undan varandra, linjerna och de
-  klaraste stjärnorna. Valet sparas.
+  figurerna ritas hela, också ut ur bild och fram till stjärnor som inte syns, och namnen
+  håller sig undan varandra, linjerna och de klaraste stjärnorna. Valet sparas.
 - **Infokort:** välj en stjärnbild i listan så vänder sig vyn dit och ett kort visar var
   den står nu, när den går upp, står högst och går ner, om den är cirkumpolär, vilken
   månad den står högst på kvällen och dess ljusstarkaste stjärna.

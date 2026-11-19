@@ -505,6 +505,7 @@ try {
     });
     a.maskDirty = true;
     a.draw();
+    const lines = sl.traced.length / 4;
     a.hover = -1;
     for (const name of ['traceSegments', 'tracePolyline', 'traceArt', 'traceFace', 'traceGrid']) delete sl[name];
     delete a.hud.label;
@@ -521,7 +522,7 @@ try {
     });
     return {
       ...Object.fromEntries(Object.entries(seen).map(([k, v]) => [k, [...v].sort()])),
-      covered, overlaps, tinted, outlined, groupLined, underBar, grid, starsNamed: starBoxes.length, starOverlaps,
+      covered, overlaps, tinted, outlined, groupLined, underBar, grid, starsNamed: starBoxes.length, starOverlaps, lines,
     };
   }, hover);
   /** The tint of a constellation on the sky's mask, or null. */
@@ -551,12 +552,12 @@ try {
   // The closed parts of their figures are filled, like a nebula behind the lines: those of
   // Perseus and Cepheus (Cassiopeja's W and Andromeda's lines close nothing).
   assert.deepEqual(pointed.faces, ['Cep', 'Per'], 'the closed parts of the figures in the group are filled');
-  // A closed part is filled only while every star round it shows: on a hazy sky ("Sikt")
-  // that hides the fainter corners of both figures, neither is filled.
+  // On a hazy sky ("Sikt") that hides the fainter stars of both figures, the figures stay
+  // whole: every line and closed part is drawn as on the darkest sky.
   await sky.evaluate(() => window.stjarnhimlen.setLimitMag(3));
-  assert.deepEqual((await drawnParts('Cas')).faces, [], 'no fill round a star too faint to show');
+  const hazy = await drawnParts('Cas');
+  assert.deepEqual([hazy.faces, hazy.lines], [['Cep', 'Per'], pointed.lines], 'the figures stay whole when some of their stars are too faint to show');
   await sky.evaluate(() => window.stjarnhimlen.setLimitMag(6));
-  assert.deepEqual((await drawnParts('Cas')).faces, ['Cep', 'Per']);
   assert.deepEqual(pointed.art, [], 'but not their illustrations: those come with a click');
   assert.ok(pointed.groups.includes('Perseus räddar Andromeda'));
   assert.deepEqual([pointed.covered, pointed.overlaps], [0, 0]);
@@ -1655,8 +1656,8 @@ try {
   assert.deepEqual([(await overState()).on, (await overState()).panel, (await overState()).discovering], [false, false, true]);
 
   // The chart's lines and fills where a figure runs out of what shows. Zoomed in on the
-  // Big Dipper, the stars of the figure that are off the screen still end its lines and
-  // close its filled parts.
+  // Big Dipper, the stars of the figure that are not drawn (off the screen) still end its
+  // lines and close its filled parts.
   const chart = await openPage({ width: 1280, height: 800 });
   const figure = (id, { fov = null, at = null, limit = 6 } = {}) => chart.evaluate(([cid, f, t, lim]) => {
     const a = window.stjarnhimlen;
@@ -1670,24 +1671,33 @@ try {
     a.draw();
     const sl = a.skyLayer;
     const ends = c.figureStars.filter((i) => sl.corner[i]);
+    // The figure's lines that have both ends placed.
+    let lines = 0;
+    for (let k = 0; k < c.segments.length; k += 2) if (sl.corner[c.segments[k]] && sl.corner[c.segments[k + 1]]) lines++;
     return {
       drawn: ends.filter((i) => !Number.isNaN(sl.px[i])).length,
       away: ends.filter((i) => Number.isNaN(sl.px[i])).length,
+      lines,
+      all: c.segments.length / 2,
       filled: c.faces.filter((face) => sl.faceInSight(a.view, face)).length,
       opaque: !a.seeThroughNow(),
     };
   }, [id, fov, at, limit]);
   const close = await figure('UMa', { fov: 12 });
-  assert.ok(close.away > 0 && close.filled > 0, `close up: ${close.drawn} of the figure's stars drawn, ${close.away} off the screen ending lines, ${close.filled} parts filled`);
-  // A star too faint for the sky chosen ("Sikt") takes its lines and its closed part with
-  // it wherever it is: off the screen as well as on it.
-  assert.deepEqual([(await figure('UMa', { fov: 12, limit: 3 })).filled, (await figure('UMa', { fov: 60, limit: 3 })).filled], [0, 0]);
-  // A figure that sets loses its fill once, when a corner fades out near the horizon; the
-  // fill does not come back when that star is under the ground. Pegasus, an hour and
-  // twenty minutes on: Markab has set.
+  assert.ok(close.away > 0 && close.filled > 0, `close up: ${close.drawn} of the figure's stars drawn, ${close.away} not drawn ending lines, ${close.filled} parts filled`);
+  // A star too faint for the sky chosen ("Sikt") hides only itself: its figure keeps every
+  // line and closed part, close up and from afar.
+  for (const fov of [12, 60]) {
+    const dark = await figure('UMa', { fov });
+    const hazy = await figure('UMa', { fov, limit: 3 });
+    assert.deepEqual([hazy.drawn + hazy.away, hazy.lines, hazy.filled], [dark.drawn + dark.away, dark.all, dark.filled], `the figure is whole at ${fov}° on a hazy sky`);
+    if (fov === 60) assert.ok(hazy.drawn < dark.drawn / 2, `though fewer of its stars show (${dark.drawn} -> ${hazy.drawn})`);
+  }
+  // A figure that sets keeps its lines and closed parts: what is below the horizon is
+  // under the ground. Pegasus, an hour and twenty minutes on: Markab has set.
   const up = await figure('Peg');
   const setting = await figure('Peg', { at: Date.UTC(2026, 0, 15, 22, 20) });
-  assert.deepEqual([up.filled, setting.filled, setting.opaque], [1, 0, true], 'the square of Pegasus is filled while all four stars show');
+  assert.deepEqual([up.filled, up.lines, setting.filled, setting.lines, setting.opaque], [1, up.all, 1, up.all, true], 'the square of Pegasus stays whole as it sets');
   await chart.close();
 
   // The look of the sky is a choice of its own, below the designs: the star chart, or the

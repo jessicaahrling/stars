@@ -71,8 +71,11 @@ export class SkyLayer {
     this.dim = new Uint8Array(n);
     /**
      * Where the lines and closed parts of a figure end at each of its stars this frame
-     * (CSS px), and whether the star has such a corner: it has when it shows at all, also
-     * off the screen or under the ground, where the star itself is not drawn.
+     * (CSS px), and whether the star has such a corner: every star of a figure has one,
+     * whether the star itself is drawn or not (too faint for the sky chosen, dimmed near
+     * the horizon, under the ground or off the screen), unless it is too far behind the
+     * viewer to be projected (SkyView.projectCam: about 127 degrees from the middle of
+     * the view).
      */
     this.qx = new Float32Array(n);
     this.qy = new Float32Array(n);
@@ -399,9 +402,9 @@ export class SkyLayer {
   }
 
   /**
-   * Whether a face of a figure is filled: all of its stars show (one too faint to show,
-   * or left out, takes the face with it, as it takes its lines) and some of it, or of its
-   * glow, can be on the screen.
+   * Whether a face of a figure is filled: all of its corners are placed (none is so far
+   * behind the viewer that it cannot be projected) and some of it, or of its glow, can be
+   * on the screen. As with its lines, it makes no difference whether its stars show.
    */
   faceInSight(view, face) {
     const { qx, qy, corner } = this;
@@ -517,9 +520,10 @@ export class SkyLayer {
   }
 
   /**
-   * Projects all stars and buckets the ones drawn by colour and brightness. A figure's
-   * star also gets a corner, where its lines and closed parts end, whenever it shows at
-   * all: off the screen too, and under the ground, which hides it.
+   * Projects all stars and buckets the ones drawn by colour and brightness. Every star of
+   * a figure also gets a corner, where its lines and closed parts end, whether the star is
+   * drawn or not: a figure is drawn whole however few of its stars show (too faint for
+   * the sky chosen, dimmed near the horizon, under the ground or off the screen).
    */
   projectStars(view, st) {
     const { stars } = this.catalog;
@@ -548,8 +552,6 @@ export class SkyLayer {
       this.px[i] = NaN;
       this.corner[i] = 0;
       const inFigure = stars.inFigure[i];
-      if (figureOnly && !inFigure) continue;
-      if (shown && !shown[i]) continue;
       const x = stars.x[i];
       const y = stars.y[i];
       const z = stars.z[i];
@@ -557,30 +559,32 @@ export class SkyLayer {
       // Off the screen only a figure's star matters, as the far end of a line.
       const inSight = cz >= minZ;
       if (!inSight && !inFigure) continue;
+      // A figure's lines and closed parts end at each of its stars, shown or not.
+      let placed = false;
+      if (inFigure) {
+        if (!view.projectCam(m[0] * x + m[1] * y + m[2] * z, m[3] * x + m[4] * y + m[5] * z, cz, pt)) continue;
+        placed = true;
+        this.corner[i] = 1;
+        this.qx[i] = pt.x;
+        this.qy[i] = pt.y;
+      }
+      // Whether the star itself is drawn.
+      if (!inSight) continue;
+      if (figureOnly && !inFigure) continue;
+      if (shown && !shown[i]) continue;
       const sinAlt = h[6] * x + h[7] * y + h[8] * z;
-      const under = sinAlt <= 0 && st.groundOpaque;
+      if (sinAlt <= 0 && st.groundOpaque) continue;
       let mag = stars.mag[i];
       const context = target && !target[i];
       // A training card's own stars always show, so that there is something to answer,
       // and keep their light down to the horizon.
       const card = target && target[i];
-      if (!card) {
-        if (sinAlt > 0) {
-          const airmass = 1 / (sinAlt + 0.025 * Math.exp(-11 * sinAlt));
-          mag += Math.min(EXTINCTION_MOST, EXTINCTION * (airmass - 1));
-        } else if (under) {
-          // Under the ground a star stays as dim as it set: its lines do not come back.
-          mag += EXTINCTION_MOST;
-        }
+      if (!card && sinAlt > 0) {
+        const airmass = 1 / (sinAlt + 0.025 * Math.exp(-11 * sinAlt));
+        mag += Math.min(EXTINCTION_MOST, EXTINCTION * (airmass - 1));
       }
       if (mag > (card ? MAG_LIMIT : limit)) continue;
-      if (!view.projectCam(m[0] * x + m[1] * y + m[2] * z, m[3] * x + m[4] * y + m[5] * z, cz, pt)) continue;
-      if (inFigure) {
-        this.corner[i] = 1;
-        this.qx[i] = pt.x;
-        this.qy[i] = pt.y;
-      }
-      if (!inSight || under) continue;
+      if (!placed && !view.projectCam(m[0] * x + m[1] * y + m[2] * z, m[3] * x + m[4] * y + m[5] * z, cz, pt)) continue;
       const fade = fadeOver > 0 && !card ? Math.min(1, (limit - mag) / fadeOver + 0.3) : 1;
       mag += haze;
       const r = (discBase + discScale * Math.pow(Math.max(0, 6.4 - mag), discPower)) * zoom * (context ? 0.8 : 1);
@@ -695,8 +699,8 @@ export class SkyLayer {
 
   /**
    * Adds stick-figure segments to the current path, leaving a gap around each star drawn.
-   * A line runs on to a star off the screen or under the ground; one to a star that does
-   * not show at all is left out.
+   * A line runs on to a star that is not drawn (too faint for the sky chosen, dimmed near
+   * the horizon, under the ground or off the screen), so that a figure is whole.
    */
   traceSegments(segments) {
     const { ctx, px, pr, qx, qy, corner } = this;
